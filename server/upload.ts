@@ -1,19 +1,8 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { Client } from "@replit/object-storage";
 import { randomUUID } from "crypto";
 import path from "path";
 
-const s3Client = new S3Client({
-  region: process.env.WASABI_REGION || 'us-east-1',
-  endpoint: process.env.WASABI_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.WASABI_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.WASABI_SECRET_ACCESS_KEY || '',
-  },
-  forcePathStyle: true,
-});
-
-const BUCKET_ID = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
-const PRIVATE_DIR = process.env.PRIVATE_OBJECT_DIR;
+const client = new Client();
 
 export interface UploadResult {
   url: string;
@@ -64,21 +53,16 @@ export async function uploadFile(
   const ext = path.extname(file.originalname);
   const filename = `equipment_${timestamp}_${randomId}${ext}`;
   
-  const key = `${PRIVATE_DIR}/${filename}`;
+  const { ok, error } = await client.uploadFromBytes(filename, file.buffer);
+  
+  if (!ok) {
+    throw new Error(error?.message || 'Upload failed');
+  }
 
-  const command = new PutObjectCommand({
-    Bucket: BUCKET_ID,
-    Key: key,
-    Body: file.buffer,
-    ContentType: file.mimetype,
-  });
-
-  await s3Client.send(command);
-
-  const url = `https://${BUCKET_ID}.s3.amazonaws.com${key}`;
+  const url = await client.getDownloadUrl(filename);
 
   return {
-    url,
+    url: url || '',
     filename,
     size: file.size,
     contentType: file.mimetype,
