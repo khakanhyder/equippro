@@ -24,20 +24,44 @@ import {
 import { useWishlistMutations } from "@/hooks/use-wishlist";
 import { usePriceContext } from "@/hooks/use-ai-analysis";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen } from "lucide-react";
+import type { PriceEstimate } from "@/hooks/use-ai-analysis";
+
+async function uploadFiles(files: File[], type: 'image' | 'document'): Promise<string[]> {
+  const formData = new FormData();
+  files.forEach(file => formData.append('files', file));
+  formData.append('type', type);
+
+  const response = await fetch('/api/upload-multiple', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Upload failed');
+  }
+
+  const results = await response.json();
+  return results.map((r: any) => r.url);
+}
 
 interface WishlistItemFormProps {
   projectId: number;
   createdBy: string;
   onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
-export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistItemFormProps) {
+export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: WishlistItemFormProps) {
   const { toast } = useToast();
   const { createWishlistItem } = useWishlistMutations();
   const { fetchPriceContext } = usePriceContext();
 
   const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>([]);
+  const [priceData, setPriceData] = useState<PriceEstimate | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [documentFiles, setDocumentFiles] = useState<File[]>([]);
 
   const form = useForm<InsertWishlistItem>({
     resolver: zodResolver(insertWishlistItemSchema),
@@ -48,13 +72,17 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
       model: "",
       category: "analytical",
       preferredCondition: "any",
+      location: "",
       maxBudget: "0",
       priority: "high",
       requiredSpecs: null,
       notes: "",
+      imageUrls: [],
+      documentUrls: [],
       status: "active",
       marketPriceRange: null,
       priceSource: null,
+      priceBreakdown: null,
     },
   });
 
@@ -108,17 +136,24 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
         condition: condition || 'any',
       });
 
+      setPriceData(result);
+
       const priceRange = {
-        min: result.used_min || result.refurbished_min || result.new_min || 0,
-        max: result.used_max || result.refurbished_max || result.new_max || 0,
+        new_min: result.new_min,
+        new_max: result.new_max,
+        refurbished_min: result.refurbished_min,
+        refurbished_max: result.refurbished_max,
+        used_min: result.used_min,
+        used_max: result.used_max,
       };
 
       form.setValue('marketPriceRange', priceRange as any);
       form.setValue('priceSource', result.source || 'AI estimate');
+      form.setValue('priceBreakdown', result.breakdown || null);
 
       toast({
         title: "Price context retrieved",
-        description: `Market price: $${priceRange.min.toLocaleString()} - $${priceRange.max.toLocaleString()}`,
+        description: "Market price ranges have been updated",
       });
     } catch (error: any) {
       toast({
@@ -126,6 +161,120 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
         description: error.message || "Could not retrieve market prices",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+
+    const files = Array.from(e.target.files);
+    
+    if (files.length > 5) {
+      toast({
+        title: "Too many files",
+        description: "Maximum 5 images allowed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    const oversized = files.find(f => f.size > maxSize);
+    if (oversized) {
+      toast({
+        title: "File too large",
+        description: `${oversized.name} exceeds 5MB limit`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    const invalid = files.find(f => !validTypes.includes(f.type));
+    if (invalid) {
+      toast({
+        title: "Invalid file type",
+        description: "Only PNG and JPG images are allowed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setImageFiles(files);
+      const urls = await uploadFiles(files, 'image');
+      form.setValue('imageUrls', urls);
+      toast({
+        title: "Images uploaded",
+        description: `${files.length} image${files.length !== 1 ? 's' : ''} uploaded successfully`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload images",
+        variant: "destructive",
+      });
+      setImageFiles([]);
+    }
+  };
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+
+    const files = Array.from(e.target.files);
+    
+    if (files.length > 3) {
+      toast({
+        title: "Too many files",
+        description: "Maximum 3 documents allowed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+    const oversized = files.find(f => f.size > maxSize);
+    if (oversized) {
+      toast({
+        title: "File too large",
+        description: `${oversized.name} exceeds 10MB limit`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+    const invalid = files.find(f => !validTypes.includes(f.type));
+    if (invalid) {
+      toast({
+        title: "Invalid file type",
+        description: "Only PDF, DOC, and XLS documents are allowed",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setDocumentFiles(files);
+      const urls = await uploadFiles(files, 'document');
+      form.setValue('documentUrls', urls);
+      toast({
+        title: "Documents uploaded",
+        description: `${files.length} document${files.length !== 1 ? 's' : ''} uploaded successfully`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload documents",
+        variant: "destructive",
+      });
+      setDocumentFiles([]);
     }
   };
 
@@ -145,15 +294,22 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
         model: "",
         category: "analytical",
         preferredCondition: "any",
+        location: "",
         maxBudget: "0",
         priority: "high",
         requiredSpecs: null,
         notes: "",
+        imageUrls: [],
+        documentUrls: [],
         status: "active",
         marketPriceRange: null,
         priceSource: null,
+        priceBreakdown: null,
       });
       setSpecs([]);
+      setPriceData(null);
+      setImageFiles([]);
+      setDocumentFiles([]);
 
       onSuccess?.();
     } catch (error: any) {
@@ -165,18 +321,22 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
     }
   };
 
-  const marketPriceRange = form.watch('marketPriceRange') as any;
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <p className="text-sm text-muted-foreground">
+          Fill in the details for your equipment specification. This helps us find the best matches and pricing.
+        </p>
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="brand"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Brand *</FormLabel>
+                <FormLabel className="text-foreground">
+                  Brand <span className="text-destructive">*</span>
+                </FormLabel>
                 <FormControl>
                   <Input placeholder="e.g., Thermo Fisher" {...field} data-testid="input-brand" />
                 </FormControl>
@@ -190,7 +350,9 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
             name="model"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Model *</FormLabel>
+                <FormLabel className="text-foreground">
+                  Model <span className="text-destructive">*</span>
+                </FormLabel>
                 <FormControl>
                   <Input placeholder="e.g., TSQ-9000" {...field} data-testid="input-model" />
                 </FormControl>
@@ -200,32 +362,79 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Notes</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Describe the equipment requirements..."
-                  rows={4}
-                  {...field}
-                  value={field.value || ""}
-                  data-testid="input-notes"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400"
+          data-testid="button-search-external"
+        >
+          <BookOpen className="w-4 h-4 mr-2" />
+          Search External Sources (PDFs + Google)
+        </Button>
+
+        <div className="grid grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Describe the equipment requirements, desired features, and any additional details..."
+                    rows={6}
+                    {...field}
+                    value={field.value || ""}
+                    data-testid="input-notes"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div>
+            <Label>Images</Label>
+            <label htmlFor="image-upload" className="block mt-2">
+              <div className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-8 text-center cursor-pointer hover-elevate bg-blue-50/50 dark:bg-blue-950/30">
+                <Upload className="w-12 h-12 mx-auto mb-3 text-blue-500" />
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                  Drop images here or click to select
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PNG, JPG up to 5MB (max 5 files)
+                </p>
+                {imageFiles.length > 0 && (
+                  <p className="text-xs text-foreground mt-2">
+                    {imageFiles.length} file{imageFiles.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+              </div>
+              <input
+                id="image-upload"
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+                data-testid="input-images"
+              />
+            </label>
+          </div>
+        </div>
 
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <Label>Required Specifications</Label>
-            <Button type="button" size="sm" variant="outline" onClick={addSpec} data-testid="button-add-spec">
+          <div className="flex items-center justify-between mb-3">
+            <Label className="text-base">Technical Specifications</Label>
+            <Button 
+              type="button" 
+              size="sm" 
+              variant="outline" 
+              onClick={addSpec} 
+              data-testid="button-add-spec"
+            >
               <Plus className="w-3 h-3 mr-1" />
-              Add Spec
+              Add
             </Button>
           </div>
           <div className="space-y-2">
@@ -257,32 +466,88 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="maxBudget"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Maximum Budget ($)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 45000"
-                    {...field}
-                    data-testid="input-budget"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <FormField
+          control={form.control}
+          name="maxBudget"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Maximum Budget ($) <span className="text-destructive">*</span>
+              </FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  placeholder="e.g., 45000"
+                  {...field}
+                  data-testid="input-budget"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <Label className="text-base">Market Price Context</Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={handleGetPriceContext}
+              disabled={fetchPriceContext.isPending}
+              data-testid="button-get-price-context"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Get Price Context
+            </Button>
+          </div>
+
+          {priceData && (
+            <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+              {priceData.new_min !== null && priceData.new_max !== null && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">New:</span>
+                  <span className="font-medium">
+                    ${priceData.new_min?.toLocaleString()} - ${priceData.new_max?.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {priceData.refurbished_min !== null && priceData.refurbished_max !== null && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Refurbished:</span>
+                  <span className="font-medium">
+                    ${priceData.refurbished_min?.toLocaleString()} - ${priceData.refurbished_max?.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {priceData.used_min !== null && priceData.used_max !== null && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Used:</span>
+                  <span className="font-medium">
+                    ${priceData.used_min?.toLocaleString()} - ${priceData.used_max?.toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {priceData.breakdown && (
+                <p className="text-xs text-muted-foreground pt-2 border-t">
+                  {priceData.breakdown}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
           <FormField
             control={form.control}
             name="priority"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Priority</FormLabel>
+                <FormLabel>
+                  Priority <span className="text-destructive">*</span>
+                </FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-priority">
@@ -290,47 +555,44 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="high">high</SelectItem>
+                    <SelectItem value="medium">medium</SelectItem>
+                    <SelectItem value="low">low</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <Label>Market Price Context</Label>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={handleGetPriceContext}
-              disabled={fetchPriceContext.isPending}
-              data-testid="button-get-price-context"
-            >
-              {fetchPriceContext.isPending ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
-              )}
-              Get Price Context
-            </Button>
-          </div>
-
-          {marketPriceRange && (
-            <div className="p-4 border rounded-lg space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm font-medium">Market Range:</span>
-                <span className="text-sm">
-                  ${marketPriceRange.min?.toLocaleString() || 0} - ${marketPriceRange.max?.toLocaleString() || 0}
-                </span>
+          <div>
+            <Label>Documents</Label>
+            <label htmlFor="document-upload" className="block mt-2">
+              <div className="border-2 border-dashed border-emerald-300 dark:border-emerald-700 rounded-lg p-8 text-center cursor-pointer hover-elevate bg-emerald-50/50 dark:bg-emerald-950/30">
+                <FileText className="w-12 h-12 mx-auto mb-3 text-emerald-500" />
+                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                  Drop documents here or click to select
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PDF, DOC, XLS up to 10MB (max 3 files)
+                </p>
+                {documentFiles.length > 0 && (
+                  <p className="text-xs text-foreground mt-2">
+                    {documentFiles.length} file{documentFiles.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
               </div>
-            </div>
-          )}
+              <input
+                id="document-upload"
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx"
+                multiple
+                onChange={handleDocumentUpload}
+                className="hidden"
+                data-testid="input-documents"
+              />
+            </label>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -339,7 +601,9 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
             name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Category *</FormLabel>
+                <FormLabel>
+                  Category <span className="text-destructive">*</span>
+                </FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-category-wishlist">
@@ -347,10 +611,10 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="analytical">Analytical</SelectItem>
-                    <SelectItem value="processing">Processing</SelectItem>
-                    <SelectItem value="testing">Testing</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="analytical">analytical</SelectItem>
+                    <SelectItem value="processing">processing</SelectItem>
+                    <SelectItem value="testing">testing</SelectItem>
+                    <SelectItem value="other">other</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -363,7 +627,9 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
             name="preferredCondition"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Preferred Condition *</FormLabel>
+                <FormLabel>
+                  Condition <span className="text-destructive">*</span>
+                </FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-condition-wishlist">
@@ -371,10 +637,10 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="refurbished">Refurbished</SelectItem>
-                    <SelectItem value="used">Used</SelectItem>
+                    <SelectItem value="any">any</SelectItem>
+                    <SelectItem value="new">new</SelectItem>
+                    <SelectItem value="refurbished">refurbished</SelectItem>
+                    <SelectItem value="used">used</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -383,14 +649,52 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
           />
         </div>
 
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={createWishlistItem.isPending}
-          data-testid="button-submit-wishlist"
-        >
-          {createWishlistItem.isPending ? "Adding..." : "Add to Project"}
-        </Button>
+        <FormField
+          control={form.control}
+          name="location"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Location <span className="text-destructive">*</span>
+              </FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., Houston, TX" {...field} data-testid="input-location" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {form.formState.errors && Object.keys(form.formState.errors).length > 0 && (
+          <p className="text-sm text-destructive">
+            Please fill in required fields: {Object.keys(form.formState.errors).map(key => {
+              if (key === 'preferredCondition') return 'Condition';
+              return key.charAt(0).toUpperCase() + key.slice(1);
+            }).join(', ')}
+          </p>
+        )}
+
+        <div className="flex gap-3 pt-4">
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              data-testid="button-cancel-wishlist"
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          )}
+          <Button
+            type="submit"
+            className="flex-1"
+            disabled={createWishlistItem.isPending}
+            data-testid="button-submit-wishlist"
+          >
+            {createWishlistItem.isPending ? "Adding..." : "Add to Project"}
+          </Button>
+        </div>
       </form>
     </Form>
   );

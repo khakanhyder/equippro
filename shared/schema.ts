@@ -117,13 +117,17 @@ export const wishlistItems = pgTable("wishlist_items", {
   model: text("model").notNull(),
   category: text("category").notNull(),
   preferredCondition: text("preferred_condition").notNull().default('any'), // new, refurbished, used, any
+  location: text("location").notNull(),
   maxBudget: decimal("max_budget", { precision: 10, scale: 2 }).notNull(),
   priority: text("priority").notNull().default('medium'), // high, medium, low
   requiredSpecs: jsonb("required_specs"), // { "Flow Rate": ">=5 mL/min" }
   notes: text("notes"),
+  imageUrls: text("image_urls").array(),
+  documentUrls: text("document_urls").array(),
   status: text("status").notNull().default('active'), // active, draft, found
   marketPriceRange: jsonb("market_price_range"), // price context for budget validation
   priceSource: text("price_source"),
+  priceBreakdown: text("price_breakdown"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
