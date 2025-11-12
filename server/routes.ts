@@ -3,6 +3,23 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
 import { uploadFile, uploadMultipleFiles, validateFileType, validateFileSize } from "./upload";
+import { analyzeEquipmentImages, estimateEquipmentPrice, calculateMatchScore } from "./ai-analysis";
+import { db } from "./db";
+import { 
+  equipment, 
+  surplusProjects, 
+  equipmentProjects,
+  wishlistProjects,
+  wishlistItems,
+  matches,
+  priceContextCache,
+  insertEquipmentSchema,
+  insertSurplusProjectSchema,
+  insertWishlistProjectSchema,
+  insertWishlistItemSchema,
+  insertMatchSchema
+} from "@shared/schema";
+import { eq, and, sql, desc } from "drizzle-orm";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -12,7 +29,6 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Upload single file (image or document)
   app.post("/api/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
@@ -42,7 +58,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload multiple files
   app.post("/api/upload-multiple", upload.array('files', 10), async (req, res) => {
     try {
       if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
@@ -71,6 +86,439 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Upload error:', error);
       res.status(500).json({ message: error.message || "Upload failed" });
+    }
+  });
+
+  app.post("/api/analyze-image", async (req, res) => {
+    try {
+      const { image_urls } = req.body;
+      
+      if (!image_urls || !Array.isArray(image_urls) || image_urls.length === 0) {
+        return res.status(400).json({ message: "image_urls array is required" });
+      }
+
+      const result = await analyzeEquipmentImages(image_urls);
+      res.json(result);
+    } catch (error: any) {
+      console.error('AI analysis error:', error);
+      res.status(500).json({ message: error.message || "Analysis failed" });
+    }
+  });
+
+  app.post("/api/price-context", async (req, res) => {
+    try {
+      const { brand, model, category, condition } = req.body;
+      
+      if (!brand || !model || !category) {
+        return res.status(400).json({ message: "brand, model, and category are required" });
+      }
+
+      const cacheKey = `${brand}_${model}_${category}`;
+      const cached = await db.select()
+        .from(priceContextCache)
+        .where(and(
+          eq(priceContextCache.brand, brand),
+          eq(priceContextCache.model, model),
+          eq(priceContextCache.category, category),
+          sql`${priceContextCache.expiresAt} > NOW()`
+        ))
+        .limit(1);
+
+      if (cached.length > 0) {
+        const priceRanges = cached[0].priceRanges as any;
+        return res.json({
+          ...priceRanges,
+          source: cached[0].priceSource,
+          breakdown: cached[0].priceBreakdown,
+          cached: true
+        });
+      }
+
+      const estimate = await estimateEquipmentPrice(brand, model, category, condition || 'used');
+      
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      await db.insert(priceContextCache).values({
+        brand,
+        model,
+        category,
+        priceRanges: estimate as any,
+        priceSource: estimate.source,
+        priceBreakdown: estimate.breakdown as any,
+        expiresAt,
+      }).onConflictDoNothing();
+
+      res.json({ ...estimate, cached: false });
+    } catch (error: any) {
+      console.error('Price context error:', error);
+      res.status(500).json({ message: error.message || "Price estimation failed" });
+    }
+  });
+
+  app.get("/api/equipment", async (req, res) => {
+    try {
+      const { status, createdBy } = req.query;
+      
+      let query = db.select().from(equipment);
+      
+      const conditions = [];
+      if (status) {
+        conditions.push(eq(equipment.listingStatus, status as string));
+      }
+      if (createdBy) {
+        conditions.push(eq(equipment.createdBy, createdBy as string));
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+      
+      const results = await query.orderBy(desc(equipment.createdAt));
+      res.json(results);
+    } catch (error: any) {
+      console.error('Get equipment error:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch equipment" });
+    }
+  });
+
+  app.get("/api/equipment/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const result = await db.select()
+        .from(equipment)
+        .where(eq(equipment.id, id))
+        .limit(1);
+      
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Equipment not found" });
+      }
+
+      await db.update(equipment)
+        .set({ viewsCount: sql`${equipment.viewsCount} + 1` })
+        .where(eq(equipment.id, id));
+
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error('Get equipment error:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch equipment" });
+    }
+  });
+
+  app.post("/api/equipment", async (req, res) => {
+    try {
+      const validatedData = insertEquipmentSchema.parse(req.body);
+      
+      const result = await db.insert(equipment)
+        .values({
+          ...validatedData,
+          listingStatus: validatedData.listingStatus || 'draft',
+        })
+        .returning();
+      
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error('Create equipment error:', error);
+      res.status(400).json({ message: error.message || "Failed to create equipment" });
+    }
+  });
+
+  app.patch("/api/equipment/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      
+      const currentEquipment = await db.select()
+        .from(equipment)
+        .where(eq(equipment.id, id))
+        .limit(1);
+      
+      if (currentEquipment.length === 0) {
+        return res.status(404).json({ message: "Equipment not found" });
+      }
+
+      if (updates.createdBy && updates.createdBy !== currentEquipment[0].createdBy) {
+        return res.status(403).json({ message: "Cannot change equipment owner" });
+      }
+
+      if (updates.listingStatus) {
+        const currentStatus = currentEquipment[0].listingStatus;
+        const newStatus = updates.listingStatus;
+        
+        const validTransitions: Record<string, string[]> = {
+          'draft': ['active'],
+          'active': ['sold'],
+          'sold': []
+        };
+
+        const allowedNextStates = validTransitions[currentStatus] || [];
+        
+        if (currentStatus !== newStatus && !allowedNextStates.includes(newStatus)) {
+          return res.status(409).json({ 
+            message: `Invalid status transition from ${currentStatus} to ${newStatus}. Allowed: ${allowedNextStates.join(', ') || 'none'}` 
+          });
+        }
+      }
+
+      const validatedUpdates = insertEquipmentSchema.partial().parse(updates);
+      
+      const result = await db.update(equipment)
+        .set({
+          ...validatedUpdates,
+          updatedAt: new Date(),
+        })
+        .where(eq(equipment.id, id))
+        .returning();
+
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error('Update equipment error:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(400).json({ message: error.message || "Failed to update equipment" });
+    }
+  });
+
+  app.delete("/api/equipment/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      await db.delete(equipment).where(eq(equipment.id, id));
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Delete equipment error:', error);
+      res.status(500).json({ message: error.message || "Failed to delete equipment" });
+    }
+  });
+
+  app.get("/api/surplus-projects", async (req, res) => {
+    try {
+      const { createdBy } = req.query;
+      
+      let query = db.select().from(surplusProjects);
+      
+      if (createdBy) {
+        query = query.where(eq(surplusProjects.createdBy, createdBy as string)) as any;
+      }
+      
+      const results = await query.orderBy(desc(surplusProjects.createdAt));
+      res.json(results);
+    } catch (error: any) {
+      console.error('Get surplus projects error:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch projects" });
+    }
+  });
+
+  app.post("/api/surplus-projects", async (req, res) => {
+    try {
+      const validatedData = insertSurplusProjectSchema.parse(req.body);
+      
+      const result = await db.insert(surplusProjects)
+        .values(validatedData)
+        .returning();
+      
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error('Create surplus project error:', error);
+      res.status(400).json({ message: error.message || "Failed to create project" });
+    }
+  });
+
+  app.get("/api/wishlist-projects", async (req, res) => {
+    try {
+      const { createdBy } = req.query;
+      
+      let query = db.select().from(wishlistProjects);
+      
+      if (createdBy) {
+        query = query.where(eq(wishlistProjects.createdBy, createdBy as string)) as any;
+      }
+      
+      const results = await query.orderBy(desc(wishlistProjects.createdAt));
+      res.json(results);
+    } catch (error: any) {
+      console.error('Get wishlist projects error:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch projects" });
+    }
+  });
+
+  app.post("/api/wishlist-projects", async (req, res) => {
+    try {
+      const validatedData = insertWishlistProjectSchema.parse(req.body);
+      
+      const result = await db.insert(wishlistProjects)
+        .values(validatedData)
+        .returning();
+      
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error('Create wishlist project error:', error);
+      res.status(400).json({ message: error.message || "Failed to create project" });
+    }
+  });
+
+  app.get("/api/wishlist-items", async (req, res) => {
+    try {
+      const { projectId, createdBy, status } = req.query;
+      
+      let query = db.select().from(wishlistItems);
+      
+      const conditions = [];
+      if (projectId) {
+        conditions.push(eq(wishlistItems.projectId, parseInt(projectId as string)));
+      }
+      if (createdBy) {
+        conditions.push(eq(wishlistItems.createdBy, createdBy as string));
+      }
+      if (status) {
+        conditions.push(eq(wishlistItems.status, status as string));
+      }
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+      
+      const results = await query.orderBy(desc(wishlistItems.createdAt));
+      res.json(results);
+    } catch (error: any) {
+      console.error('Get wishlist items error:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch wishlist items" });
+    }
+  });
+
+  app.post("/api/wishlist-items", async (req, res) => {
+    try {
+      const validatedData = insertWishlistItemSchema.parse(req.body);
+      
+      const result = await db.insert(wishlistItems)
+        .values(validatedData)
+        .returning();
+      
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error('Create wishlist item error:', error);
+      res.status(400).json({ message: error.message || "Failed to create wishlist item" });
+    }
+  });
+
+  app.post("/api/wishlist-items/:id/find-matches", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const wishlistItem = await db.select()
+        .from(wishlistItems)
+        .where(eq(wishlistItems.id, id))
+        .limit(1);
+      
+      if (wishlistItem.length === 0) {
+        return res.status(404).json({ message: "Wishlist item not found" });
+      }
+
+      const item = wishlistItem[0];
+      
+      const availableEquipment = await db.select()
+        .from(equipment)
+        .where(eq(equipment.listingStatus, 'active'));
+      
+      const matchPromises = availableEquipment.map(async (equip) => {
+        const matchScore = await calculateMatchScore(
+          {
+            brand: item.brand,
+            model: item.model,
+            category: item.category,
+            requiredSpecs: (item.requiredSpecs as Record<string, string>) || {},
+          },
+          {
+            brand: equip.brand,
+            model: equip.model,
+            category: equip.category,
+            specifications: (equip.specifications as Record<string, string>) || {},
+          }
+        );
+
+        if (matchScore.similarity_score >= 50) {
+          try {
+            const matchData = insertMatchSchema.parse({
+              wishlistItemId: id,
+              equipmentId: equip.id,
+              matchType: matchScore.match_type,
+              confidenceScore: matchScore.similarity_score,
+              matchDetails: matchScore as any,
+              status: 'active',
+            });
+
+            const matchResult = await db.insert(matches)
+              .values(matchData)
+              .returning();
+
+            return {
+              ...matchResult[0],
+              equipment: equip,
+            };
+          } catch (dbError: any) {
+            console.error('Failed to create match:', dbError);
+            if (dbError.code === '23503') {
+              console.error('Foreign key violation - equipment or wishlist item no longer exists');
+            }
+            return null;
+          }
+        }
+        return null;
+      });
+
+      const allMatches = await Promise.all(matchPromises);
+      const validMatches = allMatches.filter(m => m !== null);
+      
+      res.json({ 
+        matches: validMatches,
+        count: validMatches.length 
+      });
+    } catch (error: any) {
+      console.error('Find matches error:', error);
+      res.status(500).json({ message: error.message || "Failed to find matches" });
+    }
+  });
+
+  app.get("/api/matches/:wishlistItemId", async (req, res) => {
+    try {
+      const wishlistItemId = parseInt(req.params.wishlistItemId);
+      
+      const results = await db.select()
+        .from(matches)
+        .where(eq(matches.wishlistItemId, wishlistItemId))
+        .orderBy(desc(matches.confidenceScore));
+      
+      res.json(results);
+    } catch (error: any) {
+      console.error('Get matches error:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch matches" });
+    }
+  });
+
+  app.patch("/api/matches/:id/status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!['active', 'saved', 'dismissed'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const result = await db.update(matches)
+        .set({ status })
+        .where(eq(matches.id, id))
+        .returning();
+      
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error('Update match status error:', error);
+      res.status(500).json({ message: error.message || "Failed to update match status" });
     }
   });
 

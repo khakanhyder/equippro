@@ -2,7 +2,13 @@ import { Client } from "@replit/object-storage";
 import { randomUUID } from "crypto";
 import path from "path";
 
-const client = new Client();
+const BUCKET_ID = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+
+if (!BUCKET_ID) {
+  throw new Error('DEFAULT_OBJECT_STORAGE_BUCKET_ID environment variable is required');
+}
+
+const client = new Client({ bucketId: BUCKET_ID });
 
 export interface UploadResult {
   url: string;
@@ -59,10 +65,10 @@ export async function uploadFile(
     throw new Error(error?.message || 'Upload failed');
   }
 
-  const url = await client.getDownloadUrl(filename);
+  const url = `https://storage.googleapis.com/${BUCKET_ID}/${filename}`;
 
   return {
-    url: url || '',
+    url,
     filename,
     size: file.size,
     contentType: file.mimetype,
