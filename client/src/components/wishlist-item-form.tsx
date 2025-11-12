@@ -160,6 +160,46 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     }));
   };
 
+  const handleAiAnalyze = async () => {
+    const imageUrls = form.getValues('imageUrls');
+    if (!imageUrls || imageUrls.length === 0) {
+      toast({ title: "No images", description: "Please upload images first", variant: "destructive" });
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const response = await fetch('/api/analyze/complete-flow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_urls: imageUrls,
+          brand: form.getValues('brand') || undefined,
+          model: form.getValues('model') || undefined,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Analysis failed');
+      
+      const result = await response.json();
+      if (result.final_result) {
+        const { brand, model, category, specifications } = result.final_result;
+        const confidence = result.steps?.image_analysis?.confidence || 0.8;
+        
+        if (brand) setAiSuggestions(prev => ({ ...prev, brand: { value: brand, confidence } }));
+        if (model) setAiSuggestions(prev => ({ ...prev, model: { value: model, confidence } }));
+        if (category) setAiSuggestions(prev => ({ ...prev, category: { value: category, confidence } }));
+        if (specifications?.length) setAiSuggestions(prev => ({ ...prev, specifications }));
+
+        toast({ title: "Analysis complete", description: `Found ${specifications?.length || 0} specifications` });
+      }
+    } catch (error: any) {
+      toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleGetPriceContext = async () => {
     const brand = form.getValues('brand');
     const model = form.getValues('model');
@@ -467,6 +507,28 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
                 data-testid="input-images"
               />
             </label>
+
+            {form.watch('imageUrls')?.length > 0 && (
+              <Button
+                type="button"
+                onClick={handleAiAnalyze}
+                disabled={isAnalyzing}
+                className="w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                data-testid="button-ai-analyze"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2 animate-spin" />
+                    Analyzing: Images → Manuals → Specs...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    AI Analyze: Images → Manuals → Specifications
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
 
