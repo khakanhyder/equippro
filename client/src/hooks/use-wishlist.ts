@@ -7,7 +7,7 @@ export function useProjects(createdBy?: string) {
   if (createdBy) params.append('createdBy', createdBy);
   
   const queryString = params.toString();
-  const url = queryString ? `/api/projects?${queryString}` : '/api/projects';
+  const url = queryString ? `/api/wishlist-projects?${queryString}` : '/api/wishlist-projects';
   
   return useQuery<WishlistProject[]>({
     queryKey: ['projects', { createdBy }],
@@ -28,7 +28,7 @@ export function useProject(id: number) {
   return useQuery<WishlistProject>({
     queryKey: ['projects', id],
     queryFn: async () => {
-      const res = await fetch(`/api/projects/${id}`, {
+      const res = await fetch(`/api/wishlist-projects/${id}`, {
         credentials: 'include',
       });
       if (!res.ok) {
@@ -43,7 +43,7 @@ export function useProject(id: number) {
 export function useProjectMutations() {
   const createProject = useMutation({
     mutationFn: async (data: InsertWishlistProject) => {
-      const res = await apiRequest('POST', '/api/projects', data);
+      const res = await apiRequest('POST', '/api/wishlist-projects', data);
       return res.json() as Promise<WishlistProject>;
     },
     onSuccess: () => {
@@ -53,7 +53,7 @@ export function useProjectMutations() {
 
   const updateProject = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<InsertWishlistProject> }) => {
-      const res = await apiRequest('PATCH', `/api/projects/${id}`, data);
+      const res = await apiRequest('PATCH', `/api/wishlist-projects/${id}`, data);
       return res.json() as Promise<WishlistProject>;
     },
     onSuccess: (_, variables) => {
@@ -64,7 +64,7 @@ export function useProjectMutations() {
 
   const deleteProject = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest('DELETE', `/api/projects/${id}`);
+      await apiRequest('DELETE', `/api/wishlist-projects/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -83,7 +83,7 @@ export function useWishlistItems(projectId?: number) {
   if (projectId) params.append('projectId', projectId.toString());
   
   const queryString = params.toString();
-  const url = queryString ? `/api/wishlist?${queryString}` : '/api/wishlist';
+  const url = queryString ? `/api/wishlist-items?${queryString}` : '/api/wishlist-items';
   
   return useQuery<WishlistItem[]>({
     queryKey: ['wishlist', { projectId }],
@@ -104,7 +104,7 @@ export function useWishlistItem(id: number) {
   return useQuery<WishlistItem>({
     queryKey: ['wishlist', id],
     queryFn: async () => {
-      const res = await fetch(`/api/wishlist/${id}`, {
+      const res = await fetch(`/api/wishlist-items/${id}`, {
         credentials: 'include',
       });
       if (!res.ok) {
@@ -119,7 +119,7 @@ export function useWishlistItem(id: number) {
 export function useWishlistMutations() {
   const createWishlistItem = useMutation({
     mutationFn: async (data: InsertWishlistItem) => {
-      const res = await apiRequest('POST', '/api/wishlist', data);
+      const res = await apiRequest('POST', '/api/wishlist-items', data);
       return res.json() as Promise<WishlistItem>;
     },
     onSuccess: () => {
@@ -130,7 +130,7 @@ export function useWishlistMutations() {
 
   const updateWishlistItem = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<InsertWishlistItem> }) => {
-      const res = await apiRequest('PATCH', `/api/wishlist/${id}`, data);
+      const res = await apiRequest('PATCH', `/api/wishlist-items/${id}`, data);
       return res.json() as Promise<WishlistItem>;
     },
     onSuccess: (_, variables) => {
@@ -142,7 +142,7 @@ export function useWishlistMutations() {
 
   const deleteWishlistItem = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest('DELETE', `/api/wishlist/${id}`);
+      await apiRequest('DELETE', `/api/wishlist-items/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wishlist'] });
@@ -161,7 +161,7 @@ export function useMatches(wishlistItemId: number) {
   return useQuery<Match[]>({
     queryKey: ['matches', wishlistItemId],
     queryFn: async () => {
-      const res = await fetch(`/api/wishlist/${wishlistItemId}/matches`, {
+      const res = await fetch(`/api/wishlist-items/${wishlistItemId}/matches`, {
         credentials: 'include',
       });
       if (!res.ok) {
@@ -176,7 +176,7 @@ export function useMatches(wishlistItemId: number) {
 export function useFindMatches() {
   return useMutation({
     mutationFn: async (wishlistItemId: number) => {
-      const res = await apiRequest('POST', `/api/wishlist/${wishlistItemId}/find-matches`);
+      const res = await apiRequest('POST', `/api/wishlist-items/${wishlistItemId}/find-matches`);
       return res.json() as Promise<Match[]>;
     },
     onSuccess: (_, wishlistItemId) => {
