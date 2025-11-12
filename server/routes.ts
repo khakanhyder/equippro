@@ -156,6 +156,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/ai/analyze-equipment", async (req, res) => {
+    try {
+      const { imageUrls } = req.body;
+      
+      if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
+        return res.status(400).json({ message: "imageUrls array is required" });
+      }
+
+      const result = await analyzeEquipmentImages(imageUrls);
+      res.json(result);
+    } catch (error: any) {
+      console.error('AI analysis error:', error);
+      res.status(500).json({ message: error.message || "Analysis failed" });
+    }
+  });
+
+  app.post("/api/ai/price-estimate", async (req, res) => {
+    try {
+      const { brand, model, category, condition } = req.body;
+      
+      if (!brand || !model || !category) {
+        return res.status(400).json({ message: "brand, model, and category are required" });
+      }
+
+      const cached = await db.select()
+        .from(priceContextCache)
+        .where(and(
+          eq(priceContextCache.brand, brand),
+          eq(priceContextCache.model, model),
+          eq(priceContextCache.category, category),
+          sql`${priceContextCache.expiresAt} > NOW()`
+        ))
+        .limit(1);
+
+      if (cached.length > 0) {
+        const priceRanges = cached[0].priceRanges as any;
+        return res.json({
+          ...priceRanges,
+          source: cached[0].priceSource,
+          breakdown: cached[0].priceBreakdown,
+          cached: true
+        });
+      }
+
+      const estimate = await estimateEquipmentPrice(brand, model, category, condition || 'used');
+      
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      await db.insert(priceContextCache).values({
+        brand,
+        model,
+        category,
+        priceRanges: estimate as any,
+        priceSource: estimate.source,
+        priceBreakdown: estimate.breakdown as any,
+        expiresAt,
+      }).onConflictDoNothing();
+
+      res.json({ ...estimate, cached: false });
+    } catch (error: any) {
+      console.error('Price estimate error:', error);
+      res.status(500).json({ message: error.message || "Failed to estimate price" });
+    }
+  });
+
   app.get("/api/equipment", async (req, res) => {
     try {
       const { status, createdBy } = req.query;
