@@ -105,15 +105,20 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess }: WishlistIt
         brand,
         model,
         category,
-        condition,
+        condition: condition || 'any',
       });
 
-      form.setValue('marketPriceRange', result.priceRange as any);
-      form.setValue('priceSource', result.source);
+      const priceRange = {
+        min: result.used_min || result.refurbished_min || result.new_min || 0,
+        max: result.used_max || result.refurbished_max || result.new_max || 0,
+      };
+
+      form.setValue('marketPriceRange', priceRange as any);
+      form.setValue('priceSource', result.source || 'AI estimate');
 
       toast({
         title: "Price context retrieved",
-        description: `Market price: $${result.priceRange?.min.toLocaleString()} - $${result.priceRange?.max.toLocaleString()}`,
+        description: `Market price: $${priceRange.min.toLocaleString()} - $${priceRange.max.toLocaleString()}`,
       });
     } catch (error: any) {
       toast({
