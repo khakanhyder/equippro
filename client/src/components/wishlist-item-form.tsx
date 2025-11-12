@@ -53,6 +53,18 @@ interface WishlistItemFormProps {
   onCancel?: () => void;
 }
 
+interface AiSuggestion {
+  value: string;
+  confidence: number;
+}
+
+interface AiSuggestions {
+  brand: AiSuggestion | null;
+  model: AiSuggestion | null;
+  category: AiSuggestion | null;
+  specifications: Array<{ name: string; value: string; unit?: string }>;
+}
+
 export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: WishlistItemFormProps) {
   const { toast } = useToast();
   const { createWishlistItem } = useWishlistMutations();
@@ -62,6 +74,13 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
   const [priceData, setPriceData] = useState<PriceEstimate | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestions>({
+    brand: null,
+    model: null,
+    category: null,
+    specifications: [],
+  });
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const form = useForm<InsertWishlistItem>({
     resolver: zodResolver(insertWishlistItemSchema),
@@ -111,6 +130,34 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       .reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
     
     form.setValue('requiredSpecs', Object.keys(specsObject).length > 0 ? specsObject : null);
+  };
+
+  const acceptSuggestion = (field: 'brand' | 'model' | 'category') => {
+    const suggestion = aiSuggestions[field];
+    if (suggestion) {
+      form.setValue(field, suggestion.value);
+      setAiSuggestions(prev => ({ ...prev, [field]: null }));
+    }
+  };
+
+  const ignoreSuggestion = (field: 'brand' | 'model' | 'category') => {
+    setAiSuggestions(prev => ({ ...prev, [field]: null }));
+  };
+
+  const acceptSpec = (spec: { name: string; value: string; unit?: string }) => {
+    const specValue = spec.unit ? `${spec.value} ${spec.unit}` : spec.value;
+    setSpecs(prev => [...prev, { key: spec.name, value: specValue }]);
+    setAiSuggestions(prev => ({
+      ...prev,
+      specifications: prev.specifications.filter(s => s.name !== spec.name),
+    }));
+  };
+
+  const ignoreSpec = (specName: string) => {
+    setAiSuggestions(prev => ({
+      ...prev,
+      specifications: prev.specifications.filter(s => s.name !== specName),
+    }));
   };
 
   const handleGetPriceContext = async () => {
