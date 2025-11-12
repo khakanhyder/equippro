@@ -200,6 +200,35 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     }
   };
 
+  const handleSearchExternal = async () => {
+    const brand = form.getValues('brand');
+    const model = form.getValues('model');
+
+    if (!brand || !model) {
+      toast({ title: "Missing information", description: "Please provide brand and model first", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand, model, search_pdfs: true }),
+      });
+
+      if (!response.ok) throw new Error('Search failed');
+      
+      const result = await response.json();
+      // For now, just show success - later we'll add UI to display results
+      toast({
+        title: "External sources found",
+        description: `Found ${result.external_matches?.length || 0} relevant sources`,
+      });
+    } catch (error: any) {
+      toast({ title: "Search failed", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleGetPriceContext = async () => {
     const brand = form.getValues('brand');
     const model = form.getValues('model');
@@ -452,7 +481,9 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
         <Button
           type="button"
           variant="outline"
-          className="w-full text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400"
+          onClick={handleSearchExternal}
+          disabled={!form.watch('brand') || !form.watch('model')}
+          className="w-full text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
           data-testid="button-search-external"
         >
           <BookOpen className="w-4 h-4 mr-2" />
@@ -508,7 +539,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
               />
             </label>
 
-            {form.watch('imageUrls')?.length > 0 && (
+            {(form.watch('imageUrls')?.length ?? 0) > 0 && (
               <Button
                 type="button"
                 onClick={handleAiAnalyze}
