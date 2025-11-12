@@ -26,25 +26,8 @@ import { usePriceContext } from "@/hooks/use-ai-analysis";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen } from "lucide-react";
 import type { PriceEstimate } from "@/hooks/use-ai-analysis";
-
-async function uploadFiles(files: File[], type: 'image' | 'document'): Promise<string[]> {
-  const formData = new FormData();
-  files.forEach(file => formData.append('files', file));
-  formData.append('type', type);
-
-  const response = await fetch('/api/upload-multiple', {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Upload failed');
-  }
-
-  const results = await response.json();
-  return results.map((r: any) => r.url);
-}
+import { analyzeEquipmentImages, searchExternalSources } from "@/lib/ai-service";
+import { uploadFiles, validateImageFiles, validateDocumentFiles } from "@/lib/file-upload";
 
 interface WishlistItemFormProps {
   projectId: number;
@@ -112,23 +95,20 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
   const removeSpec = (index: number) => {
     const newSpecs = specs.filter((_, i) => i !== index);
     setSpecs(newSpecs);
-    
-    const specsObject = newSpecs
-      .filter(s => s.key && s.value)
-      .reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
-    
-    form.setValue('requiredSpecs', Object.keys(specsObject).length > 0 ? specsObject : null);
+    updateSpecsInForm(newSpecs);
   };
 
   const updateSpec = (index: number, field: 'key' | 'value', val: string) => {
     const newSpecs = [...specs];
     newSpecs[index][field] = val;
     setSpecs(newSpecs);
+    updateSpecsInForm(newSpecs);
+  };
 
+  const updateSpecsInForm = (newSpecs: Array<{ key: string; value: string }>) => {
     const specsObject = newSpecs
       .filter(s => s.key && s.value)
       .reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
-    
     form.setValue('requiredSpecs', Object.keys(specsObject).length > 0 ? specsObject : null);
   };
 
@@ -148,13 +128,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     const specValue = spec.unit ? `${spec.value} ${spec.unit}` : spec.value;
     const newSpecs = [...specs, { key: spec.name, value: specValue }];
     setSpecs(newSpecs);
-
-    const specsObject = newSpecs
-      .filter(s => s.key && s.value)
-      .reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
-    
-    form.setValue('requiredSpecs', Object.keys(specsObject).length > 0 ? specsObject : null);
-
+    updateSpecsInForm(newSpecs);
     setAiSuggestions(prev => ({
       ...prev,
       specifications: prev.specifications.filter(s => s.name !== spec.name),
@@ -170,37 +144,26 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
 
   const handleAiAnalyze = async () => {
     const imageUrls = form.getValues('imageUrls');
-    if (!imageUrls || imageUrls.length === 0) {
+    if (!imageUrls?.length) {
       toast({ title: "No images", description: "Please upload images first", variant: "destructive" });
       return;
     }
 
     setIsAnalyzing(true);
     try {
-      const response = await fetch('/api/analyze/complete-flow', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image_urls: imageUrls,
-          brand: form.getValues('brand') || undefined,
-          model: form.getValues('model') || undefined,
-        }),
-      });
+      const result = await analyzeEquipmentImages(
+        imageUrls,
+        form.getValues('brand') || undefined,
+        form.getValues('model') || undefined
+      );
 
-      if (!response.ok) throw new Error('Analysis failed');
-      
-      const result = await response.json();
-      if (result.final_result) {
-        const { brand, model, category, specifications } = result.final_result;
-        const confidence = result.steps?.image_analysis?.confidence || 0.8;
-        
-        if (brand) setAiSuggestions(prev => ({ ...prev, brand: { value: brand, confidence } }));
-        if (model) setAiSuggestions(prev => ({ ...prev, model: { value: model, confidence } }));
-        if (category) setAiSuggestions(prev => ({ ...prev, category: { value: category, confidence } }));
-        if (specifications?.length) setAiSuggestions(prev => ({ ...prev, specifications }));
+      const confidence = 0.85;
+      if (result.brand) setAiSuggestions(prev => ({ ...prev, brand: { value: result.brand!, confidence } }));
+      if (result.model) setAiSuggestions(prev => ({ ...prev, model: { value: result.model!, confidence } }));
+      if (result.category) setAiSuggestions(prev => ({ ...prev, category: { value: result.category!, confidence } }));
+      if (result.specifications?.length) setAiSuggestions(prev => ({ ...prev, specifications: result.specifications! }));
 
-        toast({ title: "Analysis complete", description: `Found ${specifications?.length || 0} specifications` });
-      }
+      toast({ title: "Analysis complete", description: `Found ${result.specifications?.length || 0} specifications` });
     } catch (error: any) {
       toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
     } finally {
@@ -218,16 +181,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     }
 
     try {
-      const response = await fetch('/api/match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brand, model, search_pdfs: true }),
-      });
-
-      if (!response.ok) throw new Error('Search failed');
-      
-      const result = await response.json();
-      // For now, just show success - later we'll add UI to display results
+      const result = await searchExternalSources(brand, model);
       toast({
         title: "External sources found",
         description: `Found ${result.external_matches?.length || 0} relevant sources`,
@@ -290,37 +244,11 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-
     const files = Array.from(e.target.files);
     
-    if (files.length > 5) {
-      toast({
-        title: "Too many files",
-        description: "Maximum 5 images allowed",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const maxSize = 5 * 1024 * 1024;
-    const oversized = files.find(f => f.size > maxSize);
-    if (oversized) {
-      toast({
-        title: "File too large",
-        description: `${oversized.name} exceeds 5MB limit`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
-    const invalid = files.find(f => !validTypes.includes(f.type));
-    if (invalid) {
-      toast({
-        title: "Invalid file type",
-        description: "Only PNG and JPG images are allowed",
-        variant: "destructive",
-      });
+    const error = validateImageFiles(files);
+    if (error) {
+      toast({ title: "Invalid files", description: error, variant: "destructive" });
       return;
     }
 
@@ -328,59 +256,20 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       setImageFiles(files);
       const urls = await uploadFiles(files, 'image');
       form.setValue('imageUrls', urls);
-      toast({
-        title: "Images uploaded",
-        description: `${files.length} image${files.length !== 1 ? 's' : ''} uploaded successfully`,
-      });
+      toast({ title: "Images uploaded", description: `${files.length} image${files.length !== 1 ? 's' : ''} uploaded` });
     } catch (error: any) {
-      toast({
-        title: "Upload failed",
-        description: error.message || "Failed to upload images",
-        variant: "destructive",
-      });
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
       setImageFiles([]);
     }
   };
 
   const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-
     const files = Array.from(e.target.files);
     
-    if (files.length > 3) {
-      toast({
-        title: "Too many files",
-        description: "Maximum 3 documents allowed",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const maxSize = 10 * 1024 * 1024;
-    const oversized = files.find(f => f.size > maxSize);
-    if (oversized) {
-      toast({
-        title: "File too large",
-        description: `${oversized.name} exceeds 10MB limit`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const validTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ];
-    const invalid = files.find(f => !validTypes.includes(f.type));
-    if (invalid) {
-      toast({
-        title: "Invalid file type",
-        description: "Only PDF, DOC, and XLS documents are allowed",
-        variant: "destructive",
-      });
+    const error = validateDocumentFiles(files);
+    if (error) {
+      toast({ title: "Invalid files", description: error, variant: "destructive" });
       return;
     }
 
@@ -388,16 +277,9 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       setDocumentFiles(files);
       const urls = await uploadFiles(files, 'document');
       form.setValue('documentUrls', urls);
-      toast({
-        title: "Documents uploaded",
-        description: `${files.length} document${files.length !== 1 ? 's' : ''} uploaded successfully`,
-      });
+      toast({ title: "Documents uploaded", description: `${files.length} document${files.length !== 1 ? 's' : ''} uploaded` });
     } catch (error: any) {
-      toast({
-        title: "Upload failed",
-        description: error.message || "Failed to upload documents",
-        variant: "destructive",
-      });
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
       setDocumentFiles([]);
     }
   };

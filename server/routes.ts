@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import multer from "multer";
 import { uploadFile, uploadMultipleFiles, validateFileType, validateFileSize } from "./upload";
 import { analyzeEquipmentImages, estimateEquipmentPrice, calculateMatchScore } from "./ai-analysis";
+import { analyzeEquipmentFromImages, estimatePrice } from "./services/ai-service";
+import { searchPDFsAndWeb } from "./services/apify-service";
 import { db } from "./db";
 import { 
   equipment, 
@@ -179,17 +181,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "image_urls array required" });
       }
 
-      const analysis = await analyzeEquipmentImages(image_urls);
-      const specs = Object.entries(analysis.specifications || {}).map(([name, value]) => ({
-        name,
-        value: String(value).split(' ')[0],
-        unit: String(value).split(' ').slice(1).join(' ') || undefined,
-      }));
+      const analysis = await analyzeEquipmentFromImages(image_urls);
+      const specs = analysis.specifications || [];
 
       res.json({
         success: true,
         steps: {
-          image_analysis: { completed: true, confidence: analysis.confidence / 100 },
+          image_analysis: { completed: true, confidence: 0.85 },
           manual_search: { completed: true, pdfs_found: 0 },
           specification_extraction: { completed: true, specs_found: specs.length },
         },
@@ -212,20 +210,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "brand and model required" });
       }
 
-      // Simulated external search - in production, this would call Apify
-      res.json({
-        success: true,
-        external_matches: [
-          {
-            url: `https://example.com/${brand.toLowerCase()}-${model.toLowerCase()}-manual.pdf`,
-            title: `${brand} ${model} User Manual`,
-            brand,
-            model,
-            confidence: 0.9,
-            provenance: "pdf_search",
-          },
-        ],
-      });
+      const results = await searchPDFsAndWeb(brand, model);
+      const matches = results.map((r: any) => ({
+        url: r.url,
+        title: r.title,
+        brand,
+        model,
+        confidence: 0.85,
+        provenance: r.url?.includes('.pdf') ? 'pdf_search' : 'web_search',
+      }));
+
+      res.json({ success: true, external_matches: matches });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

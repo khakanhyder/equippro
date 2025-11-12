@@ -66,13 +66,26 @@ Preferred communication style: Simple, everyday language.
 
 ### External Dependencies
 
-**OpenAI Integration**: The application integrates GPT-4 Vision (gpt-4o model) for two primary AI features:
+**OpenAI Integration**: The application integrates GPT-4 Vision (gpt-4o model) for AI-powered equipment analysis:
 
 1. **Equipment Image Analysis**: Analyzes uploaded equipment photos to extract brand, model, category, description, and specifications. Returns structured data with confidence scores.
 
 2. **Price Estimation**: Generates market price estimates for equipment based on brand, model, category, and condition. Provides price ranges for new, refurbished, and used conditions with sourcing information.
 
-The AI analysis functions are defined in `server/ai-analysis.ts` and expose `analyzeEquipmentImages()` and `estimateEquipmentPrice()` methods.
+The AI service functions are centralized in `server/services/ai-service.ts` with methods:
+- `analyzeEquipmentFromImages()` - Image analysis for equipment identification
+- `estimatePrice()` - Market price estimation
+
+**Apify Integration**: The application uses Apify for external data collection:
+
+1. **PDF and Web Search**: Searches for equipment manuals, datasheets, and specifications from Google results and PDF documents.
+
+The Apify service is centralized in `server/services/apify-service.ts` with method:
+- `searchPDFsAndWeb()` - Searches external sources for equipment documentation
+
+**Shared Client Services**: Common client-side utilities are organized in `client/src/lib/`:
+- `ai-service.ts` - Client-side AI analysis and search functions
+- `file-upload.ts` - File upload utilities with validation for images and documents
 
 **File Storage**: Replit Object Storage handles image and document uploads. The upload system supports:
 - Images: JPEG, PNG, WebP (max 10MB)
