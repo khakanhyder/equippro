@@ -64,6 +64,8 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     specifications: [],
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [isUploadingDocs, setIsUploadingDocs] = useState(false);
 
   const form = useForm<InsertWishlistItem>({
     resolver: zodResolver(insertWishlistItemSchema),
@@ -252,6 +254,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       return;
     }
 
+    setIsUploadingImages(true);
     try {
       setImageFiles(files);
       const urls = await uploadFiles(files, 'image');
@@ -260,6 +263,8 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
       setImageFiles([]);
+    } finally {
+      setIsUploadingImages(false);
     }
   };
 
@@ -273,6 +278,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       return;
     }
 
+    setIsUploadingDocs(true);
     try {
       setDocumentFiles(files);
       const urls = await uploadFiles(files, 'document');
@@ -281,6 +287,8 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     } catch (error: any) {
       toast({ title: "Upload failed", description: error.message, variant: "destructive" });
       setDocumentFiles([]);
+    } finally {
+      setIsUploadingDocs(false);
     }
   };
 
@@ -439,14 +447,14 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
             <Label>Images</Label>
             <label htmlFor="image-upload" className="block mt-2">
               <div className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-8 text-center cursor-pointer hover-elevate bg-blue-50/50 dark:bg-blue-950/30">
-                <Upload className="w-12 h-12 mx-auto mb-3 text-blue-500" />
+                <Upload className={`w-12 h-12 mx-auto mb-3 text-blue-500 ${isUploadingImages ? 'animate-pulse' : ''}`} />
                 <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                  Drop images here or click to select
+                  {isUploadingImages ? 'Uploading images...' : 'Drop images here or click to select'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   PNG, JPG up to 5MB (max 5 files)
                 </p>
-                {imageFiles.length > 0 && (
+                {imageFiles.length > 0 && !isUploadingImages && (
                   <p className="text-xs text-foreground mt-2">
                     {imageFiles.length} file{imageFiles.length !== 1 ? 's' : ''} selected
                   </p>
@@ -459,6 +467,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
                 multiple
                 onChange={handleImageUpload}
                 className="hidden"
+                disabled={isUploadingImages}
                 data-testid="input-images"
               />
             </label>

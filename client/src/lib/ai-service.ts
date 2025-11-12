@@ -13,7 +13,10 @@ export async function analyzeEquipmentImages(imageUrls: string[], brand?: string
     body: JSON.stringify({ image_urls: imageUrls, brand, model }),
   });
 
-  if (!response.ok) throw new Error('Analysis failed');
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Analysis failed' }));
+    throw new Error(error.message || 'Analysis failed');
+  }
   
   const result = await response.json();
   return result.final_result || {};
@@ -26,6 +29,9 @@ export async function searchExternalSources(brand: string, model: string) {
     body: JSON.stringify({ brand, model, search_pdfs: true }),
   });
 
-  if (!response.ok) throw new Error('Search failed');
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Search failed' }));
+    throw new Error(error.message || 'Search failed');
+  }
   return response.json();
 }

@@ -2,9 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
-import { uploadFile, uploadMultipleFiles, validateFileType, validateFileSize } from "./upload";
-import { analyzeEquipmentImages, estimateEquipmentPrice, calculateMatchScore } from "./ai-analysis";
-import { analyzeEquipmentFromImages, estimatePrice } from "./services/ai-service";
+import { uploadFile, uploadMultipleFiles, validateFileType, validateFileSize } from "./services/upload-service";
+import { analyzeEquipmentFromImages, estimatePrice, calculateMatchScore, sanitizePriceContext } from "./services/ai-service";
 import { searchPDFsAndWeb } from "./services/apify-service";
 import { db } from "./db";
 import { 
@@ -99,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "image_urls array is required" });
       }
 
-      const result = await analyzeEquipmentImages(image_urls);
+      const result = await analyzeEquipmentFromImages(image_urls);
       res.json(result);
     } catch (error: any) {
       console.error('AI analysis error:', error);
@@ -127,16 +126,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       if (cached.length > 0) {
-        const priceRanges = cached[0].priceRanges as any;
-        return res.json({
-          ...priceRanges,
-          source: cached[0].priceSource,
-          breakdown: cached[0].priceBreakdown,
-          cached: true
+        const sanitized = sanitizePriceContext({
+          priceRanges: cached[0].priceRanges,
+          priceSource: cached[0].priceSource,
+          priceBreakdown: cached[0].priceBreakdown
         });
+        
+        if (sanitized) {
+          return res.json({
+            ...sanitized.priceRanges,
+            source: sanitized.priceSource,
+            breakdown: sanitized.priceBreakdown,
+            cached: true
+          });
+        }
       }
 
-      const estimate = await estimateEquipmentPrice(brand, model, category, condition || 'used');
+      const estimate = await estimatePrice(brand, model, category, condition || 'used');
       
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
@@ -149,7 +155,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priceSource: estimate.source,
         priceBreakdown: estimate.breakdown as any,
         expiresAt,
-      }).onConflictDoNothing();
+      }).onConflictDoUpdate({
+        target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
+        set: {
+          priceRanges: estimate as any,
+          priceSource: estimate.source,
+          priceBreakdown: estimate.breakdown as any,
+          expiresAt,
+        }
+      });
 
       res.json({ ...estimate, cached: false });
     } catch (error: any) {
@@ -166,7 +180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "imageUrls array is required" });
       }
 
-      const result = await analyzeEquipmentImages(imageUrls);
+      const result = await analyzeEquipmentFromImages(imageUrls);
       res.json(result);
     } catch (error: any) {
       console.error('AI analysis error:', error);
@@ -245,16 +259,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       if (cached.length > 0) {
-        const priceRanges = cached[0].priceRanges as any;
-        return res.json({
-          ...priceRanges,
-          source: cached[0].priceSource,
-          breakdown: cached[0].priceBreakdown,
-          cached: true
+        const sanitized = sanitizePriceContext({
+          priceRanges: cached[0].priceRanges,
+          priceSource: cached[0].priceSource,
+          priceBreakdown: cached[0].priceBreakdown
         });
+        
+        if (sanitized) {
+          return res.json({
+            ...sanitized.priceRanges,
+            source: sanitized.priceSource,
+            breakdown: sanitized.priceBreakdown,
+            cached: true
+          });
+        }
       }
 
-      const estimate = await estimateEquipmentPrice(brand, model, category, condition || 'used');
+      const estimate = await estimatePrice(brand, model, category, condition || 'used');
       
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
@@ -267,7 +288,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priceSource: estimate.source,
         priceBreakdown: estimate.breakdown as any,
         expiresAt,
-      }).onConflictDoNothing();
+      }).onConflictDoUpdate({
+        target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
+        set: {
+          priceRanges: estimate as any,
+          priceSource: estimate.source,
+          priceBreakdown: estimate.breakdown as any,
+          expiresAt,
+        }
+      });
 
       res.json({ ...estimate, cached: false });
     } catch (error: any) {

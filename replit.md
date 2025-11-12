@@ -43,7 +43,11 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Storage
 
-**Database**: PostgreSQL accessed through Neon's serverless driver for WebSocket-based connections
+**Database**: PostgreSQL with environment-based configuration
+- **Development**: Replit's built-in PostgreSQL database (automatically configured via DATABASE_URL)
+- **Production**: Any PostgreSQL provider (Neon, Supabase, AWS RDS, Azure, Google Cloud SQL)
+  - Configure production DATABASE_URL in environment variables
+  - Compatible with any standard PostgreSQL database (version 12+)
 
 **ORM**: Drizzle ORM provides type-safe database access with schema-first design. The schema defines tables for users, equipment listings, surplus projects, wishlist projects, wishlist items, matches, and price context cache.
 

@@ -2,6 +2,14 @@ import OpenAI from 'openai';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+export interface MatchScore {
+  similarity_score: number;
+  match_type: 'exact' | 'variant' | 'related' | 'alternative';
+  matching_features: string[];
+  differences: string[];
+  spec_comparison: Record<string, { wishlist: string; equipment: string; match: boolean }>;
+}
+
 export async function analyzeEquipmentFromImages(imageUrls: string[]) {
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -24,10 +32,101 @@ Return JSON: { "brand": "...", "model": "...", "category": "...", "specification
       }
     ],
     max_tokens: 1000,
+    response_format: { type: "json_object" },
   });
 
   const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      brand: parsed.brand || '',
+      model: parsed.model || '',
+      category: parsed.category || 'other',
+      specifications: Array.isArray(parsed.specifications) 
+        ? parsed.specifications.map((spec: any) => ({
+            name: spec.name || '',
+            value: spec.value || '',
+            unit: spec.unit || undefined
+          }))
+        : []
+    };
+  } catch (error) {
+    console.error('Failed to parse AI response:', content);
+    return { brand: '', model: '', category: 'other', specifications: [] };
+  }
+}
+
+function parseSingle(value: string): number | null {
+  if (!value) return null;
+  
+  let str = value.trim().toLowerCase();
+  str = str.replace(/[$,\s]/g, '');
+  
+  const multipliers: Record<string, number> = { k: 1000, m: 1000000, b: 1000000000 };
+  for (const [suffix, multiplier] of Object.entries(multipliers)) {
+    if (str.endsWith(suffix)) {
+      str = str.slice(0, -1);
+      const num = parseFloat(str);
+      return Number.isFinite(num) ? num * multiplier : null;
+    }
+  }
+  
+  const num = parseFloat(str);
+  return Number.isFinite(num) ? num : null;
+}
+
+function normalizeCurrency(value: unknown): number | null {
+  if (value == null) return null;
+  
+  let str = String(value).trim().toLowerCase();
+  str = str.replace(/[$,\s]/g, '');
+  
+  const rangeMatch = str.match(/^([\d.]+[kmb]?)-([\d.]+[kmb]?)$/);
+  if (rangeMatch) {
+    const min = parseSingle(rangeMatch[1]);
+    const max = parseSingle(rangeMatch[2]);
+    if (min !== null && max !== null) {
+      return (min + max) / 2;
+    }
+    return null;
+  }
+  
+  return parseSingle(str);
+}
+
+export function validatePriceEstimate(estimate: any) {
+  return {
+    new_min: normalizeCurrency(estimate.new_min),
+    new_max: normalizeCurrency(estimate.new_max),
+    refurbished_min: normalizeCurrency(estimate.refurbished_min),
+    refurbished_max: normalizeCurrency(estimate.refurbished_max),
+    used_min: normalizeCurrency(estimate.used_min),
+    used_max: normalizeCurrency(estimate.used_max),
+    source: String(estimate.source || 'ai_estimate'),
+    breakdown: String(estimate.breakdown || 'AI-generated estimate')
+  };
+}
+
+export function sanitizePriceContext(cached: { priceRanges: any; priceSource: any; priceBreakdown: any } | null) {
+  if (!cached || !cached.priceRanges) return null;
+  
+  try {
+    const sanitized = validatePriceEstimate(cached.priceRanges);
+    const hasValidData = Object.values(sanitized)
+      .filter(v => typeof v === 'number')
+      .some(v => v !== null && Number.isFinite(v));
+    
+    if (!hasValidData) return null;
+    
+    return {
+      priceRanges: sanitized,
+      priceSource: String(cached.priceSource || sanitized.source),
+      priceBreakdown: String(cached.priceBreakdown || sanitized.breakdown)
+    };
+  } catch (error) {
+    console.error('Failed to sanitize cached price context:', error);
+    return null;
+  }
 }
 
 export async function estimatePrice(brand: string, model: string, category: string, condition: string) {
@@ -37,12 +136,117 @@ export async function estimatePrice(brand: string, model: string, category: stri
       {
         role: "user",
         content: `Estimate market price ranges for: ${brand} ${model} (${category}, ${condition} condition).
-Return JSON: { "new_min": 0, "new_max": 0, "refurbished_min": 0, "refurbished_max": 0, "used_min": 0, "used_max": 0, "source": "...", "breakdown": "..." }`
+Return JSON with numeric values only: { "new_min": 0, "new_max": 0, "refurbished_min": 0, "refurbished_max": 0, "used_min": 0, "used_max": 0, "source": "...", "breakdown": "..." }`
       }
     ],
     max_tokens: 500,
+    response_format: { type: "json_object" },
   });
 
   const content = response.choices[0]?.message?.content || "{}";
-  return JSON.parse(content);
+  
+  try {
+    const parsed = JSON.parse(content);
+    return validatePriceEstimate(parsed);
+  } catch (error) {
+    console.error('Failed to parse price estimate:', content);
+    return validatePriceEstimate({});
+  }
+}
+
+export async function calculateMatchScore(
+  wishlistItem: {
+    brand: string;
+    model: string;
+    category: string;
+    requiredSpecs: Record<string, string>;
+  },
+  equipment: {
+    brand: string;
+    model: string;
+    category: string;
+    specifications: Record<string, string>;
+  }
+): Promise<MatchScore> {
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{
+      role: 'user',
+      content: `Compare these two equipment items and calculate a match score:
+
+**Wishlist Item:**
+Brand: ${wishlistItem.brand}
+Model: ${wishlistItem.model}
+Category: ${wishlistItem.category}
+Required Specs: ${JSON.stringify(wishlistItem.requiredSpecs)}
+
+**Available Equipment:**
+Brand: ${equipment.brand}
+Model: ${equipment.model}
+Category: ${equipment.category}
+Specifications: ${JSON.stringify(equipment.specifications)}
+
+Analyze and return ONLY a JSON object:
+
+{
+  "similarity_score": 0-100,
+  "match_type": "exact"|"variant"|"related"|"alternative",
+  "matching_features": ["list of matching features"],
+  "differences": ["list of differences"],
+  "spec_comparison": {
+    "spec_name": {
+      "wishlist": "required value",
+      "equipment": "actual value",
+      "match": true/false
+    }
+  }
+}
+
+Match type criteria:
+- exact (90-100): Exact same brand/model
+- variant (70-89): Same brand, compatible model
+- related (50-69): Same category, different brand
+- alternative (0-49): Different but could work
+
+Consider:
+- Brand/model exact match
+- Category compatibility  
+- Specification requirements met
+- Feature overlap`
+    }],
+    max_tokens: 1000,
+    temperature: 0.3,
+    response_format: { type: "json_object" },
+  });
+
+  const content = completion.choices[0]?.message?.content;
+  if (!content) {
+    return {
+      similarity_score: 0,
+      match_type: 'alternative',
+      matching_features: [],
+      differences: ['Unable to calculate match'],
+      spec_comparison: {},
+    };
+  }
+
+  try {
+    const result = JSON.parse(content);
+    return {
+      similarity_score: Math.min(100, Math.max(0, result.similarity_score || 0)),
+      match_type: result.match_type || 'alternative',
+      matching_features: result.matching_features || [],
+      differences: result.differences || [],
+      spec_comparison: result.spec_comparison || {},
+    };
+  } catch (error) {
+    console.error('Failed to parse match score:', content);
+    return {
+      similarity_score: 0,
+      match_type: 'alternative',
+      matching_features: [],
+      differences: ['Failed to parse match result'],
+      spec_comparison: {},
+    };
+  }
 }
