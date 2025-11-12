@@ -146,7 +146,15 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
 
   const acceptSpec = (spec: { name: string; value: string; unit?: string }) => {
     const specValue = spec.unit ? `${spec.value} ${spec.unit}` : spec.value;
-    setSpecs(prev => [...prev, { key: spec.name, value: specValue }]);
+    const newSpecs = [...specs, { key: spec.name, value: specValue }];
+    setSpecs(newSpecs);
+
+    const specsObject = newSpecs
+      .filter(s => s.key && s.value)
+      .reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {});
+    
+    form.setValue('requiredSpecs', Object.keys(specsObject).length > 0 ? specsObject : null);
+
     setAiSuggestions(prev => ({
       ...prev,
       specifications: prev.specifications.filter(s => s.name !== spec.name),
@@ -445,37 +453,71 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
         </p>
 
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="brand"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-foreground">
-                  Brand <span className="text-destructive">*</span>
-                </FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Thermo Fisher" {...field} data-testid="input-brand" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+          <div>
+            <FormField
+              control={form.control}
+              name="brand"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-foreground">
+                    Brand <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Thermo Fisher" {...field} data-testid="input-brand" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {aiSuggestions.brand && (
+              <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                    <Sparkles className="w-3 h-3 inline mr-1" />
+                    AI Suggestion ({Math.round(aiSuggestions.brand.confidence * 100)}% confidence)
+                  </span>
+                </div>
+                <p className="text-sm mb-2">{aiSuggestions.brand.value}</p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => acceptSuggestion('brand')} data-testid="button-accept-brand">Accept</Button>
+                  <Button size="sm" variant="outline" onClick={() => ignoreSuggestion('brand')} data-testid="button-ignore-brand">Ignore</Button>
+                </div>
+              </div>
             )}
-          />
+          </div>
 
-          <FormField
-            control={form.control}
-            name="model"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-foreground">
-                  Model <span className="text-destructive">*</span>
-                </FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., TSQ-9000" {...field} data-testid="input-model" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+          <div>
+            <FormField
+              control={form.control}
+              name="model"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-foreground">
+                    Model <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., TSQ-9000" {...field} data-testid="input-model" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {aiSuggestions.model && (
+              <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                    <Sparkles className="w-3 h-3 inline mr-1" />
+                    AI Suggestion ({Math.round(aiSuggestions.model.confidence * 100)}% confidence)
+                  </span>
+                </div>
+                <p className="text-sm mb-2">{aiSuggestions.model.value}</p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => acceptSuggestion('model')} data-testid="button-accept-model">Accept</Button>
+                  <Button size="sm" variant="outline" onClick={() => ignoreSuggestion('model')} data-testid="button-ignore-model">Ignore</Button>
+                </div>
+              </div>
             )}
-          />
+          </div>
         </div>
 
         <Button
@@ -577,6 +619,27 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
               Add
             </Button>
           </div>
+
+          {aiSuggestions.specifications.length > 0 && (
+            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-2">
+                <Sparkles className="w-3 h-3 inline mr-1" />
+                AI Suggested Specifications
+              </div>
+              <div className="space-y-2">
+                {aiSuggestions.specifications.map((spec, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-background p-2 rounded">
+                    <span className="text-sm">{spec.name}: {spec.value}{spec.unit ? ` ${spec.unit}` : ''}</span>
+                    <div className="flex gap-1">
+                      <Button size="sm" onClick={() => acceptSpec(spec)}>Accept</Button>
+                      <Button size="sm" variant="outline" onClick={() => ignoreSpec(spec.name)}>Ignore</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             {specs.map((spec, index) => (
               <div key={index} className="flex gap-2">
@@ -736,31 +799,48 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Category <span className="text-destructive">*</span>
-                </FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger data-testid="select-category-wishlist">
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="analytical">analytical</SelectItem>
-                    <SelectItem value="processing">processing</SelectItem>
-                    <SelectItem value="testing">testing</SelectItem>
-                    <SelectItem value="other">other</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
+          <div>
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Category <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-category-wishlist">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="analytical">analytical</SelectItem>
+                      <SelectItem value="processing">processing</SelectItem>
+                      <SelectItem value="testing">testing</SelectItem>
+                      <SelectItem value="other">other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {aiSuggestions.category && (
+              <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                    <Sparkles className="w-3 h-3 inline mr-1" />
+                    AI Suggestion ({Math.round(aiSuggestions.category.confidence * 100)}% confidence)
+                  </span>
+                </div>
+                <p className="text-sm mb-2">{aiSuggestions.category.value}</p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => acceptSuggestion('category')} data-testid="button-accept-category">Accept</Button>
+                  <Button size="sm" variant="outline" onClick={() => ignoreSuggestion('category')} data-testid="button-ignore-category">Ignore</Button>
+                </div>
+              </div>
             )}
-          />
+          </div>
 
           <FormField
             control={form.control}
