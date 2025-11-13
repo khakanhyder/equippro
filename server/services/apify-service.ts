@@ -56,7 +56,25 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
     console.log('[Apify] Total organic results:', allOrganicResults.length);
 
     const filtered = allOrganicResults
-      .filter((r: any) => r.url && r.title)
+      .filter((r: any) => {
+        if (!r.url || !r.title) return false;
+        
+        const url = r.url.toLowerCase();
+        
+        const isSearchPage = url.includes('/search/') || 
+                             url.includes('/search?') ||
+                             url.includes('?page=') ||
+                             url.includes('?q=') ||
+                             url.includes('/category/') ||
+                             url.includes('/categories/');
+        
+        if (isSearchPage) {
+          console.log('[Apify] Filtered out search/category page:', r.url);
+          return false;
+        }
+        
+        return true;
+      })
       .map((r: any) => ({
         url: r.url,
         title: r.title,
@@ -131,17 +149,31 @@ export async function searchMarketplaceListings(brand: string, model: string): P
         const url = r.url.toLowerCase();
         const title = r.title.toLowerCase();
         
-        const isMarketplace = url.includes('ebay.com') || 
-                              url.includes('labx.com') || 
+        const isSearchPage = url.includes('/search/') || 
+                             url.includes('/search?') ||
+                             url.includes('?page=') ||
+                             url.includes('?q=') ||
+                             url.includes('/category/') ||
+                             url.includes('/categories/');
+        
+        if (isSearchPage) {
+          console.log('[Apify] Filtered out search/category page:', r.url);
+          return false;
+        }
+        
+        const isMarketplace = url.includes('ebay.com/itm/') || 
+                              url.includes('labx.com/item/') || 
                               url.includes('biocompare.com') ||
                               url.includes('thomasnet.com') ||
                               url.includes('labwrench.com') ||
                               url.includes('equipnet.com') ||
-                              url.includes('reuzeit.com') ||
-                              url.includes('questpair.com') ||
-                              url.includes('ssllc.com') ||
-                              url.includes('banebio.com') ||
-                              url.includes('machinio.com');
+                              url.includes('reuzeit.com/product/') ||
+                              url.includes('questpair.com/marketplace/') ||
+                              url.includes('ssllc.com/catalog/') ||
+                              url.includes('banebio.com/product/') ||
+                              url.includes('machinio.com') ||
+                              url.includes('radwell.com') ||
+                              url.includes('picclick.com');
         
         const hasPriceIndicator = title.includes('price') || 
                                   title.includes('$') || 
