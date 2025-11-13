@@ -117,13 +117,23 @@ export async function searchMarketplaceListings(brand: string, model: string): P
     }
 
     const filtered = results
-      .filter((r: any) => r.url && r.title)
       .filter((r: any) => {
+        if (!r.url || !r.title) {
+          console.log('[Apify] Filtered out result: missing url or title');
+          return false;
+        }
+        
         const url = r.url.toLowerCase();
-        return url.includes('ebay.com') || 
-               url.includes('labx.com') || 
-               url.includes('biocompare.com') ||
-               url.includes('thomasnet.com');
+        const isMarketplace = url.includes('ebay.com') || 
+                              url.includes('labx.com') || 
+                              url.includes('biocompare.com') ||
+                              url.includes('thomasnet.com');
+        
+        if (!isMarketplace) {
+          console.log('[Apify] Filtered out non-marketplace URL:', r.url);
+        }
+        
+        return isMarketplace;
       })
       .map((r: any) => ({
         url: r.url,
@@ -132,6 +142,10 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       }));
 
     console.log('[Apify] Marketplace filtered results count:', filtered.length);
+    
+    if (filtered.length === 0 && results.length > 0) {
+      console.log('[Apify] All results were filtered out. Sample result:', JSON.stringify(results[0], null, 2));
+    }
     
     return filtered.slice(0, 20);
   } catch (error: any) {
