@@ -199,6 +199,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/price-context/scrape", async (req, res) => {
+    try {
+      const { brand, model, category } = req.body;
+      
+      if (!brand || !model) {
+        return res.status(400).json({ message: "brand and model are required" });
+      }
+
+      const cached = await db.select()
+        .from(priceContextCache)
+        .where(and(
+          eq(priceContextCache.brand, brand),
+          eq(priceContextCache.model, model),
+          eq(priceContextCache.category, category || 'Unknown'),
+          sql`${priceContextCache.expiresAt} > NOW()`
+        ))
+        .limit(1);
+
+      if (cached.length > 0 && cached[0].priceBreakdown?.includes('Market data')) {
+        const sanitized = sanitizePriceContext({
+          priceRanges: cached[0].priceRanges,
+          priceSource: cached[0].priceSource,
+          priceBreakdown: cached[0].priceBreakdown
+        });
+        
+        if (sanitized) {
+          return res.json({
+            ...sanitized.priceRanges,
+            source: sanitized.priceSource,
+            breakdown: sanitized.priceBreakdown,
+            cached: true
+          });
+        }
+      }
+
+      const { calculateMarketPrice, formatPriceForAPI } = await import('./services/price-calculation-service');
+      const marketData = await calculateMarketPrice(brand, model);
+      const formattedData = formatPriceForAPI(marketData);
+      
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 3);
+
+      await db.insert(priceContextCache).values({
+        brand,
+        model,
+        category: category || 'Unknown',
+        priceRanges: formattedData as any,
+        priceSource: formattedData.source,
+        priceBreakdown: formattedData.breakdown as any,
+        expiresAt,
+      }).onConflictDoUpdate({
+        target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
+        set: {
+          priceRanges: formattedData as any,
+          priceSource: formattedData.source,
+          priceBreakdown: formattedData.breakdown as any,
+          expiresAt,
+        }
+      });
+
+      res.json({ ...formattedData, cached: false });
+    } catch (error: any) {
+      console.error('Price scraping error:', error);
+      res.status(500).json({ message: error.message || "Price scraping failed" });
+    }
+  });
+
   app.post("/api/ai/analyze-equipment", async (req, res) => {
     try {
       const { imageUrls } = req.body;
