@@ -240,7 +240,9 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
       body: JSON.stringify({
         startUrls: urls.map(url => ({ url })),
         maxPagesPerCrawl: urls.length,
-        maxConcurrency: 5,
+        maxConcurrency: 10,
+        maxRequestRetries: 1,
+        maxRequestsPerCrawl: urls.length,
         pageFunction: `
           async function pageFunction(context) {
             const { $, request } = context;

@@ -56,7 +56,7 @@ export async function calculateMarketPrice(brand: string, model: string): Promis
     throw new Error('No marketplace listings found. Try checking eBay or LabX manually.');
   }
 
-  const urls = searchResults.map(r => r.url).slice(0, 15);
+  const urls = searchResults.map(r => r.url).slice(0, 9);
   const scrapedListings = await scrapePricesFromURLs(urls);
   
   console.log('[PriceCalc] Scraped', scrapedListings.length, 'listings with valid prices');
