@@ -241,16 +241,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const marketData = await calculateMarketPrice(brand, model);
         formattedData = formatPriceForAPI(marketData);
       } catch (calcError: any) {
-        if (calcError.message?.includes('No marketplace listings found')) {
+        if (calcError.message?.includes('No marketplace listings found') || 
+            calcError.message?.includes('Could not extract prices')) {
+          console.log('[PriceCalc] Marketplace scraping failed, using AI estimation as fallback');
+          
+          const aiEstimate = await estimatePrice(brand, model, category || '', 'any');
+          
           formattedData = {
-            new_min: null,
-            new_max: null,
-            refurbished_min: null,
-            refurbished_max: null,
-            used_min: null,
-            used_max: null,
-            source: 'No data',
-            breakdown: 'No marketplace listings found. Equipment may be too specialized or search terms need adjustment.',
+            new_min: aiEstimate.new_min,
+            new_max: aiEstimate.new_max,
+            refurbished_min: aiEstimate.refurbished_min,
+            refurbished_max: aiEstimate.refurbished_max,
+            used_min: aiEstimate.used_min,
+            used_max: aiEstimate.used_max,
+            source: 'AI-estimated market prices',
+            breakdown: aiEstimate.breakdown || 'Market price estimates based on equipment specifications and condition.',
             totalListingsFound: 0
           };
         } else {
