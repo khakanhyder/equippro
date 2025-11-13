@@ -66,6 +66,8 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
+  const [isSearchingExternal, setIsSearchingExternal] = useState(false);
+  const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string }>>([]);
 
   const form = useForm<InsertWishlistItem>({
     resolver: zodResolver(insertWishlistItemSchema),
@@ -182,14 +184,20 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       return;
     }
 
+    setIsSearchingExternal(true);
     try {
       const result = await searchExternalSources(brand, model);
+      const matches = result.external_matches || [];
+      setExternalResults(matches);
       toast({
-        title: "External sources found",
-        description: `Found ${result.external_matches?.length || 0} relevant sources`,
+        title: "Search complete",
+        description: `Found ${matches.length} relevant source${matches.length !== 1 ? 's' : ''}`,
       });
     } catch (error: any) {
       toast({ title: "Search failed", description: error.message, variant: "destructive" });
+      setExternalResults([]);
+    } finally {
+      setIsSearchingExternal(false);
     }
   };
 
@@ -414,13 +422,40 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
           type="button"
           variant="outline"
           onClick={handleSearchExternal}
-          disabled={!form.watch('brand') || !form.watch('model')}
+          disabled={!form.watch('brand') || !form.watch('model') || isSearchingExternal}
           className="w-full text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
           data-testid="button-search-external"
         >
-          <BookOpen className="w-4 h-4 mr-2" />
-          Search External Sources (PDFs + Google)
+          <BookOpen className={`w-4 h-4 mr-2 ${isSearchingExternal ? 'animate-pulse' : ''}`} />
+          {isSearchingExternal ? 'Searching external sources...' : 'Search External Sources (PDFs + Google)'}
         </Button>
+
+        {externalResults.length > 0 && (
+          <div className="p-4 border rounded-lg bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
+            <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center">
+              <BookOpen className="w-4 h-4 mr-2" />
+              Found {externalResults.length} External Source{externalResults.length !== 1 ? 's' : ''}
+            </h4>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {externalResults.map((result, idx) => (
+                <a
+                  key={idx}
+                  href={result.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-3 bg-background hover-elevate rounded border text-sm"
+                  data-testid={`link-external-result-${idx}`}
+                >
+                  <div className="font-medium text-foreground mb-1">{result.title}</div>
+                  {result.description && (
+                    <div className="text-xs text-muted-foreground line-clamp-2">{result.description}</div>
+                  )}
+                  <div className="text-xs text-blue-600 dark:text-blue-400 mt-1 truncate">{result.url}</div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-6">
           <FormField
