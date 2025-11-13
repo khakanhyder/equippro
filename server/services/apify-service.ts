@@ -20,7 +20,7 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
     throw new Error('Search service not configured. Please contact support.');
   }
 
-  const query = `"${brand}" "${model}" (manual OR datasheet OR specifications OR "user guide") filetype:pdf`;
+  const query = `"${brand}" "${model}" manual OR datasheet OR specifications`;
   
   console.log('[Apify] Searching for:', query);
   
@@ -30,8 +30,8 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         queries: query,
-        maxPagesPerQuery: 1,
-        resultsPerPage: 20,
+        maxPagesPerQuery: 2,
+        resultsPerPage: 30,
         languageCode: 'en',
         countryCode: 'us',
         mobileResults: false,
@@ -52,6 +52,12 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
       throw new Error('Unexpected response format from search service');
     }
 
+    if (results.length === 0) {
+      console.log('[Apify] No results returned from search');
+    } else {
+      console.log('[Apify] Sample result:', JSON.stringify(results[0], null, 2));
+    }
+
     const filtered = results
       .filter((r: any) => r.url && r.title)
       .map((r: any) => ({
@@ -59,7 +65,7 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
         title: r.title,
         description: r.description || r.snippet || '',
       }))
-      .slice(0, 10);
+      .slice(0, 15);
 
     console.log('[Apify] Filtered results count:', filtered.length);
     
@@ -67,7 +73,7 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
       return [{
         url: `https://www.google.com/search?q=${encodeURIComponent(brand + ' ' + model + ' manual pdf')}`,
         title: `Search Google for ${brand} ${model} manuals`,
-        description: 'No direct PDF links found. Click to search Google manually.',
+        description: 'No direct links found. Click to search Google manually.',
       }];
     }
 
@@ -84,7 +90,7 @@ export async function searchMarketplaceListings(brand: string, model: string): P
     throw new Error('Search service not configured. Please contact support.');
   }
 
-  const query = `"${brand}" "${model}" (buy OR sale OR price OR for sale) site:ebay.com OR site:labx.com OR site:biocompare.com OR site:thomasnet.com`;
+  const query = `"${brand}" "${model}" buy OR price OR "for sale"`;
   
   console.log('[Apify] Searching marketplace for:', query);
   
@@ -94,8 +100,8 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         queries: query,
-        maxPagesPerQuery: 2,
-        resultsPerPage: 50,
+        maxPagesPerQuery: 3,
+        resultsPerPage: 40,
         languageCode: 'en',
         countryCode: 'us',
         mobileResults: false,
@@ -116,24 +122,35 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       throw new Error('Unexpected response format from search service');
     }
 
+    if (results.length === 0) {
+      console.log('[Apify] No marketplace results returned');
+    } else {
+      console.log('[Apify] Sample marketplace result:', JSON.stringify(results[0], null, 2));
+    }
+
     const filtered = results
       .filter((r: any) => {
         if (!r.url || !r.title) {
-          console.log('[Apify] Filtered out result: missing url or title');
           return false;
         }
         
         const url = r.url.toLowerCase();
+        const title = r.title.toLowerCase();
+        
         const isMarketplace = url.includes('ebay.com') || 
                               url.includes('labx.com') || 
                               url.includes('biocompare.com') ||
-                              url.includes('thomasnet.com');
+                              url.includes('thomasnet.com') ||
+                              url.includes('labwrench.com') ||
+                              url.includes('equipnet.com');
         
-        if (!isMarketplace) {
-          console.log('[Apify] Filtered out non-marketplace URL:', r.url);
-        }
+        const hasPriceIndicator = title.includes('price') || 
+                                  title.includes('$') || 
+                                  title.includes('buy') ||
+                                  title.includes('sale') ||
+                                  title.includes('usd');
         
-        return isMarketplace;
+        return isMarketplace || hasPriceIndicator;
       })
       .map((r: any) => ({
         url: r.url,
@@ -144,7 +161,13 @@ export async function searchMarketplaceListings(brand: string, model: string): P
     console.log('[Apify] Marketplace filtered results count:', filtered.length);
     
     if (filtered.length === 0 && results.length > 0) {
-      console.log('[Apify] All results were filtered out. Sample result:', JSON.stringify(results[0], null, 2));
+      console.log('[Apify] All results were filtered out. Showing first 3 sample results:');
+      results.slice(0, 3).forEach((r: any, i: number) => {
+        console.log(`[Apify] Sample ${i + 1}:`, JSON.stringify({
+          url: r.url,
+          title: r.title
+        }, null, 2));
+      });
     }
     
     return filtered.slice(0, 20);
