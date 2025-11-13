@@ -97,6 +97,13 @@ The Apify service is centralized in `server/services/apify-service.ts` with meth
 
 Files are validated for type and size, then stored with unique identifiers. The storage client is configured via the `DEFAULT_OBJECT_STORAGE_BUCKET_ID` environment variable.
 
+**File Access**: Replit Object Storage does not support public URLs or signed URLs. Files are served through a backend proxy endpoint (`/api/files/:filename`) that streams files from object storage to clients. This enables:
+- OpenAI Vision API to analyze uploaded images
+- Browser display of equipment photos and documents
+- Secure file access without exposing storage credentials
+
+The upload service generates proxy URLs in the format: `{baseUrl}/api/files/{filename}` where baseUrl is determined from environment variables (REPL_SLUG/REPL_OWNER for production, localhost for development).
+
 **AWS S3**: The @aws-sdk/client-s3 package is included but not currently implemented in the codebase. This suggests planned integration for production file storage migration from Replit Object Storage.
 
 ### Design System

@@ -65,7 +65,10 @@ export async function uploadFile(
     throw new Error(error?.message || 'Upload failed');
   }
 
-  const url = `https://storage.googleapis.com/${BUCKET_ID}/${filename}`;
+  const baseUrl = process.env.REPL_SLUG 
+    ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+    : 'http://localhost:5000';
+  const url = `${baseUrl}/api/files/${filename}`;
 
   return {
     url,
@@ -80,4 +83,33 @@ export async function uploadMultipleFiles(
   type: 'image' | 'document'
 ): Promise<UploadResult[]> {
   return Promise.all(files.map(file => uploadFile(file, type)));
+}
+
+export async function downloadFile(filename: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  const { ok, value, error } = await client.downloadAsBytes(filename);
+  
+  if (!ok) {
+    console.error('Download failed:', error);
+    return null;
+  }
+
+  const ext = path.extname(filename).toLowerCase();
+  const contentTypeMap: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.pdf': 'application/pdf',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.xls': 'application/vnd.ms-excel',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.doc': 'application/msword',
+  };
+
+  const contentType = contentTypeMap[ext] || 'application/octet-stream';
+
+  return {
+    buffer: value[0],
+    contentType,
+  };
 }

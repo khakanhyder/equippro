@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
-import { uploadFile, uploadMultipleFiles, validateFileType, validateFileSize } from "./services/upload-service";
+import { uploadFile, uploadMultipleFiles, validateFileType, validateFileSize, downloadFile } from "./services/upload-service";
 import { analyzeEquipmentFromImages, estimatePrice, calculateMatchScore, sanitizePriceContext } from "./services/ai-service";
 import { searchPDFsAndWeb } from "./services/apify-service";
 import { db } from "./db";
@@ -30,6 +30,29 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.get("/api/files/:filename", async (req, res) => {
+    try {
+      const { filename } = req.params;
+      
+      if (!filename || filename.includes('..') || filename.includes('/')) {
+        return res.status(400).json({ message: "Invalid filename" });
+      }
+
+      const file = await downloadFile(filename);
+      
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      res.setHeader('Content-Type', file.contentType);
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      res.send(file.buffer);
+    } catch (error: any) {
+      console.error('File download error:', error);
+      res.status(500).json({ message: "Failed to download file" });
+    }
+  });
+
   app.post("/api/upload", upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
