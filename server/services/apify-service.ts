@@ -17,11 +17,11 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
   console.log('[Apify] Searching for:', query);
   
   try {
-    const response = await fetch(`https://api.apify.com/v2/acts/apify/google-search-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`, {
+    const response = await fetch(`https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        queries: [query],
+        queries: query,
         maxPagesPerQuery: 1,
         resultsPerPage: 20,
         languageCode: 'en',
