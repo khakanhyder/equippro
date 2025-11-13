@@ -74,7 +74,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const result = await uploadFile(req.file, type);
+      const protocol = req.protocol;
+      const host = req.get('host');
+      const result = await uploadFile(req.file, type, protocol, host);
       res.json(result);
     } catch (error: any) {
       console.error('Upload error:', error);
@@ -105,7 +107,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const results = await uploadMultipleFiles(req.files, type);
+      const protocol = req.protocol;
+      const host = req.get('host');
+      const results = await uploadMultipleFiles(req.files, type, protocol, host);
       res.json(results);
     } catch (error: any) {
       console.error('Upload error:', error);

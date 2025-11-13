@@ -17,6 +17,25 @@ export interface UploadResult {
   contentType: string;
 }
 
+export function getBaseUrl(protocol?: string, host?: string): string {
+  if (protocol && host) {
+    return `${protocol}://${host}`;
+  }
+  
+  if (process.env.REPLIT_DOMAINS) {
+    const domains = process.env.REPLIT_DOMAINS.split(',');
+    if (domains.length > 0 && domains[0]) {
+      return `https://${domains[0]}`;
+    }
+  }
+  
+  if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+    return `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+  }
+  
+  return 'http://localhost:5000';
+}
+
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const ALLOWED_DOCUMENT_TYPES = [
   'application/pdf',
@@ -43,7 +62,9 @@ export function validateFileSize(size: number, type: 'image' | 'document'): bool
 
 export async function uploadFile(
   file: Express.Multer.File,
-  type: 'image' | 'document'
+  type: 'image' | 'document',
+  protocol?: string,
+  host?: string
 ): Promise<UploadResult> {
   if (!validateFileType(file.mimetype, type)) {
     throw new Error(`Invalid file type. Expected ${type}, got ${file.mimetype}`);
@@ -65,9 +86,7 @@ export async function uploadFile(
     throw new Error(error?.message || 'Upload failed');
   }
 
-  const baseUrl = process.env.REPL_SLUG 
-    ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-    : 'http://localhost:5000';
+  const baseUrl = getBaseUrl(protocol, host);
   const url = `${baseUrl}/api/files/${filename}`;
 
   return {
@@ -80,9 +99,11 @@ export async function uploadFile(
 
 export async function uploadMultipleFiles(
   files: Express.Multer.File[],
-  type: 'image' | 'document'
+  type: 'image' | 'document',
+  protocol?: string,
+  host?: string
 ): Promise<UploadResult[]> {
-  return Promise.all(files.map(file => uploadFile(file, type)));
+  return Promise.all(files.map(file => uploadFile(file, type, protocol, host)));
 }
 
 export async function downloadFile(filename: string): Promise<{ buffer: Buffer; contentType: string } | null> {
