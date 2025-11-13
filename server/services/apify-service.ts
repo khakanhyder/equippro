@@ -52,18 +52,15 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
       throw new Error('Unexpected response format from search service');
     }
 
-    if (results.length === 0) {
-      console.log('[Apify] No results returned from search');
-    } else {
-      console.log('[Apify] Sample result:', JSON.stringify(results[0], null, 2));
-    }
+    const allOrganicResults = results.flatMap((page: any) => page.organicResults || []);
+    console.log('[Apify] Total organic results:', allOrganicResults.length);
 
-    const filtered = results
+    const filtered = allOrganicResults
       .filter((r: any) => r.url && r.title)
       .map((r: any) => ({
         url: r.url,
         title: r.title,
-        description: r.description || r.snippet || '',
+        description: r.description || '',
       }))
       .slice(0, 15);
 
@@ -122,13 +119,10 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       throw new Error('Unexpected response format from search service');
     }
 
-    if (results.length === 0) {
-      console.log('[Apify] No marketplace results returned');
-    } else {
-      console.log('[Apify] Sample marketplace result:', JSON.stringify(results[0], null, 2));
-    }
+    const allOrganicResults = results.flatMap((page: any) => page.organicResults || []);
+    console.log('[Apify] Total marketplace organic results:', allOrganicResults.length);
 
-    const filtered = results
+    const filtered = allOrganicResults
       .filter((r: any) => {
         if (!r.url || !r.title) {
           return false;
@@ -142,7 +136,12 @@ export async function searchMarketplaceListings(brand: string, model: string): P
                               url.includes('biocompare.com') ||
                               url.includes('thomasnet.com') ||
                               url.includes('labwrench.com') ||
-                              url.includes('equipnet.com');
+                              url.includes('equipnet.com') ||
+                              url.includes('reuzeit.com') ||
+                              url.includes('questpair.com') ||
+                              url.includes('ssllc.com') ||
+                              url.includes('banebio.com') ||
+                              url.includes('machinio.com');
         
         const hasPriceIndicator = title.includes('price') || 
                                   title.includes('$') || 
@@ -155,20 +154,10 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       .map((r: any) => ({
         url: r.url,
         title: r.title,
-        description: r.description || r.snippet || '',
+        description: r.description || '',
       }));
 
     console.log('[Apify] Marketplace filtered results count:', filtered.length);
-    
-    if (filtered.length === 0 && results.length > 0) {
-      console.log('[Apify] All results were filtered out. Showing first 3 sample results:');
-      results.slice(0, 3).forEach((r: any, i: number) => {
-        console.log(`[Apify] Sample ${i + 1}:`, JSON.stringify({
-          url: r.url,
-          title: r.title
-        }, null, 2));
-      });
-    }
     
     return filtered.slice(0, 20);
   } catch (error: any) {
