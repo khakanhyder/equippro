@@ -103,19 +103,14 @@ export async function calculateMarketPrice(brand: string, model: string): Promis
 
 export function formatPriceForAPI(result: MarketPriceResult) {
   return {
-    new_min: result.new?.min || null,
-    new_max: result.new?.max || null,
-    refurbished_min: result.refurbished?.min || null,
-    refurbished_max: result.refurbished?.max || null,
-    used_min: result.used?.min || null,
-    used_max: result.used?.max || null,
+    new_min: result.new?.min ?? null,
+    new_max: result.new?.max ?? null,
+    refurbished_min: result.refurbished?.min ?? null,
+    refurbished_max: result.refurbished?.max ?? null,
+    used_min: result.used?.min ?? null,
+    used_max: result.used?.max ?? null,
     source: result.source,
     breakdown: result.breakdown,
-    totalListingsFound: result.totalListingsFound,
-    scrapedSources: {
-      new: result.new?.sources || [],
-      refurbished: result.refurbished?.sources || [],
-      used: result.used?.sources || []
-    }
+    totalListingsFound: result.totalListingsFound
   };
 }

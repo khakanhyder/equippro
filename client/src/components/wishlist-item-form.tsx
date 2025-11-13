@@ -67,6 +67,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
   const [isSearchingExternal, setIsSearchingExternal] = useState(false);
+  const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string }>>([]);
 
   const form = useForm<InsertWishlistItem>({
@@ -205,7 +206,6 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     const brand = form.getValues('brand');
     const model = form.getValues('model');
     const category = form.getValues('category');
-    const condition = form.getValues('preferredCondition');
 
     if (!brand || !model) {
       toast({
@@ -216,14 +216,20 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       return;
     }
 
+    setIsFetchingPrices(true);
     try {
-      const result = await fetchPriceContext.mutateAsync({
-        brand,
-        model,
-        category,
-        condition: condition || 'any',
+      const response = await fetch('/api/price-context/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand, model, category }),
       });
 
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to fetch prices');
+      }
+
+      const result = await response.json();
       setPriceData(result);
 
       const priceRange = {
@@ -236,19 +242,21 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       };
 
       form.setValue('marketPriceRange', priceRange as any);
-      form.setValue('priceSource', result.source || 'AI estimate');
+      form.setValue('priceSource', result.source || 'Market data');
       form.setValue('priceBreakdown', result.breakdown || null);
 
       toast({
-        title: "Price context retrieved",
-        description: "Market price ranges have been updated",
+        title: "Real market prices found!",
+        description: `Found ${result.totalListingsFound || 0} marketplace listing(s)`,
       });
     } catch (error: any) {
       toast({
-        title: "Failed to get price context",
-        description: error.message || "Could not retrieve market prices",
+        title: "Price scraping failed",
+        description: error.message || "Could not retrieve market prices. Try checking eBay manually.",
         variant: "destructive",
       });
+    } finally {
+      setIsFetchingPrices(false);
     }
   };
 
@@ -624,12 +632,12 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
               size="sm"
               variant="ghost"
               onClick={handleGetPriceContext}
-              disabled={fetchPriceContext.isPending}
+              disabled={isFetchingPrices}
               data-testid="button-get-price-context"
               className="text-muted-foreground hover:text-foreground"
             >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Get Price Context
+              <Sparkles className={`w-4 h-4 mr-2 ${isFetchingPrices ? 'animate-spin' : ''}`} />
+              {isFetchingPrices ? 'Scraping marketplace...' : 'Get Market Prices'}
             </Button>
           </div>
 

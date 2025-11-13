@@ -217,7 +217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .limit(1);
 
-      if (cached.length > 0 && cached[0].priceBreakdown?.includes('Market data')) {
+      if (cached.length > 0 && String(cached[0].priceBreakdown || '').includes('Market data')) {
         const sanitized = sanitizePriceContext({
           priceRanges: cached[0].priceRanges,
           priceSource: cached[0].priceSource,
