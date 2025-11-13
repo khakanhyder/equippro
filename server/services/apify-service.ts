@@ -314,6 +314,11 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
       throw new Error('Unexpected response format from scraping service');
     }
 
+    // Log sample result to debug price extraction
+    if (results.length > 0) {
+      console.log('[Apify] Sample scraped result:', JSON.stringify(results[0], null, 2));
+    }
+
     const listings: MarketplaceListing[] = results
       .filter((r: any) => r.price && r.price > 0)
       .map((r: any) => ({
@@ -325,6 +330,18 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
       }));
 
     console.log('[Apify] Valid price listings found:', listings.length);
+    
+    if (listings.length === 0 && results.length > 0) {
+      console.log('[Apify] No valid prices extracted. Sample results:');
+      results.slice(0, 2).forEach((r: any, i: number) => {
+        console.log(`[Apify] Result ${i + 1}:`, {
+          url: r.url,
+          title: r.title?.substring(0, 60),
+          price: r.price,
+          condition: r.condition
+        });
+      });
+    }
     
     return listings;
   } catch (error: any) {
