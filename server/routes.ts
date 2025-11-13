@@ -235,8 +235,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { calculateMarketPrice, formatPriceForAPI } = await import('./services/price-calculation-service');
-      const marketData = await calculateMarketPrice(brand, model);
-      const formattedData = formatPriceForAPI(marketData);
+      
+      let formattedData;
+      try {
+        const marketData = await calculateMarketPrice(brand, model);
+        formattedData = formatPriceForAPI(marketData);
+      } catch (calcError: any) {
+        if (calcError.message?.includes('No marketplace listings found')) {
+          formattedData = {
+            new_min: null,
+            new_max: null,
+            refurbished_min: null,
+            refurbished_max: null,
+            used_min: null,
+            used_max: null,
+            source: 'No data',
+            breakdown: 'No marketplace listings found. Equipment may be too specialized or search terms need adjustment.',
+            totalListingsFound: 0
+          };
+        } else {
+          throw calcError;
+        }
+      }
       
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 3);

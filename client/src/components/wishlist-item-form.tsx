@@ -245,10 +245,18 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       form.setValue('priceSource', result.source || 'Market data');
       form.setValue('priceBreakdown', result.breakdown || null);
 
-      toast({
-        title: "Real market prices found!",
-        description: `Found ${result.totalListingsFound || 0} marketplace listing(s)`,
-      });
+      if (result.totalListingsFound === 0) {
+        toast({
+          title: "No listings found",
+          description: "Try checking eBay or LabX manually for this equipment",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Real market prices found!",
+          description: `Found ${result.totalListingsFound} marketplace listing(s)`,
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Price scraping failed",
