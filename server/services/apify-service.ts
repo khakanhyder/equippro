@@ -60,6 +60,9 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
         if (!r.url || !r.title) return false;
         
         const url = r.url.toLowerCase();
+        const title = r.title.toLowerCase();
+        const description = (r.description || '').toLowerCase();
+        const modelLower = model.toLowerCase();
         
         const isSearchPage = url.includes('/search/') || 
                              url.includes('/search?') ||
@@ -70,6 +73,15 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
         
         if (isSearchPage) {
           console.log('[Apify] Filtered out search/category page:', r.url);
+          return false;
+        }
+        
+        const hasModelInTitle = title.includes(modelLower);
+        const hasModelInUrl = url.includes(modelLower);
+        const hasModelInDescription = description.includes(modelLower);
+        
+        if (!hasModelInTitle && !hasModelInUrl && !hasModelInDescription) {
+          console.log('[Apify] Filtered out - model not found in content:', r.url);
           return false;
         }
         
@@ -148,6 +160,8 @@ export async function searchMarketplaceListings(brand: string, model: string): P
         
         const url = r.url.toLowerCase();
         const title = r.title.toLowerCase();
+        const description = (r.description || '').toLowerCase();
+        const modelLower = model.toLowerCase();
         
         const isSearchPage = url.includes('/search/') || 
                              url.includes('/search?') ||
@@ -158,6 +172,15 @@ export async function searchMarketplaceListings(brand: string, model: string): P
         
         if (isSearchPage) {
           console.log('[Apify] Filtered out search/category page:', r.url);
+          return false;
+        }
+        
+        const hasModelInTitle = title.includes(modelLower);
+        const hasModelInUrl = url.includes(modelLower);
+        const hasModelInDescription = description.includes(modelLower);
+        
+        if (!hasModelInTitle && !hasModelInUrl && !hasModelInDescription) {
+          console.log('[Apify] Filtered out - model not found:', r.title);
           return false;
         }
         
