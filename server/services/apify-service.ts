@@ -214,9 +214,9 @@ export async function searchMarketplaceListings(brand: string, model: string): P
 
     console.log('[Apify] Marketplace filtered results count:', filtered.length);
     
-    const limited = filtered.slice(0, 8);
-    if (filtered.length > 8) {
-      console.log('[Apify] Limited to 8 URLs for residential proxy budget (from', filtered.length, 'found)');
+    const limited = filtered.slice(0, 6);
+    if (filtered.length > 6) {
+      console.log('[Apify] Limited to 6 URLs for residential proxy budget (from', filtered.length, 'found)');
     }
     
     return limited;
@@ -239,7 +239,7 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
   console.log('[Apify] Scraping prices from', urls.length, 'URLs using Playwright with residential proxies');
   
   try {
-    const response = await fetch(`https://api.apify.com/v2/acts/apify~playwright-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=300`, {
+    const response = await fetch(`https://api.apify.com/v2/acts/apify~playwright-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=480`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
