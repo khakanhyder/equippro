@@ -24,7 +24,8 @@ import {
 import { useWishlistMutations } from "@/hooks/use-wishlist";
 import { usePriceContext } from "@/hooks/use-ai-analysis";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen } from "lucide-react";
+import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import type { PriceEstimate } from "@/hooks/use-ai-analysis";
 import { analyzeEquipmentImages, searchExternalSources } from "@/lib/ai-service";
 import { uploadFiles, validateImageFiles, validateDocumentFiles } from "@/lib/file-upload";
@@ -680,6 +681,40 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
                   {priceData.breakdown}
                 </p>
               )}
+            </div>
+          )}
+
+          {priceData && priceData.marketplace_listings && priceData.marketplace_listings.length > 0 && (
+            <div className="mt-3 p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+              <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Found {priceData.marketplace_listings.length} Marketplace Listing{priceData.marketplace_listings.length !== 1 ? 's' : ''}
+              </h4>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {priceData.marketplace_listings.map((listing: any, idx: number) => (
+                  <a
+                    key={idx}
+                    href={listing.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-3 bg-background hover-elevate rounded border text-sm"
+                    data-testid={`link-marketplace-listing-${idx}`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="font-medium text-foreground flex-1">
+                        {listing.title || `Listing from ${listing.source}`}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="secondary" className="text-xs capitalize" data-testid={`badge-condition-${idx}`}>
+                          {listing.condition}
+                        </Badge>
+                        <span className="font-semibold text-foreground">${listing.price?.toLocaleString()}</span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-blue-600 dark:text-blue-400 truncate">{listing.source}</div>
+                  </a>
+                ))}
+              </div>
             </div>
           )}
         </div>

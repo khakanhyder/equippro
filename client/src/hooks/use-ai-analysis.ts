@@ -19,6 +19,13 @@ export interface PriceEstimate {
   used_max: number | null;
   source: string;
   breakdown: string;
+  marketplace_listings?: Array<{
+    url: string;
+    price: number;
+    source: string;
+    condition: string;
+    title?: string;
+  }>;
 }
 
 export function useAiAnalysis() {

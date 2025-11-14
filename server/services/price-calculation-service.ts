@@ -14,7 +14,7 @@ interface ConditionPricing {
   max: number;
   average: number;
   count: number;
-  sources: Array<{ url: string; price: number; source: string }>;
+  sources: Array<{ url: string; price: number; source: string; title?: string }>;
 }
 
 interface MarketPriceResult {
@@ -42,7 +42,8 @@ function calculateConditionPricing(listings: MarketplaceListing[]): ConditionPri
     sources: listings.map(l => ({
       url: l.url,
       price: l.price,
-      source: l.source
+      source: l.source,
+      title: l.title
     }))
   };
 }
@@ -148,6 +149,18 @@ export async function calculateMarketPrice(brand: string, model: string, categor
 }
 
 export function formatPriceForAPI(result: MarketPriceResult) {
+  const marketplaceListings: Array<{ url: string; price: number; source: string; condition: string; title?: string }> = [];
+  
+  if (result.new) {
+    result.new.sources.forEach(s => marketplaceListings.push({ ...s, condition: 'new' }));
+  }
+  if (result.refurbished) {
+    result.refurbished.sources.forEach(s => marketplaceListings.push({ ...s, condition: 'refurbished' }));
+  }
+  if (result.used) {
+    result.used.sources.forEach(s => marketplaceListings.push({ ...s, condition: 'used' }));
+  }
+  
   return {
     new_min: result.new?.min ?? null,
     new_max: result.new?.max ?? null,
@@ -157,6 +170,7 @@ export function formatPriceForAPI(result: MarketPriceResult) {
     used_max: result.used?.max ?? null,
     source: result.source,
     breakdown: result.breakdown,
-    totalListingsFound: result.totalListingsFound
+    totalListingsFound: result.totalListingsFound,
+    marketplace_listings: marketplaceListings
   };
 }

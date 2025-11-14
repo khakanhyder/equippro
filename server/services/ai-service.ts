@@ -118,8 +118,20 @@ export function sanitizePriceContext(cached: { priceRanges: any; priceSource: an
     
     if (!hasValidData) return null;
     
+    let marketplaceListings: any[] = [];
+    const rawListings = cached.priceRanges.marketplace_listings || cached.priceRanges.marketplaceSources || [];
+    if (Array.isArray(rawListings) && rawListings.length > 0) {
+      marketplaceListings = rawListings.slice(0, 20).map((listing: any) => ({
+        url: String(listing.url || ''),
+        price: Number.isFinite(Number(listing.price)) ? Number(listing.price) : 0,
+        source: String(listing.source || ''),
+        condition: String(listing.condition || 'used'),
+        title: listing.title ? String(listing.title).slice(0, 200) : undefined
+      })).filter(l => l.url && l.price > 0);
+    }
+    
     return {
-      priceRanges: sanitized,
+      priceRanges: { ...sanitized, marketplace_listings: marketplaceListings },
       priceSource: String(cached.priceSource || sanitized.source),
       priceBreakdown: String(cached.priceBreakdown || sanitized.breakdown)
     };
