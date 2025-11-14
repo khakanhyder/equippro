@@ -323,18 +323,37 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
                   .replace(/USD/gi, '$')
                   .replace(/\\$/g, '');
                 
-                const numericMatch = cleanText.match(/([0-9]+[0-9.,]*)/);
+                const numericMatch = cleanText.match(/([0-9]+[0-9.,\\p{Zs}]*)/u);
                 if (!numericMatch) return null;
                 
-                let numericPart = numericMatch[1];
+                let numericPart = numericMatch[1].replace(/[\\p{Zs}]/gu, '');
                 
                 const lastCommaPos = numericPart.lastIndexOf(',');
                 const lastPeriodPos = numericPart.lastIndexOf('.');
+                const hasComma = lastCommaPos !== -1;
+                const hasPeriod = lastPeriodPos !== -1;
                 
-                if (lastCommaPos > lastPeriodPos && lastCommaPos === numericPart.length - 3) {
+                if (hasComma && hasPeriod && lastCommaPos > lastPeriodPos) {
                   numericPart = numericPart.replace(/\\./g, '').replace(',', '.');
-                } else {
+                } else if (hasComma && hasPeriod) {
                   numericPart = numericPart.replace(/,/g, '');
+                } else if (hasComma && !hasPeriod) {
+                  const parts = numericPart.split(',');
+                  if (parts[1] && parts[1].length === 2) {
+                    numericPart = numericPart.replace(',', '.');
+                  } else {
+                    numericPart = numericPart.replace(/,/g, '');
+                  }
+                } else if (!hasComma && hasPeriod) {
+                  const periodCount = (numericPart.match(/\\./g) || []).length;
+                  if (periodCount > 1) {
+                    numericPart = numericPart.replace(/\\./g, '');
+                  } else if (periodCount === 1) {
+                    const parts = numericPart.split('.');
+                    if (parts[1] && parts[1].length === 3) {
+                      numericPart = numericPart.replace(/\\./, '');
+                    }
+                  }
                 }
                 
                 const parsed = parseFloat(numericPart);
