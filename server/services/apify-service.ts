@@ -214,7 +214,12 @@ export async function searchMarketplaceListings(brand: string, model: string): P
 
     console.log('[Apify] Marketplace filtered results count:', filtered.length);
     
-    return filtered.slice(0, 20);
+    const limited = filtered.slice(0, 8);
+    if (filtered.length > 8) {
+      console.log('[Apify] Limited to 8 URLs for residential proxy budget (from', filtered.length, 'found)');
+    }
+    
+    return limited;
   } catch (error: any) {
     console.error('[Apify] Marketplace search error:', error.message);
     throw new Error(`Marketplace search failed: ${error.message}`);
@@ -231,70 +236,147 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
     return [];
   }
 
-  console.log('[Apify] Scraping prices from', urls.length, 'URLs');
+  console.log('[Apify] Scraping prices from', urls.length, 'URLs using Playwright with residential proxies');
   
   try {
-    const response = await fetch(`https://api.apify.com/v2/acts/apify~web-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`, {
+    const response = await fetch(`https://api.apify.com/v2/acts/apify~playwright-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=300`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         startUrls: urls.map(url => ({ url })),
-        maxPagesPerCrawl: urls.length,
-        maxConcurrency: 10,
-        maxRequestRetries: 1,
         maxRequestsPerCrawl: urls.length,
+        maxConcurrency: 3,
+        maxRequestRetries: 2,
+        proxyConfiguration: {
+          useApifyProxy: true,
+          apifyProxyGroups: ['RESIDENTIAL'],
+          apifyProxyCountry: 'US'
+        },
         pageFunction: `
-          async function pageFunction(context) {
-            const { $, request } = context;
+          async function pageFunction({ page, request }) {
+            const url = request.url;
+            const hostname = new URL(url).hostname;
             
-            // Try to extract price from common selectors
-            const pricePatterns = [
-              '.price', '.Price', '[class*="price"]', '[class*="Price"]',
-              '[data-price]', '#price', '.sale-price', '.current-price',
-              '[itemprop="price"]', '.product-price', '.listing-price'
-            ];
+            await page.waitForLoadState('domcontentloaded');
+            await page.waitForTimeout(2000);
             
             let priceText = '';
-            for (const selector of pricePatterns) {
-              const element = $(selector).first();
-              if (element.length > 0) {
-                priceText = element.text();
-                break;
+            let title = '';
+            
+            try {
+              if (hostname.includes('ebay.com')) {
+                const priceSelectors = [
+                  '[data-testid="x-price-primary"] .ux-textspans',
+                  '.x-price-primary .ux-textspans',
+                  '[itemprop="price"]',
+                  '.notranslate.vi-VR-cvipPrice'
+                ];
+                for (const selector of priceSelectors) {
+                  const element = await page.locator(selector).first();
+                  if (await element.count() > 0) {
+                    priceText = await element.textContent() || '';
+                    if (priceText) break;
+                  }
+                }
+                title = await page.locator('h1.x-item-title__mainTitle, h1[itemprop="name"]').first().textContent() || '';
+              } else if (hostname.includes('labx.com')) {
+                priceText = await page.locator('.price, [class*="price"]').first().textContent() || '';
+                title = await page.locator('h1, .product-title').first().textContent() || '';
+              } else {
+                const priceSelectors = [
+                  '[itemprop="price"]',
+                  '.price', '.Price',
+                  '[class*="price"]', '[class*="Price"]',
+                  '[data-price]', '#price',
+                  '.sale-price', '.current-price',
+                  '.product-price', '.listing-price'
+                ];
+                
+                for (const selector of priceSelectors) {
+                  const element = await page.locator(selector).first();
+                  if (await element.count() > 0) {
+                    priceText = await element.textContent() || '';
+                    if (priceText) break;
+                  }
+                }
+                
+                title = await page.locator('h1').first().textContent() || '';
               }
+              
+              if (!title) {
+                title = await page.title();
+              }
+              
+              function normalizePriceText(text) {
+                if (!text) return null;
+                
+                const trimmed = text.trim();
+                
+                const foreignCurrency = /\\b(CAD|EUR|GBP|AUD|JPY|CNY|NZD|MXN)\\b|CA\\$|C\\$|AU\\$|A\\$|NZ\\$|MX\\$|£|€|¥/i;
+                if (foreignCurrency.test(trimmed)) {
+                  console.warn('Non-USD currency detected, skipping:', text.substring(0, 50));
+                  return null;
+                }
+                
+                const cleanText = trimmed
+                  .replace(/US\\s*\\$/gi, '$')
+                  .replace(/USD/gi, '$')
+                  .replace(/\\$/g, '');
+                
+                const numericMatch = cleanText.match(/([0-9]+[0-9.,]*)/);
+                if (!numericMatch) return null;
+                
+                let numericPart = numericMatch[1];
+                
+                const lastCommaPos = numericPart.lastIndexOf(',');
+                const lastPeriodPos = numericPart.lastIndexOf('.');
+                
+                if (lastCommaPos > lastPeriodPos && lastCommaPos === numericPart.length - 3) {
+                  numericPart = numericPart.replace(/\\./g, '').replace(',', '.');
+                } else {
+                  numericPart = numericPart.replace(/,/g, '');
+                }
+                
+                const parsed = parseFloat(numericPart);
+                return isNaN(parsed) ? null : parsed;
+              }
+              
+              const price = normalizePriceText(priceText);
+              
+              const finalUrl = page.url();
+              const finalHostname = new URL(finalUrl).hostname;
+              
+              const bodyText = await page.locator('body').textContent() || '';
+              const pageTitle = await page.title();
+              const combinedText = (pageTitle + ' ' + bodyText).toLowerCase();
+              
+              let condition = 'used';
+              
+              if (/\\b(refurbished|refurb|certified\\s+refurbished|factory\\s+refurbished)\\b/i.test(combinedText)) {
+                condition = 'refurbished';
+              } else if (/\\b(brand\\s+new|new\\s+in\\s+box|factory\\s+new|unused|nib)\\b/i.test(combinedText)) {
+                condition = 'new';
+              } else if (/\\b(used|pre-owned|preowned|second\\s+hand|as-is)\\b/i.test(combinedText)) {
+                condition = 'used';
+              }
+              
+              return {
+                url: finalUrl,
+                title: title.trim(),
+                price: price,
+                condition: condition,
+                source: finalHostname
+              };
+            } catch (err) {
+              console.error('Page function error:', err);
+              return {
+                url: request.url,
+                title: '',
+                price: null,
+                condition: 'used',
+                source: hostname
+              };
             }
-            
-            // Extract numeric price
-            const priceMatch = priceText.match(/\\$?([0-9,]+\\.?[0-9]*)/);
-            const price = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : null;
-            
-            // Detect condition from title/description with word boundaries
-            const pageText = $('body').text().toLowerCase();
-            const title = $('title').text().toLowerCase();
-            const combinedText = title + ' ' + pageText;
-            
-            // Use regex with word boundaries for accurate detection
-            let condition = 'used'; // Default
-            
-            // Check for refurbished first (higher priority than used)
-            if (/\\b(refurbished|refurb|certified\\s+refurbished|factory\\s+refurbished)\\b/i.test(combinedText)) {
-              condition = 'refurbished';
-            }
-            // Check for new (highest priority)
-            else if (/\\b(brand\\s+new|new\\s+in\\s+box|factory\\s+new|unused|nib)\\b/i.test(combinedText)) {
-              condition = 'new';
-            }
-            // Check for explicit used indicators
-            else if (/\\b(used|pre-owned|preowned|second\\s+hand|as-is)\\b/i.test(combinedText)) {
-              condition = 'used';
-            }
-            
-            return {
-              url: request.url,
-              title: $('title').text() || $('h1').first().text(),
-              price: price,
-              condition: condition,
-              source: new URL(request.url).hostname
-            };
           }
         `
       }),
@@ -302,21 +384,20 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[Apify] Price scraping API Error:', response.status, errorText);
+      console.error('[Apify] Playwright scraping API Error:', response.status, errorText);
       throw new Error(`Apify API returned ${response.status}: ${errorText.substring(0, 200)}`);
     }
     
     const results = await response.json();
-    console.log('[Apify] Price scraping raw results count:', results?.length || 0);
+    console.log('[Apify] Playwright scraping results count:', results?.length || 0);
     
     if (!Array.isArray(results)) {
-      console.error('[Apify] Unexpected price scraping response format:', results);
+      console.error('[Apify] Unexpected playwright response format:', results);
       throw new Error('Unexpected response format from scraping service');
     }
 
-    // Log sample result to debug price extraction
     if (results.length > 0) {
-      console.log('[Apify] Sample scraped result:', JSON.stringify(results[0], null, 2));
+      console.log('[Apify] Sample Playwright result:', JSON.stringify(results[0], null, 2));
     }
 
     const listings: MarketplaceListing[] = results
@@ -329,11 +410,11 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
         source: r.source
       }));
 
-    console.log('[Apify] Valid price listings found:', listings.length);
+    console.log('[Apify] Valid Playwright price listings found:', listings.length);
     
     if (listings.length === 0 && results.length > 0) {
       console.log('[Apify] No valid prices extracted. Sample results:');
-      results.slice(0, 2).forEach((r: any, i: number) => {
+      results.slice(0, 3).forEach((r: any, i: number) => {
         console.log(`[Apify] Result ${i + 1}:`, {
           url: r.url,
           title: r.title?.substring(0, 60),
@@ -345,7 +426,7 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
     
     return listings;
   } catch (error: any) {
-    console.error('[Apify] Price scraping error:', error.message);
-    throw new Error(`Price scraping failed: ${error.message}`);
+    console.error('[Apify] Playwright scraping error:', error.message);
+    throw new Error(`Playwright scraping failed: ${error.message}`);
   }
 }

@@ -1,4 +1,5 @@
 import { searchMarketplaceListings, scrapePricesFromURLs } from './apify-service';
+import { estimatePrice } from './ai-service';
 
 interface MarketplaceListing {
   url: string;
@@ -46,59 +47,104 @@ function calculateConditionPricing(listings: MarketplaceListing[]): ConditionPri
   };
 }
 
-export async function calculateMarketPrice(brand: string, model: string): Promise<MarketPriceResult> {
+async function useAIFallback(brand: string, model: string, category?: string): Promise<MarketPriceResult> {
+  console.log('[PriceCalc] Using AI estimation for', brand, model, category || 'Unknown category');
+  
+  if (!category) {
+    console.warn('[PriceCalc] No category provided for AI estimation - results may be less accurate');
+  }
+  
+  const aiEstimate = await estimatePrice(brand, model, category || 'Industrial Equipment', 'used');
+  
+  return {
+    new: (aiEstimate.new_min && aiEstimate.new_max) ? {
+      min: aiEstimate.new_min,
+      max: aiEstimate.new_max,
+      average: Math.round((aiEstimate.new_min + aiEstimate.new_max) / 2),
+      count: 0,
+      sources: []
+    } : null,
+    refurbished: (aiEstimate.refurbished_min && aiEstimate.refurbished_max) ? {
+      min: aiEstimate.refurbished_min,
+      max: aiEstimate.refurbished_max,
+      average: Math.round((aiEstimate.refurbished_min + aiEstimate.refurbished_max) / 2),
+      count: 0,
+      sources: []
+    } : null,
+    used: (aiEstimate.used_min && aiEstimate.used_max) ? {
+      min: aiEstimate.used_min,
+      max: aiEstimate.used_max,
+      average: Math.round((aiEstimate.used_min + aiEstimate.used_max) / 2),
+      count: 0,
+      sources: []
+    } : null,
+    totalListingsFound: 0,
+    source: aiEstimate.source || 'AI-estimated market prices (no marketplace data available)',
+    breakdown: aiEstimate.breakdown || 'Estimated based on AI analysis of similar equipment'
+  };
+}
+
+export async function calculateMarketPrice(brand: string, model: string, category?: string): Promise<MarketPriceResult> {
   console.log('[PriceCalc] Starting market price calculation for', brand, model);
   
-  const searchResults = await searchMarketplaceListings(brand, model);
-  console.log('[PriceCalc] Found', searchResults.length, 'marketplace listings to scrape');
-  
-  if (searchResults.length === 0) {
-    throw new Error('No marketplace listings found. Try checking eBay or LabX manually.');
+  try {
+    const searchResults = await searchMarketplaceListings(brand, model);
+    console.log('[PriceCalc] Found', searchResults.length, 'marketplace listings to scrape');
+    
+    if (searchResults.length === 0) {
+      console.log('[PriceCalc] No marketplace listings found, using AI estimation as fallback');
+      return await useAIFallback(brand, model, category);
+    }
+
+    const urls = searchResults.map(r => r.url);
+    const scrapedListings = await scrapePricesFromURLs(urls);
+    
+    console.log('[PriceCalc] Scraped', scrapedListings.length, 'listings with valid prices');
+    
+    if (scrapedListings.length === 0) {
+      console.log('[PriceCalc] Marketplace scraping failed, using AI estimation as fallback');
+      return await useAIFallback(brand, model, category);
+    }
+
+    const newListings = scrapedListings.filter(l => l.condition === 'new');
+    const refurbishedListings = scrapedListings.filter(l => l.condition === 'refurbished');
+    const usedListings = scrapedListings.filter(l => l.condition === 'used');
+
+    const newPricing = calculateConditionPricing(newListings);
+    const refurbishedPricing = calculateConditionPricing(refurbishedListings);
+    const usedPricing = calculateConditionPricing(usedListings);
+
+    console.log('[PriceCalc] Price breakdown:', {
+      new: newPricing?.count || 0,
+      refurbished: refurbishedPricing?.count || 0,
+      used: usedPricing?.count || 0
+    });
+
+    const sourceSummary = [
+      newPricing && `${newPricing.count} new listing(s)`,
+      refurbishedPricing && `${refurbishedPricing.count} refurbished listing(s)`,
+      usedPricing && `${usedPricing.count} used listing(s)`
+    ].filter(Boolean).join(', ');
+
+    const breakdownText = [
+      newPricing && `New: Average of ${newPricing.count} listings from ${newPricing.sources.map(s => s.source).join(', ')}`,
+      refurbishedPricing && `Refurbished: Average of ${refurbishedPricing.count} listings from ${refurbishedPricing.sources.map(s => s.source).join(', ')}`,
+      usedPricing && `Used: Average of ${usedPricing.count} listings from ${usedPricing.sources.map(s => s.source).join(', ')}`
+    ].filter(Boolean).join('. ');
+
+    return {
+      new: newPricing,
+      refurbished: refurbishedPricing,
+      used: usedPricing,
+      totalListingsFound: scrapedListings.length,
+      source: `Market data from ${sourceSummary}`,
+      breakdown: breakdownText
+    };
+  } catch (error: any) {
+    console.error('[PriceCalc] Marketplace price calculation failed:', error.message);
+    console.log('[PriceCalc] Falling back to AI estimation');
+    return await useAIFallback(brand, model, category);
   }
-
-  const urls = searchResults.map(r => r.url).slice(0, 9);
-  const scrapedListings = await scrapePricesFromURLs(urls);
-  
-  console.log('[PriceCalc] Scraped', scrapedListings.length, 'listings with valid prices');
-  
-  if (scrapedListings.length === 0) {
-    throw new Error('Could not extract prices from marketplace listings. Please verify pricing manually.');
-  }
-
-  const newListings = scrapedListings.filter(l => l.condition === 'new');
-  const refurbishedListings = scrapedListings.filter(l => l.condition === 'refurbished');
-  const usedListings = scrapedListings.filter(l => l.condition === 'used');
-
-  const newPricing = calculateConditionPricing(newListings.slice(0, 3));
-  const refurbishedPricing = calculateConditionPricing(refurbishedListings.slice(0, 3));
-  const usedPricing = calculateConditionPricing(usedListings.slice(0, 3));
-
-  console.log('[PriceCalc] Price breakdown:', {
-    new: newPricing?.count || 0,
-    refurbished: refurbishedPricing?.count || 0,
-    used: usedPricing?.count || 0
-  });
-
-  const sourceSummary = [
-    newPricing && `${newPricing.count} new listing(s)`,
-    refurbishedPricing && `${refurbishedPricing.count} refurbished listing(s)`,
-    usedPricing && `${usedPricing.count} used listing(s)`
-  ].filter(Boolean).join(', ');
-
-  const breakdownText = [
-    newPricing && `New: Average of ${newPricing.count} listings from ${newPricing.sources.map(s => s.source).join(', ')}`,
-    refurbishedPricing && `Refurbished: Average of ${refurbishedPricing.count} listings from ${refurbishedPricing.sources.map(s => s.source).join(', ')}`,
-    usedPricing && `Used: Average of ${usedPricing.count} listings from ${usedPricing.sources.map(s => s.source).join(', ')}`
-  ].filter(Boolean).join('. ');
-
-  return {
-    new: newPricing,
-    refurbished: refurbishedPricing,
-    used: usedPricing,
-    totalListingsFound: scrapedListings.length,
-    source: `Market data from ${sourceSummary}`,
-    breakdown: breakdownText
-  };
 }
 
 export function formatPriceForAPI(result: MarketPriceResult) {

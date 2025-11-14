@@ -236,32 +236,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { calculateMarketPrice, formatPriceForAPI } = await import('./services/price-calculation-service');
       
-      let formattedData;
-      try {
-        const marketData = await calculateMarketPrice(brand, model);
-        formattedData = formatPriceForAPI(marketData);
-      } catch (calcError: any) {
-        if (calcError.message?.includes('No marketplace listings found') || 
-            calcError.message?.includes('Could not extract prices')) {
-          console.log('[PriceCalc] Marketplace scraping failed, using AI estimation as fallback');
-          
-          const aiEstimate = await estimatePrice(brand, model, category || '', 'any');
-          
-          formattedData = {
-            new_min: aiEstimate.new_min,
-            new_max: aiEstimate.new_max,
-            refurbished_min: aiEstimate.refurbished_min,
-            refurbished_max: aiEstimate.refurbished_max,
-            used_min: aiEstimate.used_min,
-            used_max: aiEstimate.used_max,
-            source: 'AI-estimated market prices',
-            breakdown: aiEstimate.breakdown || 'Market price estimates based on equipment specifications and condition.',
-            totalListingsFound: 0
-          };
-        } else {
-          throw calcError;
-        }
-      }
+      const marketData = await calculateMarketPrice(brand, model, category);
+      const formattedData = formatPriceForAPI(marketData);
       
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 3);
