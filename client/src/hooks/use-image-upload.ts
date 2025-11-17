@@ -9,6 +9,7 @@ interface UploadQueueItem {
   url: string | null;
   previewUrl: string;
   error?: string;
+  abortController?: AbortController;
 }
 
 export function useImageUpload() {
@@ -45,6 +46,7 @@ export function useImageUpload() {
     
     for (const item of pendingItems) {
       const itemId = item.id;
+      const abortController = new AbortController();
       
       let shouldUpload = false;
       setQueue(prev => {
@@ -55,7 +57,7 @@ export function useImageUpload() {
         }
         shouldUpload = true;
         return prev.map((q, i) => 
-          i === idx ? { ...q, status: 'uploading' as const, progress: 0 } : q
+          i === idx ? { ...q, status: 'uploading' as const, progress: 0, abortController } : q
         );
       });
       
@@ -70,6 +72,7 @@ export function useImageUpload() {
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
+          signal: abortController.signal,
         });
 
         if (!response.ok) {
@@ -100,6 +103,9 @@ export function useImageUpload() {
           uploadedUrls.push(result.url);
         }
       } catch (error: any) {
+        if (error.name === 'AbortError') {
+          continue;
+        }
         setQueue(prev => {
           const idx = prev.findIndex(q => q.id === itemId);
           if (idx === -1) return prev;
@@ -123,6 +129,9 @@ export function useImageUpload() {
       if (item?.previewUrl) {
         URL.revokeObjectURL(item.previewUrl);
       }
+      if (item?.abortController) {
+        item.abortController.abort();
+      }
       return prev.filter((_, i) => i !== index);
     });
   }, []);
@@ -131,6 +140,9 @@ export function useImageUpload() {
     queue.forEach(item => {
       if (item.previewUrl) {
         URL.revokeObjectURL(item.previewUrl);
+      }
+      if (item.abortController) {
+        item.abortController.abort();
       }
     });
     setQueue([]);

@@ -86,6 +86,12 @@ export function SurplusForm({ onSubmit, isSubmitting, defaultEmail }: SurplusFor
   };
 
   const handleUploadImages = async () => {
+    const hasPending = imageUpload.queue.some(item => item.status === 'pending' || item.status === 'error');
+    
+    if (!hasPending) {
+      return;
+    }
+    
     const uploadedUrls = await imageUpload.uploadAll();
     
     if (uploadedUrls.length > 0) {
@@ -97,11 +103,14 @@ export function SurplusForm({ onSubmit, isSubmitting, defaultEmail }: SurplusFor
         description: `${uploadedUrls.length} image(s) uploaded successfully`,
       });
     } else {
-      toast({
-        title: "Upload failed",
-        description: "No images were successfully uploaded",
-        variant: "destructive",
-      });
+      const hasErrors = imageUpload.queue.some(item => item.status === 'error');
+      if (hasErrors) {
+        toast({
+          title: "Upload failed",
+          description: "Some images failed to upload. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
