@@ -53,24 +53,9 @@ export function useImageUpload() {
       const itemId = item.id;
       const abortController = new AbortController();
       
-      // Get fresh queue state synchronously
-      let currentQueueState: UploadQueueItem[] = [];
-      setQueue(prev => {
-        currentQueueState = prev;
-        return prev;
-      });
-      
-      const itemIndex = currentQueueState.findIndex(q => q.id === itemId);
-      console.log('[useImageUpload] Current queue has', currentQueueState.length, 'items, item found at index:', itemIndex);
-      
-      if (itemIndex === -1) {
-        console.log('[useImageUpload] Item no longer in queue, skipping:', item.file.name);
-        continue;
-      }
-      
-      // Mark as uploading
-      setQueue(prev => prev.map((q, i) => 
-        i === itemIndex ? { ...q, status: 'uploading' as const, progress: 0, abortController } : q
+      // Mark as uploading (find by ID, not index)
+      setQueue(prev => prev.map(q => 
+        q.id === itemId ? { ...q, status: 'uploading' as const, progress: 0, abortController } : q
       ));
 
       console.log('[useImageUpload] Starting fetch for:', item.file.name);
@@ -91,44 +76,35 @@ export function useImageUpload() {
         const result = await response.json();
         console.log('[useImageUpload] Upload successful for:', item.file.name, 'URL:', result.url);
         
-        let itemStillExists = false;
+        // Update status and add to uploaded URLs (only if item still exists in queue)
         setQueue(prev => {
-          const idx = prev.findIndex(q => q.id === itemId);
-          if (idx === -1) {
-            itemStillExists = false;
-            return prev;
+          const found = prev.some(q => q.id === itemId);
+          if (found) {
+            uploadedUrls.push(result.url);
+            return prev.map(q => 
+              q.id === itemId ? { 
+                ...q, 
+                status: 'complete' as const, 
+                progress: 100, 
+                url: result.url 
+              } : q
+            );
           }
-          itemStillExists = true;
-          return prev.map((q, i) => 
-            i === idx ? { 
-              ...q, 
-              status: 'complete' as const, 
-              progress: 100, 
-              url: result.url 
-            } : q
-          );
+          return prev;
         });
-        
-        if (itemStillExists) {
-          uploadedUrls.push(result.url);
-        }
       } catch (error: any) {
         console.log('[useImageUpload] Upload error for:', item.file.name, 'Error:', error.message, 'Type:', error.name);
         if (error.name === 'AbortError') {
           console.log('[useImageUpload] Upload aborted, continuing to next item');
           continue;
         }
-        setQueue(prev => {
-          const idx = prev.findIndex(q => q.id === itemId);
-          if (idx === -1) return prev;
-          return prev.map((q, i) => 
-            i === idx ? { 
-              ...q, 
-              status: 'error' as const, 
-              error: error.message 
-            } : q
-          );
-        });
+        setQueue(prev => prev.map(q => 
+          q.id === itemId ? { 
+            ...q, 
+            status: 'error' as const, 
+            error: error.message 
+          } : q
+        ));
       }
     }
     
