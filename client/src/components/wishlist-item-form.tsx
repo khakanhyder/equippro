@@ -24,7 +24,7 @@ import {
 import { useWishlistMutations } from "@/hooks/use-wishlist";
 import { usePriceContext } from "@/hooks/use-ai-analysis";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink, X } from "lucide-react";
+import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink, X, BookmarkPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { PriceEstimate } from "@/hooks/use-ai-analysis";
 import { analyzeEquipmentImages, searchExternalSources } from "@/lib/ai-service";
@@ -471,22 +471,66 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
               <BookOpen className="w-4 h-4 mr-2" />
               Found {externalResults.length} External Source{externalResults.length !== 1 ? 's' : ''}
             </h4>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
               {externalResults.map((result, idx) => (
-                <a
+                <div
                   key={idx}
-                  href={result.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block p-3 bg-background hover-elevate rounded border text-sm"
-                  data-testid={`link-external-result-${idx}`}
+                  className="p-4 bg-background rounded-lg border hover-elevate"
+                  data-testid={`card-external-result-${idx}`}
                 >
-                  <div className="font-medium text-foreground mb-1">{result.title}</div>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="font-medium text-foreground">{result.title}</div>
+                  </div>
+                  
                   {result.description && (
-                    <div className="text-xs text-muted-foreground line-clamp-2">{result.description}</div>
+                    <div className="text-sm text-muted-foreground mb-2 line-clamp-2">{result.description}</div>
                   )}
-                  <div className="text-xs text-blue-600 dark:text-blue-400 mt-1 truncate">{result.url}</div>
-                </a>
+                  
+                  <a
+                    href={result.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block mb-3"
+                    data-testid={`link-external-url-${idx}`}
+                  >
+                    {result.url}
+                  </a>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        toast({
+                          title: "Analyzing source",
+                          description: `Analyzing details from ${result.title}...`,
+                        });
+                      }}
+                      className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950 dark:border-purple-800 dark:text-purple-400"
+                      data-testid={`button-analyze-${idx}`}
+                    >
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      Analyze
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        toast({
+                          title: "Source saved",
+                          description: `Saved ${result.title} for reference`,
+                        });
+                      }}
+                      className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400"
+                      data-testid={`button-save-${idx}`}
+                    >
+                      <BookmarkPlus className="w-3 h-3 mr-1" />
+                      Save
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
