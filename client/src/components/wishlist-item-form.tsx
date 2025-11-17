@@ -24,11 +24,12 @@ import {
 import { useWishlistMutations } from "@/hooks/use-wishlist";
 import { usePriceContext } from "@/hooks/use-ai-analysis";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { PriceEstimate } from "@/hooks/use-ai-analysis";
 import { analyzeEquipmentImages, searchExternalSources } from "@/lib/ai-service";
 import { uploadFiles, validateImageFiles, validateDocumentFiles } from "@/lib/file-upload";
+import { useImageUpload } from "@/hooks/use-image-upload";
 
 interface WishlistItemFormProps {
   projectId: number;
@@ -53,10 +54,10 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
   const { toast } = useToast();
   const { createWishlistItem } = useWishlistMutations();
   const { fetchPriceContext } = usePriceContext();
+  const imageUpload = useImageUpload();
 
   const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>([]);
   const [priceData, setPriceData] = useState<PriceEstimate | null>(null);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestions>({
     brand: null,
@@ -65,7 +66,6 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     specifications: [],
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
   const [isSearchingExternal, setIsSearchingExternal] = useState(false);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
@@ -269,7 +269,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
     
@@ -279,17 +279,26 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       return;
     }
 
-    setIsUploadingImages(true);
-    try {
-      setImageFiles(files);
-      const urls = await uploadFiles(files, 'image');
-      form.setValue('imageUrls', urls);
-      toast({ title: "Images uploaded", description: `${files.length} image${files.length !== 1 ? 's' : ''} uploaded` });
-    } catch (error: any) {
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
-      setImageFiles([]);
-    } finally {
-      setIsUploadingImages(false);
+    imageUpload.addFiles(files);
+  };
+
+  const handleUploadImages = async () => {
+    const uploadedUrls = await imageUpload.uploadAll();
+    
+    if (uploadedUrls.length > 0) {
+      const allUrls = [...(form.getValues('imageUrls') || []), ...uploadedUrls];
+      form.setValue('imageUrls', allUrls);
+      
+      toast({
+        title: "Images uploaded",
+        description: `${uploadedUrls.length} image(s) uploaded successfully`,
+      });
+    } else {
+      toast({
+        title: "Upload failed",
+        description: "No images were successfully uploaded",
+        variant: "destructive",
+      });
     }
   };
 
@@ -347,7 +356,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       });
       setSpecs([]);
       setPriceData(null);
-      setImageFiles([]);
+      imageUpload.clearAll();
       setDocumentFiles([]);
 
       onSuccess?.();
@@ -495,56 +504,103 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
             )}
           />
 
-          <div>
-            <Label>Images</Label>
-            <label htmlFor="image-upload" className="block mt-2">
-              <div className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-8 text-center cursor-pointer hover-elevate bg-blue-50/50 dark:bg-blue-950/30">
-                <Upload className={`w-12 h-12 mx-auto mb-3 text-blue-500 ${isUploadingImages ? 'animate-pulse' : ''}`} />
-                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                  {isUploadingImages ? 'Uploading images...' : 'Drop images here or click to select'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  PNG, JPG up to 5MB (max 5 files)
-                </p>
-                {imageFiles.length > 0 && !isUploadingImages && (
-                  <p className="text-xs text-foreground mt-2">
-                    {imageFiles.length} file{imageFiles.length !== 1 ? 's' : ''} selected
-                  </p>
-                )}
-              </div>
+          <div className="space-y-2">
+            <Label>Equipment Images</Label>
+            <div className="space-y-2">
               <input
-                id="image-upload"
                 type="file"
-                accept="image/png,image/jpeg,image/jpg"
+                accept="image/*"
                 multiple
-                onChange={handleImageUpload}
+                onChange={handleImageSelect}
                 className="hidden"
-                disabled={isUploadingImages}
-                data-testid="input-images"
+                id="image-upload-wishlist"
               />
-            </label>
-
-            {(form.watch('imageUrls')?.length ?? 0) > 0 && (
-              <Button
-                type="button"
-                onClick={handleAiAnalyze}
-                disabled={isAnalyzing}
-                className="w-full mt-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                data-testid="button-ai-analyze"
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2 animate-spin" />
-                    Analyzing: Images → Manuals → Specs...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    AI Analyze: Images → Manuals → Specifications
-                  </>
-                )}
-              </Button>
-            )}
+              <label htmlFor="image-upload-wishlist">
+                <div className="border-2 border-dashed border-blue-300 dark:border-blue-700 rounded-lg p-6 text-center cursor-pointer hover-elevate bg-blue-50/50 dark:bg-blue-950/30" data-testid="dropzone-images-wishlist">
+                  <Upload className="w-10 h-10 mx-auto mb-2 text-blue-500" />
+                  <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Drop images here or click to select</p>
+                  <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 5MB (max 5 files)</p>
+                </div>
+              </label>
+              
+              {imageUpload.queue.length > 0 && (
+                <div className="space-y-2">
+                  {imageUpload.queue.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 border rounded-lg">
+                      <img src={item.previewUrl} alt="Preview" className="w-12 h-12 object-cover rounded" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{item.file.name}</p>
+                        {item.status === 'uploading' && (
+                          <>
+                            <p className="text-xs text-muted-foreground mb-1">Uploading...</p>
+                            <div className="w-full bg-muted rounded-full h-1.5">
+                              <div 
+                                className="bg-primary h-1.5 rounded-full transition-all duration-300" 
+                                style={{ width: `${item.progress}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">{item.progress}% uploaded</p>
+                          </>
+                        )}
+                        {item.status === 'pending' && (
+                          <p className="text-xs text-muted-foreground">Ready to upload</p>
+                        )}
+                        {item.status === 'complete' && (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400">Uploaded</p>
+                        )}
+                        {item.status === 'error' && (
+                          <p className="text-xs text-destructive">{item.error || 'Upload failed'}</p>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => imageUpload.removeItem(index)}
+                        data-testid={`button-remove-image-${index}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleUploadImages}
+                      disabled={imageUpload.queue.every(i => i.status === 'complete')}
+                      data-testid="button-upload-all-wishlist"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload All
+                    </Button>
+                    
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAiAnalyze}
+                      disabled={isAnalyzing || imageUpload.getUploadedUrls().length === 0}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      data-testid="button-ai-analyze"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          AI Analyze
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

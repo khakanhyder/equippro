@@ -86,14 +86,23 @@ export function SurplusForm({ onSubmit, isSubmitting, defaultEmail }: SurplusFor
   };
 
   const handleUploadImages = async () => {
-    await imageUpload.uploadAll();
-    const urls = imageUpload.getUploadedUrls();
-    form.setValue('images', urls);
+    const uploadedUrls = await imageUpload.uploadAll();
     
-    toast({
-      title: "Images uploaded",
-      description: `${urls.length} image(s) uploaded successfully`,
-    });
+    if (uploadedUrls.length > 0) {
+      const allUrls = [...(form.getValues('images') || []), ...uploadedUrls];
+      form.setValue('images', allUrls);
+      
+      toast({
+        title: "Images uploaded",
+        description: `${uploadedUrls.length} image(s) uploaded successfully`,
+      });
+    } else {
+      toast({
+        title: "Upload failed",
+        description: "No images were successfully uploaded",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAiAnalysis = async () => {
@@ -375,7 +384,27 @@ export function SurplusForm({ onSubmit, isSubmitting, defaultEmail }: SurplusFor
                     <img src={item.previewUrl} alt="Preview" className="w-12 h-12 object-cover rounded" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{item.file.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.status}</p>
+                      {item.status === 'uploading' && (
+                        <>
+                          <p className="text-xs text-muted-foreground mb-1">Uploading...</p>
+                          <div className="w-full bg-muted rounded-full h-1.5">
+                            <div 
+                              className="bg-primary h-1.5 rounded-full transition-all duration-300" 
+                              style={{ width: `${item.progress}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{item.progress}% uploaded</p>
+                        </>
+                      )}
+                      {item.status === 'pending' && (
+                        <p className="text-xs text-muted-foreground">Ready to upload</p>
+                      )}
+                      {item.status === 'complete' && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">Uploaded</p>
+                      )}
+                      {item.status === 'error' && (
+                        <p className="text-xs text-destructive">{item.error || 'Upload failed'}</p>
+                      )}
                     </div>
                     <Button
                       type="button"

@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface UploadQueueItem {
+  id: string;
   file: File;
   progress: number;
   status: 'pending' | 'uploading' | 'complete' | 'error';
@@ -15,6 +16,7 @@ export function useImageUpload() {
 
   const addFiles = useCallback((files: File[]) => {
     const newItems: UploadQueueItem[] = files.map(file => ({
+      id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
       file,
       progress: 0,
       status: 'pending' as const,
@@ -25,15 +27,41 @@ export function useImageUpload() {
     setQueue(prev => [...prev, ...newItems]);
   }, []);
 
-  const uploadAll = useCallback(async () => {
-    const pendingItems = queue.filter(item => item.status === 'pending' || item.status === 'error');
+  const uploadAll = useCallback(async (): Promise<string[]> => {
+    let currentQueue: UploadQueueItem[] = [];
+    setQueue(prev => {
+      currentQueue = prev;
+      return prev;
+    });
+    
+    const pendingItems = currentQueue
+      .filter(item => item.status === 'pending' || item.status === 'error');
+    
+    if (pendingItems.length === 0) {
+      return [];
+    }
+    
+    const uploadedUrls: string[] = [];
     
     for (const item of pendingItems) {
-      const index = queue.indexOf(item);
+      const itemId = item.id;
       
-      setQueue(prev => prev.map((q, i) => 
-        i === index ? { ...q, status: 'uploading' as const, progress: 0 } : q
-      ));
+      let shouldUpload = false;
+      setQueue(prev => {
+        const idx = prev.findIndex(q => q.id === itemId);
+        if (idx === -1) {
+          shouldUpload = false;
+          return prev;
+        }
+        shouldUpload = true;
+        return prev.map((q, i) => 
+          i === idx ? { ...q, status: 'uploading' as const, progress: 0 } : q
+        );
+      });
+      
+      if (!shouldUpload) {
+        continue;
+      }
 
       try {
         const formData = new FormData();
@@ -49,26 +77,45 @@ export function useImageUpload() {
         }
 
         const result = await response.json();
-
-        setQueue(prev => prev.map((q, i) => 
-          i === index ? { 
-            ...q, 
-            status: 'complete' as const, 
-            progress: 100, 
-            url: result.url 
-          } : q
-        ));
+        
+        let itemStillExists = false;
+        setQueue(prev => {
+          const idx = prev.findIndex(q => q.id === itemId);
+          if (idx === -1) {
+            itemStillExists = false;
+            return prev;
+          }
+          itemStillExists = true;
+          return prev.map((q, i) => 
+            i === idx ? { 
+              ...q, 
+              status: 'complete' as const, 
+              progress: 100, 
+              url: result.url 
+            } : q
+          );
+        });
+        
+        if (itemStillExists) {
+          uploadedUrls.push(result.url);
+        }
       } catch (error: any) {
-        setQueue(prev => prev.map((q, i) => 
-          i === index ? { 
-            ...q, 
-            status: 'error' as const, 
-            error: error.message 
-          } : q
-        ));
+        setQueue(prev => {
+          const idx = prev.findIndex(q => q.id === itemId);
+          if (idx === -1) return prev;
+          return prev.map((q, i) => 
+            i === idx ? { 
+              ...q, 
+              status: 'error' as const, 
+              error: error.message 
+            } : q
+          );
+        });
       }
     }
-  }, [queue]);
+    
+    return uploadedUrls;
+  }, []);
 
   const removeItem = useCallback((index: number) => {
     setQueue(prev => {
