@@ -38,13 +38,18 @@ export function useImageUpload() {
     const pendingItems = currentQueue
       .filter(item => item.status === 'pending' || item.status === 'error');
     
+    console.log('[useImageUpload] uploadAll called, pending items:', pendingItems.length);
+    
     if (pendingItems.length === 0) {
+      console.log('[useImageUpload] No pending items, returning empty array');
       return [];
     }
     
     const uploadedUrls: string[] = [];
     
-    for (const item of pendingItems) {
+    for (let i = 0; i < pendingItems.length; i++) {
+      const item = pendingItems[i];
+      console.log(`[useImageUpload] Processing item ${i + 1}/${pendingItems.length}:`, item.file.name);
       const itemId = item.id;
       const abortController = new AbortController();
       
@@ -62,9 +67,11 @@ export function useImageUpload() {
       });
       
       if (!shouldUpload) {
+        console.log('[useImageUpload] Item no longer in queue, skipping:', item.file.name);
         continue;
       }
 
+      console.log('[useImageUpload] Starting fetch for:', item.file.name);
       try {
         const formData = new FormData();
         formData.append('file', item.file);
@@ -80,6 +87,7 @@ export function useImageUpload() {
         }
 
         const result = await response.json();
+        console.log('[useImageUpload] Upload successful for:', item.file.name, 'URL:', result.url);
         
         let itemStillExists = false;
         setQueue(prev => {
@@ -103,7 +111,9 @@ export function useImageUpload() {
           uploadedUrls.push(result.url);
         }
       } catch (error: any) {
+        console.log('[useImageUpload] Upload error for:', item.file.name, 'Error:', error.message, 'Type:', error.name);
         if (error.name === 'AbortError') {
+          console.log('[useImageUpload] Upload aborted, continuing to next item');
           continue;
         }
         setQueue(prev => {
@@ -120,6 +130,7 @@ export function useImageUpload() {
       }
     }
     
+    console.log('[useImageUpload] uploadAll complete, uploaded URLs:', uploadedUrls.length);
     return uploadedUrls;
   }, []);
 
