@@ -501,10 +501,13 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         toast({
                           title: "Analyzing source",
                           description: `Analyzing details from ${result.title}...`,
+                          duration: 3000,
                         });
                       }}
                       className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950 dark:border-purple-800 dark:text-purple-400"
@@ -517,10 +520,13 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         toast({
                           title: "Source saved",
                           description: `Saved ${result.title} for reference`,
+                          duration: 3000,
                         });
                       }}
                       className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400"
@@ -760,9 +766,9 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
           </div>
 
           {priceData && (
-            <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+            <div className="p-4 border rounded-lg space-y-3 bg-muted/30" data-testid="price-context">
               {priceData.new_min !== null && priceData.new_max !== null && (
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm" data-testid="price-new">
                   <span className="text-muted-foreground">New:</span>
                   <span className="font-medium">
                     ${priceData.new_min?.toLocaleString()} - ${priceData.new_max?.toLocaleString()}
@@ -770,7 +776,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
                 </div>
               )}
               {priceData.refurbished_min !== null && priceData.refurbished_max !== null && (
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm" data-testid="price-refurbished">
                   <span className="text-muted-foreground">Refurbished:</span>
                   <span className="font-medium">
                     ${priceData.refurbished_min?.toLocaleString()} - ${priceData.refurbished_max?.toLocaleString()}
@@ -778,7 +784,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
                 </div>
               )}
               {priceData.used_min !== null && priceData.used_max !== null && (
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-sm" data-testid="price-used">
                   <span className="text-muted-foreground">Used:</span>
                   <span className="font-medium">
                     ${priceData.used_min?.toLocaleString()} - ${priceData.used_max?.toLocaleString()}
@@ -786,7 +792,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
                 </div>
               )}
               {priceData.breakdown && (
-                <p className="text-xs text-muted-foreground pt-2 border-t">
+                <p className="text-xs text-muted-foreground pt-2 border-t" data-testid="price-breakdown">
                   {priceData.breakdown}
                 </p>
               )}
@@ -794,7 +800,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
           )}
 
           {priceData && priceData.marketplace_listings && priceData.marketplace_listings.length > 0 && (
-            <div className="mt-3 p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+            <div className="mt-3 p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800" data-testid="marketplace-listings">
               <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center">
                 <ExternalLink className="w-4 h-4 mr-2" />
                 Found {priceData.marketplace_listings.length} Marketplace Listing{priceData.marketplace_listings.length !== 1 ? 's' : ''}
