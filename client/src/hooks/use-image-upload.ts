@@ -55,7 +55,10 @@ export function useImageUpload() {
       
       let shouldUpload = false;
       setQueue(prev => {
+        console.log('[useImageUpload] Queue before marking as uploading:', prev.length, 'items, looking for:', itemId);
+        console.log('[useImageUpload] Queue IDs:', prev.map(q => ({ id: q.id, status: q.status, name: q.file.name })));
         const idx = prev.findIndex(q => q.id === itemId);
+        console.log('[useImageUpload] Found at index:', idx);
         if (idx === -1) {
           shouldUpload = false;
           return prev;
