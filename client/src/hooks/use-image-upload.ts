@@ -53,26 +53,25 @@ export function useImageUpload() {
       const itemId = item.id;
       const abortController = new AbortController();
       
-      let shouldUpload = false;
+      // Get fresh queue state synchronously
+      let currentQueueState: UploadQueueItem[] = [];
       setQueue(prev => {
-        console.log('[useImageUpload] Queue before marking as uploading:', prev.length, 'items, looking for:', itemId);
-        console.log('[useImageUpload] Queue IDs:', prev.map(q => ({ id: q.id, status: q.status, name: q.file.name })));
-        const idx = prev.findIndex(q => q.id === itemId);
-        console.log('[useImageUpload] Found at index:', idx);
-        if (idx === -1) {
-          shouldUpload = false;
-          return prev;
-        }
-        shouldUpload = true;
-        return prev.map((q, i) => 
-          i === idx ? { ...q, status: 'uploading' as const, progress: 0, abortController } : q
-        );
+        currentQueueState = prev;
+        return prev;
       });
       
-      if (!shouldUpload) {
+      const itemIndex = currentQueueState.findIndex(q => q.id === itemId);
+      console.log('[useImageUpload] Current queue has', currentQueueState.length, 'items, item found at index:', itemIndex);
+      
+      if (itemIndex === -1) {
         console.log('[useImageUpload] Item no longer in queue, skipping:', item.file.name);
         continue;
       }
+      
+      // Mark as uploading
+      setQueue(prev => prev.map((q, i) => 
+        i === itemIndex ? { ...q, status: 'uploading' as const, progress: 0, abortController } : q
+      ));
 
       console.log('[useImageUpload] Starting fetch for:', item.file.name);
       try {
