@@ -184,8 +184,9 @@ export const priceContextCache = pgTable("price_context_cache", {
   priceRanges: jsonb("price_ranges").notNull(), // { new_min, new_max, ... }
   priceSource: text("price_source").notNull(),
   priceBreakdown: jsonb("price_breakdown"),
+  hasMarketplaceData: text("has_marketplace_data").notNull().default('false'), // 'true' if scraped from real marketplaces
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at").notNull(), // cache expires after 7 days
+  expiresAt: timestamp("expires_at").notNull(), // cache expires: AI=15min, marketplace=3days
 }, (table) => ({
   uniqueBrandModel: unique().on(table.brand, table.model, table.category),
   expiresAtIdx: index("price_context_cache_expires_at_idx").on(table.expiresAt),

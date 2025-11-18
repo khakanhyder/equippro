@@ -29,6 +29,13 @@ const upload = multer({
   },
 });
 
+// In-memory tracking for background scraping jobs to prevent duplicates
+const inFlightScrapes = new Set<string>();
+
+function getCacheKey(brand: string, model: string, category: string): string {
+  return `${brand.toLowerCase()}_${model.toLowerCase()}_${category.toLowerCase()}`;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/files/:filename", async (req, res) => {
     try {
@@ -207,6 +214,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "brand and model are required" });
       }
 
+      const cacheKey = getCacheKey(brand, model, category || 'Unknown');
+
+      // Check for cached data (AI or marketplace) that's not expired
       const cached = await db.select()
         .from(priceContextCache)
         .where(and(
@@ -217,7 +227,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .limit(1);
 
-      if (cached.length > 0 && String(cached[0].priceBreakdown || '').includes('Market data')) {
+      const hasMarketplaceData = cached.length > 0 && cached[0].hasMarketplaceData === 'true';
+      const hasAnyCache = cached.length > 0;
+
+      // Return cached data immediately if available
+      if (hasAnyCache) {
+        console.log('[PriceScrape] Cache hit for', brand, model, '(marketplace:', hasMarketplaceData, ')');
         const sanitized = sanitizePriceContext({
           priceRanges: cached[0].priceRanges,
           priceSource: cached[0].priceSource,
@@ -225,45 +240,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         if (sanitized) {
+          // If we have AI-only cache and no scrape in flight, trigger background upgrade
+          if (!hasMarketplaceData && !inFlightScrapes.has(cacheKey)) {
+            console.log('[PriceScrape] AI cache found, triggering background marketplace scrape (if not already running)');
+            inFlightScrapes.add(cacheKey);
+            
+            const { calculateMarketPrice, formatPriceForAPI } = await import('./services/price-calculation-service');
+            
+            setImmediate(async () => {
+              try {
+                console.log('[BackgroundScrape] Upgrading AI cache with marketplace data for', brand, model);
+                const marketData = await calculateMarketPrice(brand, model, category);
+                const formattedData = formatPriceForAPI(marketData);
+                
+                const hasRealMarketData = formattedData.totalListingsFound > 0;
+
+                // Only update cache if we found real marketplace data
+                // If scraping failed (0 listings), keep existing AI cache to allow retry
+                if (hasRealMarketData) {
+                  // Marketplace data gets 3-day TTL
+                  const expiresAt = new Date();
+                  expiresAt.setDate(expiresAt.getDate() + 3);
+
+                  await db.insert(priceContextCache).values({
+                    brand,
+                    model,
+                    category: category || 'Unknown',
+                    priceRanges: formattedData as any,
+                    priceSource: formattedData.source,
+                    priceBreakdown: formattedData.breakdown as any,
+                    hasMarketplaceData: 'true',
+                    expiresAt,
+                  }).onConflictDoUpdate({
+                    target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
+                    set: {
+                      priceRanges: formattedData as any,
+                      priceSource: formattedData.source,
+                      priceBreakdown: formattedData.breakdown as any,
+                      hasMarketplaceData: 'true',
+                      expiresAt,
+                    }
+                  });
+                } else {
+                  console.log('[BackgroundScrape] No marketplace listings found, keeping AI cache for retry');
+                }
+                
+                console.log('[BackgroundScrape] Successfully upgraded cache (marketplace:', hasRealMarketData, ') for', brand, model);
+              } catch (error: any) {
+                console.error('[BackgroundScrape] Failed to upgrade cache for', brand, model, ':', error.message);
+              } finally {
+                inFlightScrapes.delete(cacheKey);
+              }
+            });
+          }
+          
           return res.json({
             ...sanitized.priceRanges,
             source: sanitized.priceSource,
             breakdown: sanitized.priceBreakdown,
-            cached: true
+            cached: true,
+            has_marketplace_data: hasMarketplaceData
           });
         }
       }
 
-      const { calculateMarketPrice, formatPriceForAPI } = await import('./services/price-calculation-service');
+      // No cache - return AI estimate immediately, then scrape in background
+      console.log('[PriceScrape] Cache miss, returning AI estimate and triggering background scrape for', brand, model);
       
-      const marketData = await calculateMarketPrice(brand, model, category);
-      const formattedData = formatPriceForAPI(marketData);
+      // Get AI estimate immediately (fast, <3s)
+      const aiEstimate = await estimatePrice(brand, model, category || 'Industrial Equipment', 'used');
       
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 3);
+      // Cache AI estimate with 15-minute TTL
+      const aiExpiresAt = new Date();
+      aiExpiresAt.setMinutes(aiExpiresAt.getMinutes() + 15);
 
       await db.insert(priceContextCache).values({
         brand,
         model,
         category: category || 'Unknown',
-        priceRanges: formattedData as any,
-        priceSource: formattedData.source,
-        priceBreakdown: formattedData.breakdown as any,
-        expiresAt,
+        priceRanges: aiEstimate as any,
+        priceSource: aiEstimate.source,
+        priceBreakdown: aiEstimate.breakdown as any,
+        hasMarketplaceData: 'false',
+        expiresAt: aiExpiresAt,
       }).onConflictDoUpdate({
         target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
         set: {
-          priceRanges: formattedData as any,
-          priceSource: formattedData.source,
-          priceBreakdown: formattedData.breakdown as any,
-          expiresAt,
+          priceRanges: aiEstimate as any,
+          priceSource: aiEstimate.source,
+          priceBreakdown: aiEstimate.breakdown as any,
+          hasMarketplaceData: 'false',
+          expiresAt: aiExpiresAt,
         }
       });
 
-      res.json({ ...formattedData, cached: false });
+      // Return AI estimate to user immediately
+      res.json({ 
+        ...aiEstimate, 
+        cached: false,
+        scraping_in_background: true,
+        message: 'Showing AI estimate while fetching live marketplace data...'
+      });
+
+      // Trigger background marketplace scraping only if not already in flight
+      if (!inFlightScrapes.has(cacheKey)) {
+        inFlightScrapes.add(cacheKey);
+        const { calculateMarketPrice, formatPriceForAPI } = await import('./services/price-calculation-service');
+        
+        setImmediate(async () => {
+          try {
+            console.log('[BackgroundScrape] Starting marketplace scrape for', brand, model);
+            const marketData = await calculateMarketPrice(brand, model, category);
+            const formattedData = formatPriceForAPI(marketData);
+            
+            const hasRealMarketData = formattedData.totalListingsFound > 0;
+
+            // Only update cache if we found real marketplace data
+            // If scraping failed (0 listings), keep existing AI cache to allow retry
+            if (hasRealMarketData) {
+              // Marketplace data gets 3-day TTL
+              const expiresAt = new Date();
+              expiresAt.setDate(expiresAt.getDate() + 3);
+
+              await db.insert(priceContextCache).values({
+                brand,
+                model,
+                category: category || 'Unknown',
+                priceRanges: formattedData as any,
+                priceSource: formattedData.source,
+                priceBreakdown: formattedData.breakdown as any,
+                hasMarketplaceData: 'true',
+                expiresAt,
+              }).onConflictDoUpdate({
+                target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
+                set: {
+                  priceRanges: formattedData as any,
+                  priceSource: formattedData.source,
+                  priceBreakdown: formattedData.breakdown as any,
+                  hasMarketplaceData: 'true',
+                  expiresAt,
+                }
+              });
+              
+              console.log('[BackgroundScrape] Successfully cached marketplace data (listings:', formattedData.totalListingsFound, ') for', brand, model);
+            } else {
+              console.log('[BackgroundScrape] No marketplace listings found, keeping AI cache for retry');
+            }
+          } catch (error: any) {
+            console.error('[BackgroundScrape] Failed for', brand, model, ':', error.message);
+          } finally {
+            inFlightScrapes.delete(cacheKey);
+          }
+        });
+      }
+
     } catch (error: any) {
       console.error('Price scraping error:', error);
-      res.status(500).json({ message: error.message || "Price scraping failed" });
+      res.status(500).json({ message: error.message || "Price estimation failed" });
     }
   });
 

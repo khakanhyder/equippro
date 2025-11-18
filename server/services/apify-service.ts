@@ -214,9 +214,10 @@ export async function searchMarketplaceListings(brand: string, model: string): P
 
     console.log('[Apify] Marketplace filtered results count:', filtered.length);
     
-    const limited = filtered.slice(0, 6);
-    if (filtered.length > 6) {
-      console.log('[Apify] Limited to 6 URLs for residential proxy budget (from', filtered.length, 'found)');
+    // Limit to 4 URLs for faster scraping (down from 6)
+    const limited = filtered.slice(0, 4);
+    if (filtered.length > 4) {
+      console.log('[Apify] Limited to 4 URLs for faster scraping (from', filtered.length, 'found)');
     }
     
     return limited;
@@ -236,17 +237,19 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
     return [];
   }
 
-  console.log('[Apify] Scraping prices from', urls.length, 'URLs using Playwright with residential proxies');
+  console.log('[Apify] Scraping prices from', urls.length, 'URLs using Playwright with residential proxies (optimized for speed)');
   
   try {
-    const response = await fetch(`https://api.apify.com/v2/acts/apify~playwright-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=480`, {
+    // Reduced timeout from 480s to 45s for faster responses
+    const response = await fetch(`https://api.apify.com/v2/acts/apify~playwright-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=45`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         startUrls: urls.map(url => ({ url })),
         maxRequestsPerCrawl: urls.length,
-        maxConcurrency: 3,
-        maxRequestRetries: 2,
+        maxConcurrency: 4, // Increased from 3 for parallel processing
+        maxRequestRetries: 1, // Reduced from 2 to fail faster
+        navigationTimeoutSecs: 15, // Add hard timeout per page
         proxyConfiguration: {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL'],
@@ -257,8 +260,9 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
             const url = request.url;
             const hostname = new URL(url).hostname;
             
+            // Reduced wait time from 2000ms to 1000ms for faster scraping
             await page.waitForLoadState('domcontentloaded');
-            await page.waitForTimeout(2000);
+            await page.waitForTimeout(1000);
             
             let priceText = '';
             let title = '';

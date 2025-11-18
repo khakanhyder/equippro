@@ -246,7 +246,25 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
       form.setValue('priceSource', result.source || 'Market data');
       form.setValue('priceBreakdown', result.breakdown || null);
 
-      if (result.totalListingsFound === 0) {
+      // Show different toast based on whether scraping is happening in background
+      if (result.scraping_in_background) {
+        toast({
+          title: "AI estimate ready",
+          description: "Live marketplace data is being fetched in the background. Refresh for latest prices.",
+          duration: 5000,
+        });
+      } else if (result.cached) {
+        // Handle breakdown which might be a string or object
+        const breakdownText = typeof result.breakdown === 'string' 
+          ? result.breakdown 
+          : result.source || "Showing previously scraped data";
+        
+        toast({
+          title: result.has_marketplace_data ? "Cached marketplace data" : "Cached AI estimate",
+          description: breakdownText,
+          duration: 3000,
+        });
+      } else if (result.totalListingsFound === 0) {
         toast({
           title: "No listings found",
           description: "Try checking eBay or LabX manually for this equipment",
@@ -256,6 +274,7 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
         toast({
           title: "Real market prices found!",
           description: `Found ${result.totalListingsFound} marketplace listing(s)`,
+          duration: 3000,
         });
       }
     } catch (error: any) {
