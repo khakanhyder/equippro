@@ -6,6 +6,16 @@ Equipment Pro is a professional B2B marketplace platform for buying and selling 
 
 ## Recent Changes
 
+**November 18, 2025** - Completed Marketplace Integration with Real Equipment Data:
+- Refactored marketplace to fetch real published equipment from database instead of mock data
+- Updated TanStack Query client to support hierarchical query keys with URLSearchParams for proper cache invalidation
+- Implemented defensive filtering to ensure only active listings display on marketplace (listingStatus = 'active')
+- Added safe price parsing with regex to handle formatted currency values (removes symbols before parsing)
+- Enhanced backend `/api/equipment` endpoint to accept both `status` and `listingStatus` query parameters
+- Added comprehensive error and loading states to marketplace UI
+- Verified complete end-to-end flow: create surplus → publish → display on marketplace
+- Added `/marketplace` route to router for direct navigation
+
 **November 18, 2025** - Completed Surplus Equipment Management Workflow:
 - Implemented expandable surplus item cards with collapsed/expanded states matching wishlist design pattern
 - Added external source search integration using Apify service for PDFs and web documentation
@@ -35,7 +45,7 @@ Preferred communication style: Simple, everyday language.
 
 **Styling**: Tailwind CSS with custom design tokens defined in CSS variables. The application supports both light and dark modes with a neutral color palette. Typography uses the Inter font family for optimal readability in data-heavy interfaces.
 
-**State Management**: TanStack Query (React Query) handles all server state, caching, and synchronization. The application uses custom hooks to encapsulate data fetching logic for equipment, projects, wishlist items, and matches.
+**State Management**: TanStack Query (React Query) handles all server state, caching, and synchronization. The application uses hierarchical query keys (e.g., `["/api/equipment", { status: "active" }]`) for proper cache invalidation. The default query function supports both simple string keys and object-based parameters serialized via URLSearchParams.
 
 **Routing**: Wouter provides lightweight client-side routing for navigation between the five main sections.
 

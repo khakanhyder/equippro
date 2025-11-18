@@ -18,6 +18,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Marketplace} />
+      <Route path="/marketplace" component={Marketplace} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/wishlist" component={Wishlist} />
       <Route path="/surplus" component={Surplus} />
