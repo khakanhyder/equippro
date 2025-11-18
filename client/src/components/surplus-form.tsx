@@ -17,9 +17,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { useAiAnalysis, usePriceContext } from "@/hooks/use-ai-analysis";
-import { X, Plus, Loader2, Upload, Sparkles } from "lucide-react";
+import { X, Plus, Loader2, Upload, Sparkles, ExternalLink, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { PriceEstimate } from "@/hooks/use-ai-analysis";
+import { searchExternalSources } from "@/lib/ai-service";
 
 const equipmentFormSchema = z.object({
   brand: z.string().min(1, "Brand is required"),
@@ -55,6 +56,8 @@ export function SurplusForm({ onSubmit, isSubmitting, defaultEmail }: SurplusFor
   const { toast } = useToast();
   const [specs, setSpecs] = useState<SpecField[]>([]);
   const [priceContext, setPriceContext] = useState<PriceEstimate | null>(null);
+  const [externalSources, setExternalSources] = useState<any[]>([]);
+  const [isSearchingSources, setIsSearchingSources] = useState(false);
   
   const form = useForm<EquipmentFormData>({
     resolver: zodResolver(equipmentFormSchema),
@@ -220,6 +223,40 @@ export function SurplusForm({ onSubmit, isSubmitting, defaultEmail }: SurplusFor
     }, {} as Record<string, string>);
     
     form.setValue('specifications', specObject as any);
+  };
+
+  const handleSearchExternalSources = async () => {
+    const { brand, model } = form.getValues();
+    
+    if (!brand || !model) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in brand and model first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSearchingSources(true);
+    
+    try {
+      const sources = await searchExternalSources(brand, model);
+      const validSources = Array.isArray(sources) ? sources : [];
+      setExternalSources(validSources);
+      
+      toast({
+        title: "Search complete",
+        description: `Found ${validSources.length} external source(s)`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Search failed",
+        description: error.message || "Could not search external sources",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearchingSources(false);
+    }
   };
 
   const handleFormSubmit = (data: EquipmentFormData) => {
@@ -505,6 +542,48 @@ export function SurplusForm({ onSubmit, isSubmitting, defaultEmail }: SurplusFor
               <Badge variant="outline" className="text-xs">
                 Source: {priceContext.source}
               </Badge>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>External Sources (Manuals, Datasheets)</Label>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleSearchExternalSources}
+              disabled={isSearchingSources}
+              data-testid="button-search-sources-surplus"
+            >
+              {isSearchingSources ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Search className="w-4 h-4 mr-2" />
+              )}
+              Search PDFs & Web
+            </Button>
+          </div>
+          
+          {externalSources.length > 0 && (
+            <div className="border rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium">Found {externalSources.length} sources:</p>
+              <div className="space-y-2">
+                {externalSources.map((source, index) => (
+                  <a
+                    key={index}
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    data-testid={`link-external-source-${index}`}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    <span className="truncate">{source.title || source.url}</span>
+                  </a>
+                ))}
+              </div>
             </div>
           )}
         </div>

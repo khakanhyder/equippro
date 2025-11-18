@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Upload, MapPin, Grid3x3, List, Loader2 } from "lucide-react";
+import { Plus, Upload, Grid3x3, List, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,13 +22,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useEquipmentList, useEquipmentMutations } from "@/hooks/use-equipment";
 import { SurplusForm } from "@/components/surplus-form";
+import { SurplusItemCard } from "@/components/surplus-item-card";
 import type { Equipment } from "@shared/schema";
-
-const conditionColors = {
-  new: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-  refurbished: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  used: "bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20",
-};
 
 export default function Surplus() {
   const { toast } = useToast();
@@ -99,89 +92,14 @@ export default function Surplus() {
   };
 
   const renderEquipmentCard = (equipment: Equipment, isDraft: boolean) => (
-    <Card key={equipment.id} className="hover-elevate" data-testid={`card-${isDraft ? 'draft' : 'active'}-${equipment.id}`}>
-      <CardContent className="p-6 space-y-4">
-        {equipment.images && equipment.images.length > 0 && (
-          <div className="w-full h-40 bg-muted rounded-lg overflow-hidden">
-            <img
-              src={equipment.images[0]}
-              alt={`${equipment.brand} ${equipment.model}`}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-        
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-card-foreground">
-              {equipment.brand} {equipment.model}
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1">{equipment.category}</p>
-          </div>
-          <Badge variant="outline" className={`${conditionColors[equipment.condition as keyof typeof conditionColors]} border font-semibold text-xs ml-2`}>
-            {equipment.condition}
-          </Badge>
-        </div>
-
-        {!isDraft && (
-          <div className="flex items-baseline gap-2">
-            <p className="text-2xl font-bold text-card-foreground">
-              ${parseFloat(equipment.askingPrice).toLocaleString()}
-            </p>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="w-4 h-4" />
-          {equipment.location}
-        </div>
-
-        {equipment.marketPriceRange && isDraft ? (
-          <div className="text-sm text-muted-foreground">
-            <p className="italic">Price context available</p>
-          </div>
-        ) : null}
-
-        {!isDraft && (
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{equipment.viewsCount || 0} views</span>
-          </div>
-        )}
-
-        {isDraft ? (
-          <Button
-            className="w-full"
-            size="sm"
-            variant="default"
-            onClick={() => setPublishingId(equipment.id)}
-            data-testid={`button-publish-${equipment.id}`}
-          >
-            Publish
-          </Button>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              className="flex-1"
-              size="sm"
-              variant="outline"
-              data-testid={`button-edit-${equipment.id}`}
-            >
-              Edit
-            </Button>
-            <Button
-              className="flex-1"
-              size="sm"
-              variant="secondary"
-              onClick={() => handleMarkAsSold(equipment.id)}
-              disabled={markAsSold.isPending}
-              data-testid={`button-mark-sold-${equipment.id}`}
-            >
-              Mark as Sold
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <SurplusItemCard
+      key={equipment.id}
+      item={equipment}
+      isDraft={isDraft}
+      onPublish={setPublishingId}
+      onEdit={(id) => console.log('Edit equipment:', id)}
+      onMarkAsSold={handleMarkAsSold}
+    />
   );
 
   return (
