@@ -517,7 +517,32 @@ export function SurplusForm({ onSubmit, isSubmitting, defaultEmail }: SurplusFor
           </div>
           
           {priceContext && (
-            <div className="border rounded-lg p-4 space-y-2">
+            <div className="border rounded-lg p-4 space-y-3">
+              {priceContext.has_marketplace_data !== undefined && (
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  {priceContext.has_marketplace_data ? (
+                    <>
+                      <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">
+                        Real Marketplace Data
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        Averaged from actual listings
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Badge variant="secondary">
+                        AI Estimate
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {priceContext.scraping_in_background 
+                          ? 'Fetching real marketplace data in background...' 
+                          : 'Based on AI analysis'}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">New</p>

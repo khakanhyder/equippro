@@ -19,6 +19,8 @@ export interface PriceEstimate {
   used_max: number | null;
   source: string;
   breakdown: string;
+  has_marketplace_data?: boolean;
+  scraping_in_background?: boolean;
   marketplace_listings?: Array<{
     url: string;
     price: number;
@@ -49,7 +51,7 @@ export function usePriceContext() {
       category: string;
       condition: string;
     }) => {
-      const res = await apiRequest('POST', '/api/ai/price-estimate', params);
+      const res = await apiRequest('POST', '/api/price-context/scrape', params);
       return res.json() as Promise<PriceEstimate>;
     },
   });

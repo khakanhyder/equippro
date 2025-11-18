@@ -167,11 +167,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         if (sanitized) {
+          const hasMarketplaceData = cached[0].hasMarketplaceData === 'true';
           return res.json({
             ...sanitized.priceRanges,
             source: sanitized.priceSource,
             breakdown: sanitized.priceBreakdown,
-            cached: true
+            cached: true,
+            has_marketplace_data: hasMarketplaceData,
+            scraping_in_background: !hasMarketplaceData
           });
         }
       }
@@ -181,6 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
+      // Fresh AI estimate always resets marketplace flag to false
       await db.insert(priceContextCache).values({
         brand,
         model,
@@ -188,6 +192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priceRanges: estimate as any,
         priceSource: estimate.source,
         priceBreakdown: estimate.breakdown as any,
+        hasMarketplaceData: 'false',
         expiresAt,
       }).onConflictDoUpdate({
         target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
@@ -195,11 +200,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priceRanges: estimate as any,
           priceSource: estimate.source,
           priceBreakdown: estimate.breakdown as any,
+          hasMarketplaceData: 'false',
           expiresAt,
         }
       });
 
-      res.json({ ...estimate, cached: false });
+      res.json({ 
+        ...estimate, 
+        cached: false,
+        has_marketplace_data: false,
+        scraping_in_background: true
+      });
     } catch (error: any) {
       console.error('Price context error:', error);
       res.status(500).json({ message: error.message || "Price estimation failed" });
@@ -299,7 +310,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             source: sanitized.priceSource,
             breakdown: sanitized.priceBreakdown,
             cached: true,
-            has_marketplace_data: hasMarketplaceData
+            has_marketplace_data: hasMarketplaceData,
+            scraping_in_background: !hasMarketplaceData
           });
         }
       }
@@ -338,6 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         ...aiEstimate, 
         cached: false,
+        has_marketplace_data: false,
         scraping_in_background: true,
         message: 'Showing AI estimate while fetching live marketplace data...'
       });
@@ -494,11 +507,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         if (sanitized) {
+          const hasMarketplaceData = cached[0].hasMarketplaceData === 'true';
           return res.json({
             ...sanitized.priceRanges,
             source: sanitized.priceSource,
             breakdown: sanitized.priceBreakdown,
-            cached: true
+            cached: true,
+            has_marketplace_data: hasMarketplaceData,
+            scraping_in_background: false
           });
         }
       }
@@ -515,6 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priceRanges: estimate as any,
         priceSource: estimate.source,
         priceBreakdown: estimate.breakdown as any,
+        hasMarketplaceData: 'false',
         expiresAt,
       }).onConflictDoUpdate({
         target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
@@ -522,11 +539,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priceRanges: estimate as any,
           priceSource: estimate.source,
           priceBreakdown: estimate.breakdown as any,
+          hasMarketplaceData: 'false',
           expiresAt,
         }
       });
 
-      res.json({ ...estimate, cached: false });
+      res.json({ 
+        ...estimate, 
+        cached: false,
+        has_marketplace_data: false,
+        scraping_in_background: false
+      });
     } catch (error: any) {
       console.error('Price estimate error:', error);
       res.status(500).json({ message: error.message || "Failed to estimate price" });
