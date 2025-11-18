@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useProjects, useProjectMutations } from "@/hooks/use-wishlist";
+import { useProjects, useProjectMutations, useWishlistItems } from "@/hooks/use-wishlist";
 import { ProjectCardWrapper } from "@/components/project-card-wrapper";
 import { WishlistItemForm } from "@/components/wishlist-item-form";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeft, Package } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,10 @@ export default function Wishlist() {
   const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [viewingProjectId, setViewingProjectId] = useState<number | null>(null);
+  
+  const { data: projectItems } = useWishlistItems(viewingProjectId || 0);
+  const viewingProject = projects?.find(p => p.id === viewingProjectId);
 
   const projectForm = useForm<InsertWishlistProject>({
     resolver: zodResolver(insertWishlistProjectSchema),
@@ -74,6 +78,89 @@ export default function Wishlist() {
     setAddItemDialogOpen(true);
   };
 
+  const handleViewProject = (projectId: number) => {
+    setViewingProjectId(projectId);
+  };
+
+  const handleBackToProjects = () => {
+    setViewingProjectId(null);
+  };
+
+  // Show project detail view if viewing a project
+  if (viewingProjectId && viewingProject) {
+    return (
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={handleBackToProjects} data-testid="button-back">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">{viewingProject.name}</h1>
+                <p className="text-muted-foreground mt-1">
+                  {projectItems?.length || 0} equipment specification{(projectItems?.length || 0) !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => handleOpenAddItem(viewingProjectId)} data-testid="button-add-item">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Item
+            </Button>
+          </div>
+
+          {!projectItems || projectItems.length === 0 ? (
+            <div className="text-center py-12 border-2 border-dashed rounded-lg">
+              <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground mb-4">No equipment added to this project yet</p>
+              <Button onClick={() => handleOpenAddItem(viewingProjectId)} variant="outline" data-testid="button-add-first-item">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Your First Equipment
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {projectItems.map((item) => (
+                <div key={item.id} className="p-6 border rounded-lg hover-elevate" data-testid={`item-${item.id}`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg">{item.brand} {item.model}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{item.category}</p>
+                      {item.notes && (
+                        <p className="text-sm text-muted-foreground mt-2">{item.notes}</p>
+                      )}
+                      <div className="mt-4 flex gap-6 text-sm">
+                        {item.maxBudget && typeof item.maxBudget === 'string' && (
+                          <div>
+                            <span className="text-muted-foreground">Budget: </span>
+                            <span className="font-medium">${parseFloat(item.maxBudget).toLocaleString()}</span>
+                          </div>
+                        )}
+                        {item.marketPriceRange && typeof item.marketPriceRange === 'string' && (
+                          <div>
+                            <span className="text-muted-foreground">Market Price: </span>
+                            <span className="font-medium">{item.marketPriceRange}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {item.imageUrls && Array.isArray(item.imageUrls) && item.imageUrls.length > 0 && (
+                      <img 
+                        src={item.imageUrls[0]} 
+                        alt={`${item.brand} ${item.model}`}
+                        className="w-24 h-24 object-cover rounded"
+                      />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-auto">
       <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
@@ -109,6 +196,7 @@ export default function Wishlist() {
                 key={project.id}
                 project={project}
                 onOpenAddItem={handleOpenAddItem}
+                onViewProject={handleViewProject}
               />
             ))}
           </div>

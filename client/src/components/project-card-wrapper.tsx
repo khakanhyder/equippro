@@ -5,9 +5,10 @@ import type { WishlistProject } from "@shared/schema";
 interface ProjectCardWrapperProps {
   project: WishlistProject;
   onOpenAddItem: (projectId: number) => void;
+  onViewProject: (projectId: number) => void;
 }
 
-export function ProjectCardWrapper({ project, onOpenAddItem }: ProjectCardWrapperProps) {
+export function ProjectCardWrapper({ project, onOpenAddItem, onViewProject }: ProjectCardWrapperProps) {
   const { data: items } = useWishlistItems(project.id);
   const itemCount = items?.length || 0;
   const matchedCount = items?.filter(item => item.status === 'found').length || 0;
@@ -24,7 +25,8 @@ export function ProjectCardWrapper({ project, onOpenAddItem }: ProjectCardWrappe
         day: 'numeric',
         year: 'numeric',
       })}
-      onClick={() => onOpenAddItem(project.id)}
+      onClick={() => onViewProject(project.id)}
+      onAddItem={() => onOpenAddItem(project.id)}
     />
   );
 }

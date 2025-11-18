@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { FolderOpen, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FolderOpen, Check, Plus } from "lucide-react";
 
 interface ProjectCardProps {
   name: string;
@@ -9,6 +10,7 @@ interface ProjectCardProps {
   spentBudget: number;
   createdDate: string;
   onClick: () => void;
+  onAddItem: () => void;
 }
 
 export function ProjectCard({
@@ -19,6 +21,7 @@ export function ProjectCard({
   spentBudget,
   createdDate,
   onClick,
+  onAddItem,
 }: ProjectCardProps) {
   const matchPercentage = itemCount > 0 ? Math.round((matchedCount / itemCount) * 100) : 0;
   const budgetPercentage = totalBudget > 0 ? Math.round((spentBudget / totalBudget) * 100) : 0;
@@ -35,6 +38,17 @@ export function ProjectCard({
               <h3 className="font-semibold text-card-foreground truncate">{name}</h3>
               <p className="text-xs text-muted-foreground mt-1">{itemCount} items</p>
             </div>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddItem();
+              }}
+              data-testid="button-add-item-quick"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
           </div>
 
           <div className="space-y-2">
