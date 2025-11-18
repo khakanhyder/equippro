@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { Equipment } from "@shared/schema";
 import { EquipmentCard } from "@/components/equipment-card";
 import { BidDialog } from "@/components/bid-dialog";
 import { EquipmentDetailModal } from "@/components/equipment-detail-modal";
@@ -11,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Grid3x3, List, Filter } from "lucide-react";
+import { Search, Grid3x3, List, Filter, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Marketplace() {
@@ -24,47 +26,78 @@ export default function Marketplace() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [conditionFilter, setConditionFilter] = useState("all");
 
-  const mockEquipment = [
-    {
-      id: "1",
-      brand: "Thermo Fisher",
-      model: "TSQ Altis",
-      condition: "used" as const,
-      price: 125000,
-      location: "Boston, MA",
-      category: "Mass Spectrometer",
-      priceVariance: -8,
-      description: "High-performance triple quadrupole mass spectrometer for quantitative analysis.",
-      specifications: { Power: "500W", Weight: "75 kg" },
-    },
-    {
-      id: "2",
-      brand: "Agilent",
-      model: "7890B GC",
-      condition: "new" as const,
-      price: 85000,
-      location: "San Francisco, CA",
-      category: "Gas Chromatograph",
-      priceVariance: 5,
-      description: "Advanced gas chromatography system with latest features.",
-      specifications: { Power: "1200W", Dimensions: "80 x 60 x 50 cm" },
-    },
-    {
-      id: "3",
-      brand: "Waters",
-      model: "ACQUITY UPLC H-Class",
-      condition: "refurbished" as const,
-      price: 65000,
-      location: "New York, NY",
-      category: "HPLC System",
-      priceVariance: -12,
-      description: "Ultra-performance liquid chromatography system, fully refurbished.",
-      specifications: { Voltage: "220V", Weight: "60 kg" },
-    },
-  ];
+  // Fetch published equipment from API (only active listings)
+  const { data: equipmentList, isLoading, error } = useQuery<Equipment[]>({
+    queryKey: ["/api/equipment", { status: "active" }],
+  });
+
+  // Calculate price variance based on market data
+  const calculatePriceVariance = (askingPrice: string, marketPriceRange: any, condition: string) => {
+    if (!marketPriceRange) return undefined;
+    
+    const asking = parseFloat(askingPrice);
+    const conditionKey = condition.toLowerCase();
+    
+    // Get market average for the condition
+    const marketAvg = marketPriceRange[conditionKey]?.average || 
+                      marketPriceRange[`${conditionKey}_average`];
+    
+    if (!marketAvg) return undefined;
+    
+    // Calculate percentage variance
+    const variance = ((asking - marketAvg) / marketAvg) * 100;
+    return Math.round(variance);
+  };
+
+  // Transform equipment data for display
+  const displayEquipment = useMemo(() => {
+    if (!equipmentList) return [];
+    
+    return equipmentList
+      // Defensive check: only show active listings even if backend returns others
+      .filter((item) => item.listingStatus === 'active')
+      .map((item) => {
+        // Parse asking price safely (remove non-numeric characters except decimal point)
+        const cleanPrice = item.askingPrice.replace(/[^0-9.]/g, '');
+        const numericPrice = parseFloat(cleanPrice);
+        
+        return {
+          id: item.id.toString(),
+          brand: item.brand,
+          model: item.model,
+          condition: item.condition as "new" | "refurbished" | "used",
+          price: isNaN(numericPrice) ? 0 : numericPrice,
+          location: item.location,
+          category: item.category,
+          priceVariance: calculatePriceVariance(cleanPrice, item.marketPriceRange, item.condition),
+          description: item.description || "",
+          specifications: item.specifications || {},
+          imageUrl: item.images?.[0], // Use first image
+          rawData: item, // Keep full data for detail view
+        };
+      });
+  }, [equipmentList]);
+
+  // Filter equipment based on search and filters
+  const filteredEquipment = useMemo(() => {
+    return displayEquipment.filter((item) => {
+      const matchesSearch = !searchQuery || 
+        item.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesCategory = categoryFilter === "all" || 
+        item.category.toLowerCase().includes(categoryFilter.toLowerCase());
+      
+      const matchesCondition = conditionFilter === "all" || 
+        item.condition === conditionFilter;
+      
+      return matchesSearch && matchesCategory && matchesCondition;
+    });
+  }, [displayEquipment, searchQuery, categoryFilter, conditionFilter]);
 
   const handleBid = (id: string) => {
-    const equipment = mockEquipment.find((e) => e.id === id);
+    const equipment = displayEquipment.find((e) => e.id === id);
     if (equipment) {
       setCurrentEquipment(equipment);
       setBidDialogOpen(true);
@@ -72,7 +105,7 @@ export default function Marketplace() {
   };
 
   const handleViewDetails = (id: string) => {
-    const equipment = mockEquipment.find((e) => e.id === id);
+    const equipment = displayEquipment.find((e) => e.id === id);
     if (equipment) {
       setCurrentEquipment(equipment);
       setDetailModalOpen(true);
@@ -92,7 +125,7 @@ export default function Marketplace() {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Marketplace</h1>
             <p className="text-muted-foreground mt-1">
-              {mockEquipment.length} equipment entries available
+              {isLoading ? "Loading..." : `${filteredEquipment.length} equipment entries available`}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -170,18 +203,38 @@ export default function Marketplace() {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
-        <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
-          {mockEquipment.map((equipment) => (
-            <EquipmentCard
-              key={equipment.id}
-              {...equipment}
-              selected={selectedEquipment.includes(equipment.id)}
-              onSelect={handleSelect}
-              onBid={handleBid}
-              onClick={handleViewDetails}
-            />
-          ))}
-        </div>
+        {error ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <p className="text-lg font-medium text-destructive">Failed to load marketplace</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {error instanceof Error ? error.message : "An error occurred while loading equipment"}
+            </p>
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredEquipment.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <p className="text-lg font-medium text-muted-foreground">No equipment found</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Try adjusting your filters or check back later for new listings
+            </p>
+          </div>
+        ) : (
+          <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+            {filteredEquipment.map((equipment) => (
+              <EquipmentCard
+                key={equipment.id}
+                {...equipment}
+                selected={selectedEquipment.includes(equipment.id)}
+                onSelect={handleSelect}
+                onBid={handleBid}
+                onClick={handleViewDetails}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {currentEquipment && (

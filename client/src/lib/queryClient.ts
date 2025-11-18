@@ -29,7 +29,33 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    // Build URL from query key
+    // Support both string paths and hierarchical keys with params
+    let url: string;
+    
+    if (queryKey.length === 1 && typeof queryKey[0] === 'string') {
+      // Simple string key: ["/api/equipment"]
+      url = queryKey[0];
+    } else if (queryKey.length === 2 && typeof queryKey[1] === 'object') {
+      // Hierarchical key with params: ["/api/equipment", { status: "active" }]
+      const path = queryKey[0] as string;
+      const params = queryKey[1] as Record<string, any>;
+      const searchParams = new URLSearchParams();
+      
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value));
+        }
+      });
+      
+      const queryString = searchParams.toString();
+      url = queryString ? `${path}?${queryString}` : path;
+    } else {
+      // Fallback to join for backward compatibility
+      url = queryKey.join("/") as string;
+    }
+
+    const res = await fetch(url, {
       credentials: "include",
     });
 

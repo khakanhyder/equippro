@@ -558,13 +558,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/equipment", async (req, res) => {
     try {
-      const { status, createdBy } = req.query;
+      const { status, listingStatus, createdBy } = req.query;
       
       let query = db.select().from(equipment);
       
       const conditions = [];
-      if (status) {
-        conditions.push(eq(equipment.listingStatus, status as string));
+      // Support both 'status' and 'listingStatus' query params for compatibility
+      const statusFilter = status || listingStatus;
+      if (statusFilter) {
+        conditions.push(eq(equipment.listingStatus, statusFilter as string));
       }
       if (createdBy) {
         conditions.push(eq(equipment.createdBy, createdBy as string));
