@@ -4,6 +4,16 @@
 
 Equipment Pro is a professional B2B marketplace platform for buying and selling research and industrial equipment. The platform features AI-powered equipment matching, real-time price discovery from market data, and intelligent automation for equipment trading workflows. It targets scientific and industrial organizations looking to buy surplus equipment or sell excess inventory.
 
+## Recent Changes
+
+**November 18, 2025** - Completed Surplus Equipment Management Workflow:
+- Implemented expandable surplus item cards with collapsed/expanded states matching wishlist design pattern
+- Added external source search integration using Apify service for PDFs and web documentation
+- Enhanced price context display with safe parsing for currency symbols and numeric validation
+- Integrated complete publish workflow: draft → active → marketplace listing flow
+- Fixed API response normalization for external sources (url/title structure)
+- Added comprehensive error handling and type safety throughout surplus components
+
 The application provides five core user-facing sections:
 1. **Marketplace** - Browse and purchase equipment with real-time market pricing context
 2. **Dashboard** - Track bids, offers, and AI-generated equipment matches
