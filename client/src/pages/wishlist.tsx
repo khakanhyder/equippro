@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useProjects, useProjectMutations, useWishlistItems } from "@/hooks/use-wishlist";
 import { ProjectCardWrapper } from "@/components/project-card-wrapper";
 import { WishlistItemForm } from "@/components/wishlist-item-form";
+import { WishlistItemCard } from "@/components/wishlist-item-card";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft, Package } from "lucide-react";
 import {
@@ -121,38 +122,16 @@ export default function Wishlist() {
           ) : (
             <div className="space-y-4">
               {projectItems.map((item) => (
-                <div key={item.id} className="p-6 border rounded-lg hover-elevate" data-testid={`item-${item.id}`}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{item.brand} {item.model}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{item.category}</p>
-                      {item.notes && (
-                        <p className="text-sm text-muted-foreground mt-2">{item.notes}</p>
-                      )}
-                      <div className="mt-4 flex gap-6 text-sm">
-                        {item.maxBudget && typeof item.maxBudget === 'string' && (
-                          <div>
-                            <span className="text-muted-foreground">Budget: </span>
-                            <span className="font-medium">${parseFloat(item.maxBudget).toLocaleString()}</span>
-                          </div>
-                        )}
-                        {item.marketPriceRange && typeof item.marketPriceRange === 'string' && (
-                          <div>
-                            <span className="text-muted-foreground">Market Price: </span>
-                            <span className="font-medium">{item.marketPriceRange}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {item.imageUrls && Array.isArray(item.imageUrls) && item.imageUrls.length > 0 && (
-                      <img 
-                        src={item.imageUrls[0]} 
-                        alt={`${item.brand} ${item.model}`}
-                        className="w-24 h-24 object-cover rounded"
-                      />
-                    )}
-                  </div>
-                </div>
+                <WishlistItemCard 
+                  key={item.id} 
+                  item={item}
+                  onFindMatches={(itemId) => {
+                    console.log('Find matches for item:', itemId);
+                  }}
+                  onEdit={(itemId) => {
+                    console.log('Edit item:', itemId);
+                  }}
+                />
               ))}
             </div>
           )}
