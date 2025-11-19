@@ -38,21 +38,29 @@ Return JSON: { "brand": "...", "model": "...", "category": "...", "specification
   const content = response.choices[0]?.message?.content || "{}";
   try {
     const parsed = JSON.parse(content);
+    
+    // Convert specifications array to Record<string, string> format
+    const specifications: Record<string, string> = {};
+    if (Array.isArray(parsed.specifications)) {
+      parsed.specifications.forEach((spec: any) => {
+        if (spec.name) {
+          // Combine value and unit if both present
+          const value = spec.value || '';
+          const unit = spec.unit || '';
+          specifications[spec.name] = unit ? `${value} ${unit}`.trim() : value;
+        }
+      });
+    }
+    
     return {
       brand: parsed.brand || '',
       model: parsed.model || '',
       category: parsed.category || 'other',
-      specifications: Array.isArray(parsed.specifications) 
-        ? parsed.specifications.map((spec: any) => ({
-            name: spec.name || '',
-            value: spec.value || '',
-            unit: spec.unit || undefined
-          }))
-        : []
+      specifications
     };
   } catch (error) {
     console.error('Failed to parse AI response:', content);
-    return { brand: '', model: '', category: 'other', specifications: [] };
+    return { brand: '', model: '', category: 'other', specifications: {} };
   }
 }
 

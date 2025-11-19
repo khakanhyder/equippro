@@ -6,6 +6,12 @@ Equipment Pro is a professional B2B marketplace platform for buying and selling 
 
 ## Recent Changes
 
+**November 19, 2025** - Fixed Technical Specifications Display Format:
+- Fixed AI service to return specifications as Record<string, string> instead of array format
+- Specifications now properly display in surplus form instead of showing "[object Object]"
+- AI service now combines value and unit fields (e.g., "500 W" instead of separate fields)
+- Updated backend to return consistent specification format matching database schema
+
 **November 18, 2025** - Completed Marketplace Integration with Real Equipment Data:
 - Refactored marketplace to fetch real published equipment from database instead of mock data
 - Updated TanStack Query client to support hierarchical query keys with URLSearchParams for proper cache invalidation
