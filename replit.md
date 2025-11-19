@@ -1,198 +1,69 @@
 # Equipment Pro - Industrial Equipment Marketplace
 
 ## Overview
-
-Equipment Pro is a professional B2B marketplace platform for buying and selling research and industrial equipment. The platform features AI-powered equipment matching, real-time price discovery from market data, and intelligent automation for equipment trading workflows. It targets scientific and industrial organizations looking to buy surplus equipment or sell excess inventory.
-
-## Recent Changes
-
-**November 19, 2025** - Implemented Local Authentication System:
-- Built complete username/password authentication with bcryptjs hashing (10 salt rounds)
-- Created auth service with signup, login, logout, password change, and profile update
-- Implemented 6 REST API endpoints for authentication and user management
-- Added useAuth React Query hook with proper 401 handling (returns null for unauthenticated)
-- Built login/signup page with toggleable forms and validation
-- Updated profile page with user info display and password change functionality
-- Configured App.tsx to show login page when not authenticated
-- Updated AppSidebar to display user information and logout button
-- Fixed QueryClient provider ordering and configured custom queryFn for auth queries
-- Note: Using in-memory session storage (MemoryStore); production should use connect-pg-simple
-
-**November 19, 2025** - Fixed Technical Specifications Display Format:
-- Fixed AI service to return specifications as Record<string, string> instead of array format
-- Specifications now properly display in surplus form instead of showing "[object Object]"
-- AI service now combines value and unit fields (e.g., "500 W" instead of separate fields)
-- Updated backend to return consistent specification format matching database schema
-
-**November 18, 2025** - Completed Marketplace Integration with Real Equipment Data:
-- Refactored marketplace to fetch real published equipment from database instead of mock data
-- Updated TanStack Query client to support hierarchical query keys with URLSearchParams for proper cache invalidation
-- Implemented defensive filtering to ensure only active listings display on marketplace (listingStatus = 'active')
-- Added safe price parsing with regex to handle formatted currency values (removes symbols before parsing)
-- Enhanced backend `/api/equipment` endpoint to accept both `status` and `listingStatus` query parameters
-- Added comprehensive error and loading states to marketplace UI
-- Verified complete end-to-end flow: create surplus → publish → display on marketplace
-- Added `/marketplace` route to router for direct navigation
-
-**November 18, 2025** - Completed Surplus Equipment Management Workflow:
-- Implemented expandable surplus item cards with collapsed/expanded states matching wishlist design pattern
-- Added external source search integration using Apify service for PDFs and web documentation
-- Enhanced price context display with safe parsing for currency symbols and numeric validation
-- Integrated complete publish workflow: draft → active → marketplace listing flow
-- Fixed API response normalization for external sources (url/title structure)
-- Added comprehensive error handling and type safety throughout surplus components
-
-The application provides five core user-facing sections:
-1. **Marketplace** - Browse and purchase equipment with real-time market pricing context
-2. **Dashboard** - Track bids, offers, and AI-generated equipment matches
-3. **Wishlist** - Create project-based equipment wishlists with AI-powered matching
-4. **Surplus** - List equipment for sale with AI-assisted data entry and price validation
-5. **Profile** - Manage account settings and preferences
+Equipment Pro is a professional B2B marketplace platform for buying and selling research and industrial equipment. It features AI-powered equipment matching, real-time price discovery, and intelligent automation for trading workflows. The platform aims to connect scientific and industrial organizations for surplus equipment transactions, offering a comprehensive solution for managing equipment lifecycles from listing to sale.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
 ### Frontend Architecture
-
-**Framework**: React with TypeScript using Vite as the build tool
-
-**UI Component System**: The application uses shadcn/ui components (Radix UI primitives) with a custom "New York" style variant. The design system is based on enterprise patterns optimized for data-dense layouts, drawing inspiration from industrial marketplace platforms like Alibaba/ThomasNet and enterprise dashboards like Linear and Stripe.
-
-**Styling**: Tailwind CSS with custom design tokens defined in CSS variables. The application supports both light and dark modes with a neutral color palette. Typography uses the Inter font family for optimal readability in data-heavy interfaces.
-
-**State Management**: TanStack Query (React Query) handles all server state, caching, and synchronization. The application uses hierarchical query keys (e.g., `["/api/equipment", { status: "active" }]`) for proper cache invalidation. The default query function supports both simple string keys and object-based parameters serialized via URLSearchParams.
-
-**Routing**: Wouter provides lightweight client-side routing for navigation between the five main sections.
-
-**Layout System**: The application uses a sidebar layout with the AppSidebar component providing persistent navigation. The sidebar is responsive and uses the SidebarProvider context for state management.
+- **Framework**: React with TypeScript, using Vite.
+- **UI Component System**: shadcn/ui components (Radix UI primitives) with a "New York" style variant, optimized for data-dense enterprise layouts.
+- **Styling**: Tailwind CSS with custom design tokens (CSS variables), supporting light/dark modes and a neutral color palette. Uses Inter font for readability.
+- **State Management**: TanStack Query (React Query) for server state, caching, and synchronization, utilizing hierarchical query keys.
+- **Routing**: Wouter for lightweight client-side navigation.
+- **Layout System**: Sidebar layout (`AppSidebar`) for persistent navigation, responsive design.
 
 ### Backend Architecture
-
-**Framework**: Express.js with TypeScript running on Node.js
-
-**API Design**: RESTful API endpoints organized by resource type (equipment, projects, wishlist items, matches). The API handles CRUD operations, file uploads, and AI analysis requests.
-
-**Development Server**: Vite middleware is integrated into Express for hot module replacement during development. The production build serves static assets from the dist directory.
-
-**Request Processing**: The server uses middleware for JSON parsing, URL-encoded data, and request logging. Custom middleware tracks response times and logs API requests.
+- **Framework**: Express.js with TypeScript on Node.js.
+- **API Design**: RESTful API endpoints organized by resource type (equipment, projects, wishlist items, matches).
+- **Development Server**: Vite middleware integrated with Express for HMR.
+- **Request Processing**: Middleware for JSON parsing, URL-encoded data, and request logging.
 
 ### Data Storage
-
-**Database**: PostgreSQL with environment-based configuration
-- **Development**: Replit's built-in PostgreSQL database (automatically configured via DATABASE_URL)
-- **Production**: Any PostgreSQL provider (Neon, Supabase, AWS RDS, Azure, Google Cloud SQL)
-  - Configure production DATABASE_URL in environment variables
-  - Compatible with any standard PostgreSQL database (version 12+)
-
-**ORM**: Drizzle ORM provides type-safe database access with schema-first design. The schema defines tables for users, equipment listings, surplus projects, wishlist projects, wishlist items, matches, and price context cache.
-
-**Schema Design**: 
-- Equipment listings support draft and active states with fields for brand, model, category, condition, pricing, location, images, documents, specifications, and AI analysis data
-- Projects group related equipment (both surplus and wishlist) for bulk management
-- Wishlist items track desired equipment with budget constraints and matching status
-- Matches connect wishlist items to marketplace equipment with confidence scores
-- Price context cache stores AI-generated market price estimates
-
-**Migrations**: Drizzle Kit manages database migrations with schema changes tracked in the migrations directory.
+- **Database**: PostgreSQL (configured via `DATABASE_URL`).
+- **ORM**: Drizzle ORM for type-safe database access and schema-first design.
+- **Schema Design**: Tables for users, equipment listings (draft/active states), surplus projects, wishlist projects, wishlist items, matches, and price context cache.
+- **Migrations**: Drizzle Kit manages database migrations.
 
 ### Authentication and Authorization
-
-**Current Implementation**: The application uses local username/password authentication with bcrypt password hashing.
-
-**Authentication System**:
-- **Password Hashing**: bcryptjs with 10 salt rounds for secure password storage
-- **Session Management**: Express-session with in-memory MemoryStore (7-day cookie maxAge)
-- **Auth Service**: Centralized in `server/services/auth-service.ts` with methods for signup, login, password changes, and user management
-- **API Endpoints**:
-  - POST `/api/auth/signup` - Create new account (username, password, optional email)
-  - POST `/api/auth/login` - Authenticate and create session
-  - POST `/api/auth/logout` - Destroy session
-  - GET `/api/auth/user` - Get current authenticated user (returns 401 if not authenticated)
-  - PATCH `/api/auth/password` - Update password (requires current password validation)
-  - PATCH `/api/auth/profile` - Update profile (firstName, lastName, email)
-
-**Frontend Auth State**:
-- **useAuth hook**: React Query hook that fetches current user from `/api/auth/user`
-- **401 Handling**: 401 responses return null (treated as "not authenticated") rather than errors
-- **Query Configuration**: Custom queryFn with `on401: "returnNull"` to properly handle unauthenticated state
-- **Login/Signup Page**: Toggleable form at `/login` route with validation and error handling
-- **Profile Page**: User information display and password change functionality at `/profile`
-
-**Access Control**: Equipment listings, projects, and wishlist items are filtered by the `createdBy` field to ensure users only see their own data. The `createdBy` field stores user IDs from the authenticated session.
-
-**Session Storage Note**: Currently using in-memory session storage (MemoryStore). For production deployment, sessions should be migrated to database-backed storage using connect-pg-simple for persistence across server restarts.
-
-### External Dependencies
-
-**OpenAI Integration**: The application integrates GPT-4 Vision (gpt-4o model) for AI-powered equipment analysis:
-
-1. **Equipment Image Analysis**: Analyzes uploaded equipment photos to extract brand, model, category, description, and specifications. Returns structured data with confidence scores.
-
-2. **Price Estimation**: Generates market price estimates for equipment based on brand, model, category, and condition. Provides price ranges for new, refurbished, and used conditions with sourcing information.
-
-The AI service functions are centralized in `server/services/ai-service.ts` with methods:
-- `analyzeEquipmentFromImages()` - Image analysis for equipment identification
-- `estimatePrice()` - Market price estimation
-
-**Apify Integration**: The application uses Apify for external data collection:
-
-1. **PDF and Web Search**: Searches for equipment manuals, datasheets, and specifications from Google results and PDF documents.
-
-The Apify service is centralized in `server/services/apify-service.ts` with method:
-- `searchPDFsAndWeb()` - Searches external sources for equipment documentation
-
-**Shared Client Services**: Common client-side utilities are organized in `client/src/lib/`:
-- `ai-service.ts` - Client-side AI analysis and search functions
-- `file-upload.ts` - File upload utilities with validation for images and documents
-
-**File Storage**: Replit Object Storage handles image and document uploads. The upload system supports:
-- Images: JPEG, PNG, WebP (max 10MB)
-- Documents: PDF, Excel, Word (max 25MB)
-
-Files are validated for type and size, then stored with unique identifiers. The storage client is configured via the `DEFAULT_OBJECT_STORAGE_BUCKET_ID` environment variable.
-
-**File Access**: Replit Object Storage does not support public URLs or signed URLs. Files are served through a backend proxy endpoint (`/api/files/:filename`) that streams files from object storage to clients. This enables:
-- OpenAI Vision API to analyze uploaded images
-- Browser display of equipment photos and documents
-- Secure file access without exposing storage credentials
-
-The upload service generates proxy URLs in the format: `{baseUrl}/api/files/{filename}` where baseUrl is determined from environment variables (REPL_SLUG/REPL_OWNER for production, localhost for development).
-
-**AWS S3**: The @aws-sdk/client-s3 package is included but not currently implemented in the codebase. This suggests planned integration for production file storage migration from Replit Object Storage.
+- **Current Implementation**: Local username/password authentication.
+- **Authentication System**:
+    - **Password Hashing**: bcryptjs (10 salt rounds).
+    - **Session Management**: Express-session with in-memory `MemoryStore` (for development, production recommends `connect-pg-simple`).
+    - **Auth Service**: `server/services/auth-service.ts` for signup, login, password changes, user management.
+    - **API Endpoints**: POST `/api/auth/signup`, POST `/api/auth/login`, POST `/api/auth/logout`, GET `/api/auth/user`, PATCH `/api/auth/password`, PATCH `/api/auth/profile`.
+- **Frontend Auth State**: `useAuth` React Query hook, handles 401 responses by returning `null`.
+- **Access Control**: Data filtered by `createdBy` field to ensure users only access their own data.
 
 ### Design System
-
-**Typography Hierarchy**:
-- Page Headers: 30px bold
-- Section Headers: 20px semibold  
-- Card Titles: 18px medium
-- Body Text: 16px normal
-- Labels/Metadata: 14px medium
-- Captions: 12px normal
-
-**Spacing System**: Uses Tailwind spacing units (2, 4, 6, 8, 12, 16) with consistent padding and gap patterns across cards, sections, and page layouts.
-
-**Container Widths**: Content is constrained to 7xl max-width (80rem) for optimal readability on large screens. Sidebars use fixed 256px width.
-
-**Grid Patterns**: Responsive grids adapt from single column on mobile to 2-4 columns on desktop, optimized for equipment cards, dashboard stats, and specification sheets.
-
-**Color System**: Custom HSL-based color tokens defined in CSS variables support theming with primary, secondary, muted, accent, and destructive variants. Each variant includes DEFAULT, foreground, and border colors.
-
-**Interactive States**: Custom CSS classes `hover-elevate` and `active-elevate-2` provide consistent elevation changes on user interaction using CSS variables `--elevate-1` and `--elevate-2`.
+- **Typography**: Defined hierarchy for headers, body text, labels, and captions.
+- **Spacing**: Tailwind spacing units for consistent padding and gaps.
+- **Container Widths**: Content constrained to 7xl max-width; sidebars fixed 256px.
+- **Grid Patterns**: Responsive grids (1 to 4 columns) for cards and data displays.
+- **Color System**: HSL-based custom color tokens (CSS variables) for primary, secondary, muted, accent, destructive variants, supporting theming.
+- **Interactive States**: `hover-elevate` and `active-elevate-2` classes for consistent elevation changes.
 
 ### Key Architectural Decisions
+- **Monorepo Structure**: Shared directory for common TypeScript types/schemas ensures type safety across client/server.
+- **Type Safety**: Zod schemas for runtime validation and TypeScript type inference.
+- **Image-First Equipment Entry**: AI-powered pre-population of form fields from images in surplus listing workflow.
+- **Price Context Integration**: Real-time market price estimates for equipment, cached for performance.
+- **Project-Based Organization**: Grouping surplus and wishlist items into projects for bulk management.
+- **Match Confidence Scoring**: AI-generated matches include confidence levels and match types.
 
-**Monorepo Structure**: The codebase uses a shared directory for common TypeScript types and schemas, enabling type safety across client and server boundaries without code duplication.
+## External Dependencies
 
-**Type Safety**: Zod schemas validate all data at runtime while providing TypeScript types through Drizzle's type inference. This ensures data integrity from API requests through database operations.
-
-**Image-First Equipment Entry**: The surplus listing workflow prioritizes image upload, allowing AI to pre-populate form fields. This reduces data entry friction while maintaining flexibility for manual input.
-
-**Price Context Integration**: Equipment listings and wishlist items can fetch real-time market price estimates, storing results in a cache table to minimize API costs and improve performance.
-
-**Project-Based Organization**: Both surplus and wishlist items can be grouped into projects, enabling bulk operations and better organization for users managing multiple equipment acquisitions or disposals.
-
-**Match Confidence Scoring**: AI-generated matches between wishlist items and marketplace equipment include confidence levels (high/medium/low) and match types (exact/variant/related/alternative) to help users prioritize opportunities.
+- **OpenAI Integration**: GPT-4 Vision (gpt-4o) for AI-powered equipment analysis:
+    - **Equipment Image Analysis**: Extracts brand, model, category, description, specifications from images.
+    - **Price Estimation**: Generates market price estimates based on equipment details.
+    - Services centralized in `server/services/ai-service.ts`.
+- **Apify Integration**: Used for external data collection:
+    - **PDF and Web Search**: Searches for equipment documentation and specifications.
+    - Service centralized in `server/services/apify-service.ts`.
+- **File Storage**: Replit Object Storage for image and document uploads (JPEG, PNG, WebP, PDF, Excel, Word).
+    - Files served via backend proxy endpoint (`/api/files/:filename`) for secure access and AI analysis.
+    - `DEFAULT_OBJECT_STORAGE_BUCKET_ID` environment variable for configuration.
+    - `@aws-sdk/client-s3` is included, indicating a future migration path.
