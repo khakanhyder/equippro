@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,9 +14,9 @@ export default function Profile() {
   const updatePassword = useUpdatePassword();
 
   // Profile form state
-  const [firstName, setFirstName] = useState(user?.firstName || "");
-  const [lastName, setLastName] = useState(user?.lastName || "");
-  const [email, setEmail] = useState(user?.email || "");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
 
   // Password form state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -24,11 +24,13 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // Update state when user data loads
-  if (user && !firstName && !lastName && !email) {
-    setFirstName(user.firstName || "");
-    setLastName(user.lastName || "");
-    setEmail(user.email || "");
-  }
+  useEffect(() => {
+    if (user) {
+      setFirstName(user.firstName || "");
+      setLastName(user.lastName || "");
+      setEmail(user.email || "");
+    }
+  }, [user]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
