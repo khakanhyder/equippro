@@ -757,6 +757,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/equipment/export/csv", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      
+      const results = await db.select()
+        .from(equipment)
+        .where(eq(equipment.createdBy, userId))
+        .orderBy(desc(equipment.createdAt));
+
+      // CSV Headers
+      const headers = [
+        'ID',
+        'Brand',
+        'Model',
+        'Category',
+        'Condition',
+        'Asking Price',
+        'Location',
+        'Description',
+        'Status',
+        'Specifications',
+        'Market Price Range (New)',
+        'Market Price Range (Refurbished)',
+        'Market Price Range (Used)',
+        'Views',
+        'Created At',
+        'Updated At'
+      ];
+
+      // Helper function to escape CSV values
+      const escapeCsv = (value: any): string => {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      // Helper to format price range
+      const formatPriceRange = (priceRange: any, condition: string): string => {
+        if (!priceRange) return 'N/A';
+        const min = priceRange[`${condition}_min`];
+        const max = priceRange[`${condition}_max`];
+        if (min && max) {
+          return `$${min} - $${max}`;
+        }
+        return 'N/A';
+      };
+
+      // Helper to format specifications
+      const formatSpecs = (specs: any): string => {
+        if (!specs || typeof specs !== 'object') return '';
+        return Object.entries(specs)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join('; ');
+      };
+
+      // Build CSV rows
+      const rows = results.map(item => [
+        item.id,
+        item.brand,
+        item.model,
+        item.category,
+        item.condition,
+        `$${item.askingPrice}`,
+        item.location,
+        item.description || '',
+        item.listingStatus,
+        formatSpecs(item.specifications),
+        formatPriceRange(item.marketPriceRange, 'new'),
+        formatPriceRange(item.marketPriceRange, 'refurbished'),
+        formatPriceRange(item.marketPriceRange, 'used'),
+        item.viewsCount || 0,
+        item.createdAt?.toISOString() || '',
+        item.updatedAt?.toISOString() || ''
+      ].map(escapeCsv));
+
+      // Generate CSV content
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+
+      // Set headers for file download
+      const filename = `surplus-equipment-${new Date().toISOString().split('T')[0]}.csv`;
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      
+      res.send(csvContent);
+    } catch (error: any) {
+      console.error('Export equipment error:', error);
+      res.status(500).json({ message: error.message || "Failed to export equipment" });
+    }
+  });
+
   app.post("/api/equipment", async (req, res) => {
     try {
       const validatedData = insertEquipmentSchema.parse(req.body);

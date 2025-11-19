@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Upload, Grid3x3, List, Loader2 } from "lucide-react";
+import { Plus, Upload, Grid3x3, List, Loader2, Download } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -128,6 +128,39 @@ export default function Surplus() {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const response = await fetch('/api/equipment/export/csv', {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export equipment');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `surplus-equipment-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Export successful",
+        description: "Your equipment has been exported to CSV",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Export failed",
+        description: error.message || "Could not export equipment",
+        variant: "destructive",
+      });
+    }
+  };
+
   const renderEquipmentCard = (equipment: Equipment, isDraft: boolean) => (
     <SurplusItemCard
       key={equipment.id}
@@ -152,6 +185,15 @@ export default function Surplus() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleExportCSV}
+              disabled={draftEquipment.length === 0 && activeEquipment.length === 0}
+              data-testid="button-export-csv"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
             <Button variant="outline" data-testid="button-bulk-import">
               <Upload className="w-4 h-4 mr-2" />
               Bulk Import

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,18 +17,45 @@ export default function Profile() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  
+  // Track last seen user data to detect changes
+  const lastUserDataRef = useRef<{id?: string; firstName?: string; lastName?: string; email?: string}>({});
 
   // Password form state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Update state when user data loads
+  // Sync form state with user data when it changes
   useEffect(() => {
-    if (user) {
-      setFirstName(user.firstName || "");
-      setLastName(user.lastName || "");
-      setEmail(user.email || "");
+    if (!user) {
+      // Reset when user logs out
+      setFirstName("");
+      setLastName("");
+      setEmail("");
+      lastUserDataRef.current = {};
+    } else {
+      // Check if user data has actually changed
+      const hasChanged = 
+        lastUserDataRef.current.id !== user.id ||
+        lastUserDataRef.current.firstName !== user.firstName ||
+        lastUserDataRef.current.lastName !== user.lastName ||
+        lastUserDataRef.current.email !== user.email;
+
+      if (hasChanged) {
+        // Update form with new user data
+        setFirstName(user.firstName || "");
+        setLastName(user.lastName || "");
+        setEmail(user.email || "");
+        
+        // Track current user data
+        lastUserDataRef.current = {
+          id: user.id,
+          firstName: user.firstName || undefined,
+          lastName: user.lastName || undefined,
+          email: user.email || undefined,
+        };
+      }
     }
   }, [user]);
 
