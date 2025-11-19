@@ -16,10 +16,9 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useImageUpload } from "@/hooks/use-image-upload";
-import { useAiAnalysis, usePriceContext } from "@/hooks/use-ai-analysis";
+import { useAiAnalysis } from "@/hooks/use-ai-analysis";
 import { X, Plus, Loader2, Upload, Sparkles, ExternalLink, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { PriceEstimate } from "@/hooks/use-ai-analysis";
 import { searchExternalSources } from "@/lib/ai-service";
 
 const equipmentFormSchema = z.object({
@@ -53,9 +52,10 @@ interface SurplusFormProps {
 export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
   const { toast } = useToast();
   const [specs, setSpecs] = useState<SpecField[]>([]);
-  const [priceContext, setPriceContext] = useState<PriceEstimate | null>(null);
-  const [externalSources, setExternalSources] = useState<any[]>([]);
+  const [priceData, setPriceData] = useState<any>(null);
+  const [externalResults, setExternalResults] = useState<any[]>([]);
   const [isSearchingSources, setIsSearchingSources] = useState(false);
+  const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   
   const form = useForm<EquipmentFormData>({
     resolver: zodResolver(equipmentFormSchema),
@@ -78,7 +78,6 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
 
   const imageUpload = useImageUpload();
   const { analyzeEquipment } = useAiAnalysis();
-  const { fetchPriceContext } = usePriceContext();
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -157,40 +156,86 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
   };
 
   const handleFetchPriceContext = async () => {
-    const { brand, model, category, condition } = form.getValues();
-    
-    if (!brand || !model || !category) {
+    const brand = form.getValues('brand');
+    const model = form.getValues('model');
+    const category = form.getValues('category');
+
+    if (!brand || !model) {
       toast({
         title: "Missing information",
-        description: "Please fill in brand, model, and category first",
+        description: "Please provide brand and model first",
         variant: "destructive",
       });
       return;
     }
 
+    setIsFetchingPrices(true);
     try {
-      const result = await fetchPriceContext.mutateAsync({
-        brand,
-        model,
-        category,
-        condition,
+      const response = await fetch('/api/price-context/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand, model, category }),
       });
-      
-      setPriceContext(result);
-      form.setValue('marketPriceRange', result as any);
-      form.setValue('priceSource', result.source);
-      form.setValue('priceBreakdown', { breakdown: result.breakdown } as any);
-      
-      toast({
-        title: "Price context loaded",
-        description: "Market price estimates retrieved",
-      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to fetch prices');
+      }
+
+      const result = await response.json();
+      setPriceData(result);
+
+      const priceRange = {
+        new_min: result.new_min,
+        new_max: result.new_max,
+        refurbished_min: result.refurbished_min,
+        refurbished_max: result.refurbished_max,
+        used_min: result.used_min,
+        used_max: result.used_max,
+      };
+
+      form.setValue('marketPriceRange', priceRange as any);
+      form.setValue('priceSource', result.source || 'Market data');
+      form.setValue('priceBreakdown', result.breakdown || null);
+
+      // Show different toast based on whether scraping is happening in background
+      if (result.scraping_in_background) {
+        toast({
+          title: "AI estimate ready",
+          description: "Live marketplace data is being fetched in the background. Refresh for latest prices.",
+          duration: 5000,
+        });
+      } else if (result.cached) {
+        const breakdownText = typeof result.breakdown === 'string' 
+          ? result.breakdown 
+          : result.source || "Showing previously scraped data";
+        
+        toast({
+          title: result.has_marketplace_data ? "Cached marketplace data" : "Cached AI estimate",
+          description: breakdownText,
+          duration: 3000,
+        });
+      } else if (result.totalListingsFound === 0) {
+        toast({
+          title: "No listings found",
+          description: "Try checking eBay or LabX manually for this equipment",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Real market prices found!",
+          description: `Found ${result.totalListingsFound} marketplace listing(s)`,
+          duration: 3000,
+        });
+      }
     } catch (error: any) {
       toast({
-        title: "Failed to get prices",
-        description: error.message || "Could not fetch price context",
+        title: "Price scraping failed",
+        description: error.message || "Could not retrieve market prices. Try checking eBay manually.",
         variant: "destructive",
       });
+    } finally {
+      setIsFetchingPrices(false);
     }
   };
 
@@ -223,7 +268,8 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
   };
 
   const handleSearchExternalSources = async () => {
-    const { brand, model } = form.getValues();
+    const brand = form.getValues('brand');
+    const model = form.getValues('model');
     
     if (!brand || !model) {
       toast({
@@ -237,13 +283,13 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
     setIsSearchingSources(true);
     
     try {
-      const sources = await searchExternalSources(brand, model);
-      const validSources = Array.isArray(sources) ? sources : [];
-      setExternalSources(validSources);
+      const result = await searchExternalSources(brand, model);
+      const matches = result.external_matches || [];
+      setExternalResults(matches);
       
       toast({
         title: "Search complete",
-        description: `Found ${validSources.length} external source(s)`,
+        description: `Found ${matches.length} relevant source${matches.length !== 1 ? 's' : ''}`,
       });
     } catch (error: any) {
       toast({
@@ -251,6 +297,7 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
         description: error.message || "Could not search external sources",
         variant: "destructive",
       });
+      setExternalResults([]);
     } finally {
       setIsSearchingSources(false);
     }
@@ -501,10 +548,10 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
               size="sm"
               variant="outline"
               onClick={handleFetchPriceContext}
-              disabled={fetchPriceContext.isPending}
+              disabled={isFetchingPrices}
               data-testid="button-get-price-context-surplus"
             >
-              {fetchPriceContext.isPending ? (
+              {isFetchingPrices ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Sparkles className="w-4 h-4 mr-2" />
@@ -513,11 +560,11 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
             </Button>
           </div>
           
-          {priceContext && (
+          {priceData && (
             <div className="border rounded-lg p-4 space-y-3">
-              {priceContext.has_marketplace_data !== undefined && (
+              {priceData.has_marketplace_data !== undefined && (
                 <div className="flex items-center gap-2 pb-2 border-b">
-                  {priceContext.has_marketplace_data ? (
+                  {priceData.has_marketplace_data ? (
                     <>
                       <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">
                         Real Marketplace Data
@@ -532,7 +579,7 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
                         AI Estimate
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        {priceContext.scraping_in_background 
+                        {priceData.scraping_in_background 
                           ? 'Fetching real marketplace data in background...' 
                           : 'Based on AI analysis'}
                       </span>
@@ -544,25 +591,25 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
                 <div>
                   <p className="text-muted-foreground">New</p>
                   <p className="font-semibold">
-                    {formatPrice(priceContext.new_min)} - {formatPrice(priceContext.new_max)}
+                    {formatPrice(priceData.new_min)} - {formatPrice(priceData.new_max)}
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Refurbished</p>
                   <p className="font-semibold">
-                    {formatPrice(priceContext.refurbished_min)} - {formatPrice(priceContext.refurbished_max)}
+                    {formatPrice(priceData.refurbished_min)} - {formatPrice(priceData.refurbished_max)}
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Used</p>
                   <p className="font-semibold">
-                    {formatPrice(priceContext.used_min)} - {formatPrice(priceContext.used_max)}
+                    {formatPrice(priceData.used_min)} - {formatPrice(priceData.used_max)}
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground italic">{priceContext.breakdown}</p>
+              <p className="text-xs text-muted-foreground italic">{priceData.breakdown}</p>
               <Badge variant="outline" className="text-xs">
-                Source: {priceContext.source}
+                Source: {priceData.source}
               </Badge>
             </div>
           )}
@@ -588,11 +635,11 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
             </Button>
           </div>
           
-          {externalSources.length > 0 && (
+          {externalResults.length > 0 && (
             <div className="border rounded-lg p-4 space-y-2">
-              <p className="text-sm font-medium">Found {externalSources.length} sources:</p>
+              <p className="text-sm font-medium">Found {externalResults.length} sources:</p>
               <div className="space-y-2">
-                {externalSources.map((source, index) => (
+                {externalResults.map((source: any, index: number) => (
                   <a
                     key={index}
                     href={source.url}
