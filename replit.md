@@ -6,6 +6,18 @@ Equipment Pro is a professional B2B marketplace platform for buying and selling 
 
 ## Recent Changes
 
+**November 19, 2025** - Implemented Local Authentication System:
+- Built complete username/password authentication with bcryptjs hashing (10 salt rounds)
+- Created auth service with signup, login, logout, password change, and profile update
+- Implemented 6 REST API endpoints for authentication and user management
+- Added useAuth React Query hook with proper 401 handling (returns null for unauthenticated)
+- Built login/signup page with toggleable forms and validation
+- Updated profile page with user info display and password change functionality
+- Configured App.tsx to show login page when not authenticated
+- Updated AppSidebar to display user information and logout button
+- Fixed QueryClient provider ordering and configured custom queryFn for auth queries
+- Note: Using in-memory session storage (MemoryStore); production should use connect-pg-simple
+
 **November 19, 2025** - Fixed Technical Specifications Display Format:
 - Fixed AI service to return specifications as Record<string, string> instead of array format
 - Specifications now properly display in surplus form instead of showing "[object Object]"
@@ -88,11 +100,30 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication and Authorization
 
-**Current Implementation**: The application currently uses a placeholder authentication system with a MemStorage implementation for user data. Users are mocked as authenticated by default.
+**Current Implementation**: The application uses local username/password authentication with bcrypt password hashing.
 
-**Planned Integration**: Comments indicate Replit Auth will handle authentication via Google, GitHub, or email providers. Session management will use connect-pg-simple for PostgreSQL-backed sessions.
+**Authentication System**:
+- **Password Hashing**: bcryptjs with 10 salt rounds for secure password storage
+- **Session Management**: Express-session with in-memory MemoryStore (7-day cookie maxAge)
+- **Auth Service**: Centralized in `server/services/auth-service.ts` with methods for signup, login, password changes, and user management
+- **API Endpoints**:
+  - POST `/api/auth/signup` - Create new account (username, password, optional email)
+  - POST `/api/auth/login` - Authenticate and create session
+  - POST `/api/auth/logout` - Destroy session
+  - GET `/api/auth/user` - Get current authenticated user (returns 401 if not authenticated)
+  - PATCH `/api/auth/password` - Update password (requires current password validation)
+  - PATCH `/api/auth/profile` - Update profile (firstName, lastName, email)
 
-**Access Control**: Equipment listings, projects, and wishlist items are filtered by the `createdBy` field to ensure users only see their own data. The `createdBy` field stores user identifiers (currently "demo-user" placeholder).
+**Frontend Auth State**:
+- **useAuth hook**: React Query hook that fetches current user from `/api/auth/user`
+- **401 Handling**: 401 responses return null (treated as "not authenticated") rather than errors
+- **Query Configuration**: Custom queryFn with `on401: "returnNull"` to properly handle unauthenticated state
+- **Login/Signup Page**: Toggleable form at `/login` route with validation and error handling
+- **Profile Page**: User information display and password change functionality at `/profile`
+
+**Access Control**: Equipment listings, projects, and wishlist items are filtered by the `createdBy` field to ensure users only see their own data. The `createdBy` field stores user IDs from the authenticated session.
+
+**Session Storage Note**: Currently using in-memory session storage (MemoryStore). For production deployment, sessions should be migrated to database-backed storage using connect-pg-simple for persistence across server restarts.
 
 ### External Dependencies
 
