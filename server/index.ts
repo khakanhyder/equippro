@@ -70,6 +70,33 @@ app.use((req, res, next) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
+  // Handle unhandled promise rejections (e.g., from background scraping operations)
+  process.on('unhandledRejection', (reason: any, promise) => {
+    console.error('[UnhandledRejection] Caught unhandled promise rejection:', reason);
+    console.error('[UnhandledRejection] Promise:', promise);
+    // Only ignore database connection termination errors from background operations
+    if (reason && reason.message && reason.message.includes('terminating connection')) {
+      console.error('[UnhandledRejection] Database connection terminated during background operation - ignoring');
+      return;
+    }
+    // For all other errors, crash the process as normal
+    console.error('[UnhandledRejection] FATAL: Unhandled promise rejection - exiting');
+    process.exit(1);
+  });
+
+  // Handle uncaught exceptions
+  process.on('uncaughtException', (error: Error) => {
+    console.error('[UncaughtException] Caught uncaught exception:', error);
+    // Only ignore database connection termination errors from background operations
+    if (error.message && error.message.includes('terminating connection')) {
+      console.error('[UncaughtException] Database connection terminated during background operation - ignoring');
+      return;
+    }
+    // For all other errors, crash the process as normal
+    console.error('[UncaughtException] FATAL: Uncaught exception - exiting');
+    process.exit(1);
+  });
+
   const port = parseInt(process.env.PORT || '5000', 10);
   server.listen({
     port,

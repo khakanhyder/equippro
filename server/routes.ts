@@ -423,25 +423,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const expiresAt = new Date();
                   expiresAt.setDate(expiresAt.getDate() + 3);
 
-                  await db.insert(priceContextCache).values({
-                    brand,
-                    model,
-                    category: category || 'Unknown',
-                    priceRanges: formattedData as any,
-                    priceSource: formattedData.source,
-                    priceBreakdown: formattedData.breakdown as any,
-                    hasMarketplaceData: 'true',
-                    expiresAt,
-                  }).onConflictDoUpdate({
-                    target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
-                    set: {
+                  try {
+                    await db.insert(priceContextCache).values({
+                      brand,
+                      model,
+                      category: category || 'Unknown',
                       priceRanges: formattedData as any,
                       priceSource: formattedData.source,
                       priceBreakdown: formattedData.breakdown as any,
                       hasMarketplaceData: 'true',
                       expiresAt,
+                    }).onConflictDoUpdate({
+                      target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
+                      set: {
+                        priceRanges: formattedData as any,
+                        priceSource: formattedData.source,
+                        priceBreakdown: formattedData.breakdown as any,
+                        hasMarketplaceData: 'true',
+                        expiresAt,
+                      }
+                    });
+                  } catch (dbError: any) {
+                    // Handle database connection errors gracefully
+                    if (dbError.message && dbError.message.includes('terminating connection')) {
+                      console.error('[BackgroundScrape] Database connection terminated - will retry on next request');
+                    } else {
+                      throw dbError;
                     }
-                  });
+                  }
                 } else {
                   console.log('[BackgroundScrape] No marketplace listings found, keeping AI cache for retry');
                 }
@@ -525,27 +534,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const expiresAt = new Date();
               expiresAt.setDate(expiresAt.getDate() + 3);
 
-              await db.insert(priceContextCache).values({
-                brand,
-                model,
-                category: category || 'Unknown',
-                priceRanges: formattedData as any,
-                priceSource: formattedData.source,
-                priceBreakdown: formattedData.breakdown as any,
-                hasMarketplaceData: 'true',
-                expiresAt,
-              }).onConflictDoUpdate({
-                target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
-                set: {
+              try {
+                await db.insert(priceContextCache).values({
+                  brand,
+                  model,
+                  category: category || 'Unknown',
                   priceRanges: formattedData as any,
                   priceSource: formattedData.source,
                   priceBreakdown: formattedData.breakdown as any,
                   hasMarketplaceData: 'true',
                   expiresAt,
+                }).onConflictDoUpdate({
+                  target: [priceContextCache.brand, priceContextCache.model, priceContextCache.category],
+                  set: {
+                    priceRanges: formattedData as any,
+                    priceSource: formattedData.source,
+                    priceBreakdown: formattedData.breakdown as any,
+                    hasMarketplaceData: 'true',
+                    expiresAt,
+                  }
+                });
+                
+                console.log('[BackgroundScrape] Successfully cached marketplace data (listings:', formattedData.totalListingsFound, ') for', brand, model);
+              } catch (dbError: any) {
+                // Handle database connection errors gracefully
+                if (dbError.message && dbError.message.includes('terminating connection')) {
+                  console.error('[BackgroundScrape] Database connection terminated - will retry on next request');
+                } else {
+                  throw dbError;
                 }
-              });
-              
-              console.log('[BackgroundScrape] Successfully cached marketplace data (listings:', formattedData.totalListingsFound, ') for', brand, model);
+              }
             } else {
               console.log('[BackgroundScrape] No marketplace listings found, keeping AI cache for retry');
             }
