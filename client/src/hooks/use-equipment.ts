@@ -65,6 +65,16 @@ export function useEquipmentMutations() {
     },
   });
 
+  const unpublishEquipment = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest('PATCH', `/api/equipment/${id}`, { listingStatus: 'draft' });
+      return res.json() as Promise<Equipment>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['equipment'] });
+    },
+  });
+
   const markAsSold = useMutation({
     mutationFn: async (id: number) => {
       const res = await apiRequest('PATCH', `/api/equipment/${id}`, { listingStatus: 'sold' });
@@ -80,6 +90,7 @@ export function useEquipmentMutations() {
     updateEquipment,
     deleteEquipment,
     publishEquipment,
+    unpublishEquipment,
     markAsSold,
   };
 }

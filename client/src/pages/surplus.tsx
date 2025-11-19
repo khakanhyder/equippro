@@ -34,7 +34,7 @@ export default function Surplus() {
   const { data: draftEquipment = [], isLoading: isDraftsLoading } = useEquipmentList('draft');
   const { data: activeEquipment = [], isLoading: isActiveLoading } = useEquipmentList('active');
   
-  const { createEquipment, publishEquipment, markAsSold } = useEquipmentMutations();
+  const { createEquipment, publishEquipment, unpublishEquipment, markAsSold, deleteEquipment } = useEquipmentMutations();
 
   const handleSubmit = async (data: any) => {
     try {
@@ -91,14 +91,50 @@ export default function Surplus() {
     }
   };
 
+  const handleUnpublish = async (id: number) => {
+    try {
+      await unpublishEquipment.mutateAsync(id);
+      
+      toast({
+        title: "Unpublished",
+        description: "Equipment has been moved back to drafts",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to unpublish",
+        description: error.message || "Could not unpublish equipment",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteEquipment.mutateAsync(id);
+      
+      toast({
+        title: "Deleted",
+        description: "Equipment has been permanently deleted",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to delete",
+        description: error.message || "Could not delete equipment",
+        variant: "destructive",
+      });
+    }
+  };
+
   const renderEquipmentCard = (equipment: Equipment, isDraft: boolean) => (
     <SurplusItemCard
       key={equipment.id}
       item={equipment}
       isDraft={isDraft}
       onPublish={setPublishingId}
+      onUnpublish={handleUnpublish}
       onEdit={(id) => console.log('Edit equipment:', id)}
       onMarkAsSold={handleMarkAsSold}
+      onDelete={handleDelete}
     />
   );
 
@@ -210,7 +246,7 @@ export default function Surplus() {
             <AlertDialogHeader>
               <AlertDialogTitle>Publish Equipment?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will make your equipment visible on the marketplace. Once published, it can only be marked as sold.
+                This will make your equipment visible on the marketplace. You can unpublish it later to move it back to drafts.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -218,6 +254,7 @@ export default function Surplus() {
               <AlertDialogAction
                 onClick={() => publishingId && handlePublish(publishingId)}
                 disabled={publishEquipment.isPending}
+                data-testid="button-confirm-publish"
               >
                 {publishEquipment.isPending ? (
                   <>

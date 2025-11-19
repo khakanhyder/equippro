@@ -799,7 +799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const validTransitions: Record<string, string[]> = {
           'draft': ['active'],
-          'active': ['sold'],
+          'active': ['draft', 'sold'], // Allow unpublishing: active → draft
           'sold': []
         };
 

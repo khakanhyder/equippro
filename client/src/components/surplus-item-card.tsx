@@ -2,15 +2,17 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, Edit, Eye, MapPin } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit, Eye, MapPin, Trash2 } from "lucide-react";
 import type { Equipment } from "@shared/schema";
 
 interface SurplusItemCardProps {
   item: Equipment;
   isDraft?: boolean;
   onPublish?: (itemId: number) => void;
+  onUnpublish?: (itemId: number) => void;
   onEdit?: (itemId: number) => void;
   onMarkAsSold?: (itemId: number) => void;
+  onDelete?: (itemId: number) => void;
 }
 
 const conditionColors = {
@@ -19,7 +21,7 @@ const conditionColors = {
   used: "bg-slate-100 text-slate-800 border-slate-200",
 };
 
-export function SurplusItemCard({ item, isDraft = false, onPublish, onEdit, onMarkAsSold }: SurplusItemCardProps) {
+export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish, onEdit, onMarkAsSold, onDelete }: SurplusItemCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const parseMarketPrices = () => {
@@ -209,6 +211,19 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onEdit, onMa
                   Publish to Marketplace
                 </Button>
               )}
+              {!isDraft && onUnpublish && (
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUnpublish(item.id);
+                  }}
+                  data-testid={`button-unpublish-${item.id}`}
+                >
+                  Unpublish
+                </Button>
+              )}
               {!isDraft && onMarkAsSold && (
                 <Button
                   variant="secondary"
@@ -233,6 +248,19 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onEdit, onMa
                   data-testid={`button-edit-surplus-${item.id}`}
                 >
                   <Edit className="w-4 h-4" />
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(item.id);
+                  }}
+                  data-testid={`button-delete-${item.id}`}
+                >
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               )}
             </div>
