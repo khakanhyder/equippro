@@ -30,10 +30,7 @@ export function useAuth() {
 export function useLogin() {
   return useMutation({
     mutationFn: async (credentials: LoginCredentials) => {
-      return await apiRequest("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify(credentials),
-      });
+      return await apiRequest("POST", "/api/auth/login", credentials);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -44,10 +41,7 @@ export function useLogin() {
 export function useSignup() {
   return useMutation({
     mutationFn: async (credentials: SignupCredentials) => {
-      return await apiRequest("/api/auth/signup", {
-        method: "POST",
-        body: JSON.stringify(credentials),
-      });
+      return await apiRequest("POST", "/api/auth/signup", credentials);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -58,9 +52,7 @@ export function useSignup() {
 export function useLogout() {
   return useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/auth/logout", {
-        method: "POST",
-      });
+      return await apiRequest("POST", "/api/auth/logout");
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/auth/user"], null);
@@ -72,10 +64,7 @@ export function useLogout() {
 export function useUpdatePassword() {
   return useMutation({
     mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
-      return await apiRequest("/api/auth/password", {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("PATCH", "/api/auth/password", data);
     },
   });
 }
@@ -83,10 +72,7 @@ export function useUpdatePassword() {
 export function useUpdateProfile() {
   return useMutation({
     mutationFn: async (data: { email?: string; firstName?: string; lastName?: string }) => {
-      return await apiRequest("/api/auth/profile", {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("PATCH", "/api/auth/profile", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
