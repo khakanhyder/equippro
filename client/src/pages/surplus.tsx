@@ -30,6 +30,7 @@ export default function Surplus() {
   const [addEquipmentDialogOpen, setAddEquipmentDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const { data: draftEquipment = [], isLoading: isDraftsLoading } = useEquipmentList('draft');
   const { data: activeEquipment = [], isLoading: isActiveLoading } = useEquipmentList('active');
@@ -116,6 +117,8 @@ export default function Surplus() {
         title: "Deleted",
         description: "Equipment has been permanently deleted",
       });
+      
+      setDeletingId(null);
     } catch (error: any) {
       toast({
         title: "Failed to delete",
@@ -134,7 +137,7 @@ export default function Surplus() {
       onUnpublish={handleUnpublish}
       onEdit={(id) => console.log('Edit equipment:', id)}
       onMarkAsSold={handleMarkAsSold}
-      onDelete={handleDelete}
+      onDelete={setDeletingId}
     />
   );
 
@@ -263,6 +266,35 @@ export default function Surplus() {
                   </>
                 ) : (
                   'Publish'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={deletingId !== null} onOpenChange={(open) => !open && setDeletingId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Equipment?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. The equipment listing will be permanently deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deletingId && handleDelete(deletingId)}
+                disabled={deleteEquipment.isPending}
+                data-testid="button-confirm-delete"
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteEquipment.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
                 )}
               </AlertDialogAction>
             </AlertDialogFooter>
