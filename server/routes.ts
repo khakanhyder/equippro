@@ -1,10 +1,13 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import session from 'express-session';
+import MemoryStore from 'memorystore';
 import { storage } from "./storage";
 import multer from "multer";
 import { uploadFile, uploadMultipleFiles, validateFileType, validateFileSize, downloadFile } from "./services/upload-service";
 import { analyzeEquipmentFromImages, estimatePrice, calculateMatchScore, sanitizePriceContext } from "./services/ai-service";
 import { searchPDFsAndWeb } from "./services/apify-service";
+import { createUser, authenticateUser, updatePassword, sanitizeUser } from "./services/auth-service";
 import { db } from "./db";
 import { 
   equipment, 
@@ -36,7 +39,154 @@ function getCacheKey(brand: string, model: string, category: string): string {
   return `${brand.toLowerCase()}_${model.toLowerCase()}_${category.toLowerCase()}`;
 }
 
+// Extend Express Session to include userId
+declare module 'express-session' {
+  interface SessionData {
+    userId?: string;
+  }
+}
+
+// Authentication middleware
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup session management
+  const MemStore = MemoryStore(session);
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'equipment-pro-secret-key-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    store: new MemStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    }),
+    cookie: {
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    }
+  }));
+
+  // ===== Authentication Routes =====
+
+  // Signup
+  app.post('/api/auth/signup', async (req, res) => {
+    try {
+      const { username, password, email } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required' });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters' });
+      }
+
+      const user = await createUser(username, password, email);
+      req.session.userId = user.id;
+
+      res.json(sanitizeUser(user));
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      res.status(400).json({ message: error.message || 'Failed to create account' });
+    }
+  });
+
+  // Login
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required' });
+      }
+
+      const user = await authenticateUser(username, password);
+      if (!user) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      req.session.userId = user.id;
+
+      res.json(sanitizeUser(user));
+    } catch (error: any) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: 'Failed to login' });
+    }
+  });
+
+  // Logout
+  app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Failed to logout' });
+      }
+      res.json({ message: 'Logged out successfully' });
+    });
+  });
+
+  // Get current user
+  app.get('/api/auth/user', requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      res.json(sanitizeUser(user));
+    } catch (error) {
+      console.error('Get user error:', error);
+      res.status(500).json({ message: 'Failed to get user' });
+    }
+  });
+
+  // Update password
+  app.patch('/api/auth/password', requireAuth, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current and new password are required' });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: 'New password must be at least 6 characters' });
+      }
+
+      await updatePassword(req.session.userId!, currentPassword, newPassword);
+
+      res.json({ message: 'Password updated successfully' });
+    } catch (error: any) {
+      console.error('Password update error:', error);
+      res.status(400).json({ message: error.message || 'Failed to update password' });
+    }
+  });
+
+  // Update profile
+  app.patch('/api/auth/profile', requireAuth, async (req, res) => {
+    try {
+      const { email, firstName, lastName } = req.body;
+      const updates: any = {};
+      
+      if (email !== undefined) updates.email = email;
+      if (firstName !== undefined) updates.firstName = firstName;
+      if (lastName !== undefined) updates.lastName = lastName;
+
+      const user = await storage.updateUserProfile(req.session.userId!, updates);
+
+      res.json(sanitizeUser(user));
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      res.status(400).json({ message: error.message || 'Failed to update profile' });
+    }
+  });
+
+  // ===== End Authentication Routes =====
+
   app.get("/api/files/:filename", async (req, res) => {
     try {
       const { filename } = req.params;
