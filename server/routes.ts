@@ -706,25 +706,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/equipment", async (req, res) => {
+  app.get("/api/equipment", requireAuth, async (req, res) => {
     try {
-      const { status, listingStatus, createdBy } = req.query;
+      const { status, listingStatus } = req.query;
+      const userId = req.session.userId!;
       
       let query = db.select().from(equipment);
       
-      const conditions = [];
+      const conditions = [eq(equipment.createdBy, userId)];
+      
       // Support both 'status' and 'listingStatus' query params for compatibility
       const statusFilter = status || listingStatus;
       if (statusFilter) {
         conditions.push(eq(equipment.listingStatus, statusFilter as string));
       }
-      if (createdBy) {
-        conditions.push(eq(equipment.createdBy, createdBy as string));
-      }
       
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions)) as any;
-      }
+      query = query.where(and(...conditions)) as any;
       
       const results = await query.orderBy(desc(equipment.createdAt));
       res.json(results);
@@ -853,13 +850,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/equipment", async (req, res) => {
+  app.post("/api/equipment", requireAuth, async (req, res) => {
     try {
+      const userId = req.session.userId!;
       const validatedData = insertEquipmentSchema.parse(req.body);
       
       const result = await db.insert(equipment)
         .values({
           ...validatedData,
+          createdBy: userId,
           listingStatus: validatedData.listingStatus || 'draft',
         })
         .returning();
@@ -871,9 +870,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/equipment/:id", async (req, res) => {
+  app.patch("/api/equipment/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const userId = req.session.userId!;
       const updates = req.body;
       
       const currentEquipment = await db.select()
@@ -885,7 +885,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Equipment not found" });
       }
 
-      if (updates.createdBy && updates.createdBy !== currentEquipment[0].createdBy) {
+      // Verify ownership
+      if (currentEquipment[0].createdBy !== userId) {
+        return res.status(403).json({ message: "You can only edit your own equipment" });
+      }
+
+      // Prevent changing owner
+      if (updates.createdBy && updates.createdBy !== userId) {
         return res.status(403).json({ message: "Cannot change equipment owner" });
       }
 
@@ -928,9 +934,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/equipment/:id", async (req, res) => {
+  app.delete("/api/equipment/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const userId = req.session.userId!;
+      
+      // Verify ownership before deleting
+      const item = await db.select()
+        .from(equipment)
+        .where(eq(equipment.id, id))
+        .limit(1);
+      
+      if (item.length === 0) {
+        return res.status(404).json({ message: "Equipment not found" });
+      }
+      
+      if (item[0].createdBy !== userId) {
+        return res.status(403).json({ message: "You can only delete your own equipment" });
+      }
       
       await db.delete(equipment).where(eq(equipment.id, id));
       
@@ -941,17 +962,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/surplus-projects", async (req, res) => {
+  app.get("/api/surplus-projects", requireAuth, async (req, res) => {
     try {
-      const { createdBy } = req.query;
+      const userId = req.session.userId!;
       
-      let query = db.select().from(surplusProjects);
-      
-      if (createdBy) {
-        query = query.where(eq(surplusProjects.createdBy, createdBy as string)) as any;
-      }
-      
-      const results = await query.orderBy(desc(surplusProjects.createdAt));
+      const results = await db.select()
+        .from(surplusProjects)
+        .where(eq(surplusProjects.createdBy, userId))
+        .orderBy(desc(surplusProjects.createdAt));
+        
       res.json(results);
     } catch (error: any) {
       console.error('Get surplus projects error:', error);
@@ -959,12 +978,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/surplus-projects", async (req, res) => {
+  app.post("/api/surplus-projects", requireAuth, async (req, res) => {
     try {
+      const userId = req.session.userId!;
       const validatedData = insertSurplusProjectSchema.parse(req.body);
       
       const result = await db.insert(surplusProjects)
-        .values(validatedData)
+        .values({
+          ...validatedData,
+          createdBy: userId,
+        })
         .returning();
       
       res.json(result[0]);
@@ -974,17 +997,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/wishlist-projects", async (req, res) => {
+  app.get("/api/wishlist-projects", requireAuth, async (req, res) => {
     try {
-      const { createdBy } = req.query;
+      const userId = req.session.userId!;
       
-      let query = db.select().from(wishlistProjects);
-      
-      if (createdBy) {
-        query = query.where(eq(wishlistProjects.createdBy, createdBy as string)) as any;
-      }
-      
-      const results = await query.orderBy(desc(wishlistProjects.createdAt));
+      const results = await db.select()
+        .from(wishlistProjects)
+        .where(eq(wishlistProjects.createdBy, userId))
+        .orderBy(desc(wishlistProjects.createdAt));
+        
       res.json(results);
     } catch (error: any) {
       console.error('Get wishlist projects error:', error);
@@ -992,12 +1013,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/wishlist-projects", async (req, res) => {
+  app.post("/api/wishlist-projects", requireAuth, async (req, res) => {
     try {
+      const userId = req.session.userId!;
       const validatedData = insertWishlistProjectSchema.parse(req.body);
       
       const result = await db.insert(wishlistProjects)
-        .values(validatedData)
+        .values({
+          ...validatedData,
+          createdBy: userId,
+        })
         .returning();
       
       res.json(result[0]);
@@ -1007,26 +1032,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/wishlist-items", async (req, res) => {
+  app.get("/api/wishlist-items", requireAuth, async (req, res) => {
     try {
-      const { projectId, createdBy, status } = req.query;
+      const userId = req.session.userId!;
+      const { projectId, status } = req.query;
       
       let query = db.select().from(wishlistItems);
       
-      const conditions = [];
+      const conditions = [eq(wishlistItems.createdBy, userId)];
+      
       if (projectId) {
         conditions.push(eq(wishlistItems.projectId, parseInt(projectId as string)));
-      }
-      if (createdBy) {
-        conditions.push(eq(wishlistItems.createdBy, createdBy as string));
       }
       if (status) {
         conditions.push(eq(wishlistItems.status, status as string));
       }
       
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions)) as any;
-      }
+      query = query.where(and(...conditions)) as any;
       
       const results = await query.orderBy(desc(wishlistItems.createdAt));
       res.json(results);
@@ -1036,12 +1058,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/wishlist-items", async (req, res) => {
+  app.post("/api/wishlist-items", requireAuth, async (req, res) => {
     try {
+      const userId = req.session.userId!;
       const validatedData = insertWishlistItemSchema.parse(req.body);
       
       const result = await db.insert(wishlistItems)
-        .values(validatedData)
+        .values({
+          ...validatedData,
+          createdBy: userId,
+        })
         .returning();
       
       res.json(result[0]);

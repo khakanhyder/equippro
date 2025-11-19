@@ -50,6 +50,7 @@ export const equipment = pgTable("equipment", {
 
 export const insertEquipmentSchema = createInsertSchema(equipment).omit({
   id: true,
+  createdBy: true,
   createdAt: true,
   updatedAt: true,
   viewsCount: true,
@@ -68,6 +69,7 @@ export const surplusProjects = pgTable("surplus_projects", {
 
 export const insertSurplusProjectSchema = createInsertSchema(surplusProjects).omit({
   id: true,
+  createdBy: true,
   createdAt: true,
 });
 
@@ -103,6 +105,7 @@ export const wishlistProjects = pgTable("wishlist_projects", {
 
 export const insertWishlistProjectSchema = createInsertSchema(wishlistProjects).omit({
   id: true,
+  createdBy: true,
   createdAt: true,
 });
 
@@ -139,6 +142,7 @@ export const wishlistItems = pgTable("wishlist_items", {
 
 export const insertWishlistItemSchema = createInsertSchema(wishlistItems).omit({
   id: true,
+  createdBy: true,
   createdAt: true,
   updatedAt: true,
 });
