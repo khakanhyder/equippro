@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLocation } from "wouter";
+import { useAuth, useLogout } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const menuItems = [
   {
@@ -48,6 +50,42 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
+  const logout = useLogout();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await logout.mutateAsync();
+      toast({
+        title: "Logged out",
+        description: "You've been signed out successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Logout failed",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Get user initials for avatar
+  const getInitials = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    }
+    if (user?.username) {
+      return user.username.substring(0, 2).toUpperCase();
+    }
+    return "U";
+  };
+
+  const displayName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}`
+    : user?.username || "User";
+
+  const displayEmail = user?.email || user?.username || "user@example.com";
 
   return (
     <Sidebar>
@@ -89,16 +127,19 @@ export function AppSidebar() {
       <SidebarFooter className="p-4">
         <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent">
           <Avatar className="w-9 h-9">
-            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">U</AvatarFallback>
+            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+              {getInitials()}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-accent-foreground truncate">Authenticated User</p>
-            <p className="text-xs text-sidebar-accent-foreground/60 truncate">user@example.com</p>
+            <p className="text-sm font-medium text-sidebar-accent-foreground truncate">{displayName}</p>
+            <p className="text-xs text-sidebar-accent-foreground/60 truncate">{displayEmail}</p>
           </div>
           <button 
             className="p-2 hover-elevate rounded-md"
             data-testid="button-sign-out"
-            onClick={() => console.log('Sign out clicked')}
+            onClick={handleLogout}
+            disabled={logout.isPending}
           >
             <LogOut className="w-4 h-4 text-sidebar-accent-foreground/60" />
           </button>
