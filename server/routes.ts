@@ -731,9 +731,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/equipment/:id", async (req, res) => {
+  app.get("/api/equipment/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const userId = req.session.userId!;
+      
       const result = await db.select()
         .from(equipment)
         .where(eq(equipment.id, id))
@@ -741,6 +743,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (result.length === 0) {
         return res.status(404).json({ message: "Equipment not found" });
+      }
+
+      // Verify ownership
+      if (result[0].createdBy !== userId) {
+        return res.status(403).json({ message: "You can only view your own equipment" });
       }
 
       await db.update(equipment)
@@ -1155,9 +1162,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/matches/:wishlistItemId", async (req, res) => {
+  app.get("/api/matches/:wishlistItemId", requireAuth, async (req, res) => {
     try {
       const wishlistItemId = parseInt(req.params.wishlistItemId);
+      const userId = req.session.userId!;
+      
+      // Verify that the wishlist item belongs to the user
+      const wishlistItem = await db.select()
+        .from(wishlistItems)
+        .where(eq(wishlistItems.id, wishlistItemId))
+        .limit(1);
+      
+      if (wishlistItem.length === 0) {
+        return res.status(404).json({ message: "Wishlist item not found" });
+      }
+      
+      if (wishlistItem[0].createdBy !== userId) {
+        return res.status(403).json({ message: "You can only view matches for your own wishlist items" });
+      }
       
       const results = await db.select()
         .from(matches)
@@ -1171,23 +1193,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/matches/:id/status", async (req, res) => {
+  app.patch("/api/matches/:id/status", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const userId = req.session.userId!;
       const { status } = req.body;
       
       if (!['active', 'saved', 'dismissed'].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
 
+      // First get the match to verify ownership via wishlist item
+      const match = await db.select()
+        .from(matches)
+        .leftJoin(wishlistItems, eq(matches.wishlistItemId, wishlistItems.id))
+        .where(eq(matches.id, id))
+        .limit(1);
+      
+      if (match.length === 0) {
+        return res.status(404).json({ message: "Match not found" });
+      }
+      
+      if (match[0].wishlist_items?.createdBy !== userId) {
+        return res.status(403).json({ message: "You can only update matches for your own wishlist items" });
+      }
+
       const result = await db.update(matches)
         .set({ status })
         .where(eq(matches.id, id))
         .returning();
-      
-      if (result.length === 0) {
-        return res.status(404).json({ message: "Match not found" });
-      }
 
       res.json(result[0]);
     } catch (error: any) {

@@ -281,7 +281,6 @@ export default function Surplus() {
             <SurplusForm
               onSubmit={handleSubmit}
               isSubmitting={createEquipment.isPending}
-              defaultEmail="user@example.com"
             />
           </DialogContent>
         </Dialog>

@@ -36,7 +36,6 @@ const equipmentFormSchema = z.object({
   marketPriceRange: z.any().optional(),
   priceSource: z.string().nullable().optional(),
   priceBreakdown: z.any().optional(),
-  createdBy: z.string(),
 });
 
 type EquipmentFormData = z.infer<typeof equipmentFormSchema>;
@@ -49,10 +48,9 @@ interface SpecField {
 interface SurplusFormProps {
   onSubmit: (data: EquipmentFormData) => void;
   isSubmitting: boolean;
-  defaultEmail: string;
 }
 
-export function SurplusForm({ onSubmit, isSubmitting, defaultEmail }: SurplusFormProps) {
+export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
   const { toast } = useToast();
   const [specs, setSpecs] = useState<SpecField[]>([]);
   const [priceContext, setPriceContext] = useState<PriceEstimate | null>(null);
@@ -62,7 +60,6 @@ export function SurplusForm({ onSubmit, isSubmitting, defaultEmail }: SurplusFor
   const form = useForm<EquipmentFormData>({
     resolver: zodResolver(equipmentFormSchema),
     defaultValues: {
-      createdBy: defaultEmail,
       brand: "",
       model: "",
       category: "",

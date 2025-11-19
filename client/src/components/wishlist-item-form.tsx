@@ -33,7 +33,6 @@ import { useImageUpload } from "@/hooks/use-image-upload";
 
 interface WishlistItemFormProps {
   projectId: number;
-  createdBy: string;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -50,7 +49,7 @@ interface AiSuggestions {
   specifications: Array<{ name: string; value: string; unit?: string }>;
 }
 
-export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: WishlistItemFormProps) {
+export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistItemFormProps) {
   const { toast } = useToast();
   const { createWishlistItem } = useWishlistMutations();
   const { fetchPriceContext } = usePriceContext();
@@ -75,7 +74,6 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
     resolver: zodResolver(insertWishlistItemSchema),
     defaultValues: {
       projectId,
-      createdBy,
       brand: "",
       model: "",
       category: "analytical",
@@ -365,7 +363,6 @@ export function WishlistItemForm({ projectId, createdBy, onSuccess, onCancel }: 
 
       form.reset({
         projectId,
-        createdBy,
         brand: "",
         model: "",
         category: "analytical",

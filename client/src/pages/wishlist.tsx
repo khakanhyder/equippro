@@ -21,9 +21,8 @@ import { insertWishlistProjectSchema, type InsertWishlistProject } from "@shared
 import { useToast } from "@/hooks/use-toast";
 
 export default function Wishlist() {
-  const currentUser = "demo-user";
   const { toast } = useToast();
-  const { data: projects, isLoading: projectsLoading } = useProjects(currentUser);
+  const { data: projects, isLoading: projectsLoading } = useProjects();
   const { createProject } = useProjectMutations();
 
   const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
@@ -38,7 +37,6 @@ export default function Wishlist() {
     resolver: zodResolver(insertWishlistProjectSchema),
     defaultValues: {
       name: "",
-      createdBy: currentUser,
       totalBudget: null,
       deadline: null,
       notes: null,
@@ -47,10 +45,7 @@ export default function Wishlist() {
 
   const handleCreateProject = async (data: InsertWishlistProject) => {
     try {
-      const result = await createProject.mutateAsync({
-        ...data,
-        createdBy: currentUser,
-      });
+      const result = await createProject.mutateAsync(data);
 
       toast({
         title: "Project created",
@@ -59,7 +54,6 @@ export default function Wishlist() {
 
       projectForm.reset({
         name: "",
-        createdBy: currentUser,
         totalBudget: null,
         deadline: null,
         notes: null,
@@ -194,7 +188,6 @@ export default function Wishlist() {
               {selectedProjectId && (
                 <WishlistItemForm
                   projectId={selectedProjectId}
-                  createdBy={currentUser}
                   onSuccess={() => setAddItemDialogOpen(false)}
                 />
               )}
