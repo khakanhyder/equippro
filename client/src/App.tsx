@@ -30,7 +30,7 @@ function Router() {
   );
 }
 
-function App() {
+function AuthenticatedApp() {
   const { isAuthenticated, isLoading } = useAuth();
 
   const style = {
@@ -38,36 +38,48 @@ function App() {
     "--sidebar-width-icon": "4rem",
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <Login />
+        <Toaster />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <SidebarProvider style={style as React.CSSProperties}>
+        <div className="flex h-screen w-full">
+          <AppSidebar />
+          <div className="flex flex-col flex-1">
+            <header className="flex items-center justify-between p-2 border-b bg-background">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+            </header>
+            <main className="flex-1 overflow-hidden">
+              <Router />
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+      <Toaster />
+    </>
+  );
+}
+
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {isLoading ? (
-          <div className="flex h-screen items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : !isAuthenticated ? (
-          <>
-            <Login />
-            <Toaster />
-          </>
-        ) : (
-          <>
-            <SidebarProvider style={style as React.CSSProperties}>
-              <div className="flex h-screen w-full">
-                <AppSidebar />
-                <div className="flex flex-col flex-1">
-                  <header className="flex items-center justify-between p-2 border-b bg-background">
-                    <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  </header>
-                  <main className="flex-1 overflow-hidden">
-                    <Router />
-                  </main>
-                </div>
-              </div>
-            </SidebarProvider>
-            <Toaster />
-          </>
-        )}
+        <AuthenticatedApp />
       </TooltipProvider>
     </QueryClientProvider>
   );
