@@ -36,7 +36,14 @@ Preferred communication style: Simple, everyday language.
     - **Auth Service**: `server/services/auth-service.ts` for signup, login, password changes, user management.
     - **API Endpoints**: POST `/api/auth/signup`, POST `/api/auth/login`, POST `/api/auth/logout`, GET `/api/auth/user`, PATCH `/api/auth/password`, PATCH `/api/auth/profile`.
 - **Frontend Auth State**: `useAuth` React Query hook, handles 401 responses by returning `null`.
-- **Access Control**: Data filtered by `createdBy` field to ensure users only access their own data.
+- **Access Control & Security (November 2025 Update)**:
+    - **Complete User Isolation**: All endpoints now require authentication via `requireAuth` middleware.
+    - **Auto-Set User Context**: Backend automatically sets `createdBy` from `req.session.userId` on all POST operations, preventing client-side spoofing.
+    - **Ownership Verification**: All GET/PATCH/DELETE operations verify ownership before allowing access. Returns 403 for unauthorized cross-user access attempts.
+    - **Query Filtering**: All list endpoints (equipment, projects, wishlist items, matches) automatically filter by logged-in user.
+    - **Protected Endpoints**: Equipment detail views, match queries, and status updates all verify the requesting user owns the related resources.
+    - **Schema Security**: `createdBy` field omitted from all insert schemas, enforced server-side only.
+    - **End-to-End Tested**: Multi-user isolation verified via automated Playwright tests.
 
 ### Design System
 - **Typography**: Defined hierarchy for headers, body text, labels, and captions.

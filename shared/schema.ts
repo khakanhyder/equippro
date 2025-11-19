@@ -54,6 +54,8 @@ export const insertEquipmentSchema = createInsertSchema(equipment).omit({
   createdAt: true,
   updatedAt: true,
   viewsCount: true,
+}).extend({
+  askingPrice: z.union([z.string(), z.number()]).transform(val => String(val)),
 });
 
 export type InsertEquipment = z.infer<typeof insertEquipmentSchema>;
