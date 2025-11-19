@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import type { User } from "@shared/schema";
 
 type LoginCredentials = {
@@ -12,14 +12,15 @@ type SignupCredentials = LoginCredentials & {
 };
 
 export function useAuth() {
-  const { data: user, isLoading, error } = useQuery<Omit<User, 'password'>>({
+  const { data: user, isLoading, error } = useQuery<Omit<User, 'password'> | null>({
     queryKey: ["/api/auth/user"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   return {
-    user,
+    user: user ?? undefined,
     isLoading,
     error,
     isAuthenticated: !!user,
