@@ -176,10 +176,10 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onEdit, onMa
               <div>
                 <p className="text-sm font-medium mb-2">Specifications</p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  {Object.entries(item.specifications as Record<string, unknown>).map(([key, value]) => (
+                  {Object.entries(item.specifications as Record<string, string>).map(([key, value]) => (
                     <div key={key} className="flex gap-2">
                       <span className="font-medium text-muted-foreground">{key}:</span>
-                      <span>{String(value)}</span>
+                      <span>{value}</span>
                     </div>
                   ))}
                 </div>
