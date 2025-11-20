@@ -25,7 +25,7 @@ import {
   insertMatchSchema,
   insertBidSchema
 } from "@shared/schema";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -1023,7 +1023,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (equipmentIds.length > 0) {
         const bidsReceived = await db.select()
           .from(bids)
-          .where(sql`${bids.equipmentId} = ANY(${equipmentIds})`);
+          .where(inArray(bids.equipmentId, equipmentIds));
         
         bidsReceivedCount = bidsReceived.length;
         activeBidsCount = bidsReceived.filter(b => b.status === 'pending').length;
@@ -1045,7 +1045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (wishlistItemIds.length > 0) {
         const allMatches = await db.select()
           .from(matches)
-          .where(sql`${matches.wishlistItemId} = ANY(${wishlistItemIds})`);
+          .where(inArray(matches.wishlistItemId, wishlistItemIds));
         
         matchesCount = allMatches.length;
         
