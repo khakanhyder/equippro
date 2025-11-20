@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Upload, Grid3x3, List, Loader2, Download } from "lucide-react";
@@ -38,6 +38,27 @@ export default function Surplus() {
   const { data: activeEquipment = [], isLoading: isActiveLoading } = useEquipmentList('active');
   
   const { createEquipment, updateEquipment, publishEquipment, unpublishEquipment, markAsSold, deleteEquipment } = useEquipmentMutations();
+
+  // Memoize the initial data to prevent unnecessary re-renders
+  const editFormData = useMemo(() => {
+    if (!editingEquipment) return undefined;
+    
+    return {
+      brand: editingEquipment.brand,
+      model: editingEquipment.model,
+      category: editingEquipment.category,
+      condition: editingEquipment.condition,
+      askingPrice: editingEquipment.askingPrice,
+      location: editingEquipment.location,
+      description: editingEquipment.description || "",
+      images: (editingEquipment.images as string[]) || [],
+      documents: (editingEquipment.documents as string[]) || [],
+      specifications: (editingEquipment.specifications as Record<string, string>) || {},
+      marketPriceRange: editingEquipment.marketPriceRange || null,
+      priceSource: editingEquipment.priceSource || null,
+      priceBreakdown: editingEquipment.priceBreakdown || null,
+    };
+  }, [editingEquipment]);
 
   const handleSubmit = async (data: any) => {
     try {
@@ -337,21 +358,7 @@ export default function Surplus() {
               <SurplusForm
                 onSubmit={handleUpdate}
                 isSubmitting={updateEquipment.isPending}
-                initialData={{
-                  brand: editingEquipment.brand,
-                  model: editingEquipment.model,
-                  category: editingEquipment.category,
-                  condition: editingEquipment.condition,
-                  askingPrice: editingEquipment.askingPrice,
-                  location: editingEquipment.location,
-                  description: editingEquipment.description || "",
-                  images: (editingEquipment.images as string[]) || [],
-                  documents: (editingEquipment.documents as string[]) || [],
-                  specifications: (editingEquipment.specifications as Record<string, string>) || {},
-                  marketPriceRange: editingEquipment.marketPriceRange || null,
-                  priceSource: editingEquipment.priceSource || null,
-                  priceBreakdown: editingEquipment.priceBreakdown || null,
-                }}
+                initialData={editFormData}
               />
             )}
           </DialogContent>
