@@ -28,6 +28,8 @@ import type { Equipment } from "@shared/schema";
 export default function Surplus() {
   const { toast } = useToast();
   const [addEquipmentDialogOpen, setAddEquipmentDialogOpen] = useState(false);
+  const [editEquipmentDialogOpen, setEditEquipmentDialogOpen] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [publishingId, setPublishingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -35,7 +37,7 @@ export default function Surplus() {
   const { data: draftEquipment = [], isLoading: isDraftsLoading } = useEquipmentList('draft');
   const { data: activeEquipment = [], isLoading: isActiveLoading } = useEquipmentList('active');
   
-  const { createEquipment, publishEquipment, unpublishEquipment, markAsSold, deleteEquipment } = useEquipmentMutations();
+  const { createEquipment, updateEquipment, publishEquipment, unpublishEquipment, markAsSold, deleteEquipment } = useEquipmentMutations();
 
   const handleSubmit = async (data: any) => {
     try {
@@ -128,6 +130,40 @@ export default function Surplus() {
     }
   };
 
+  const handleEdit = (id: number) => {
+    // Find equipment from either draft or active list
+    const equipment = [...draftEquipment, ...activeEquipment].find(e => e.id === id);
+    if (equipment) {
+      setEditingEquipment(equipment);
+      setEditEquipmentDialogOpen(true);
+    }
+  };
+
+  const handleUpdate = async (data: any) => {
+    if (!editingEquipment) return;
+    
+    try {
+      await updateEquipment.mutateAsync({
+        id: editingEquipment.id,
+        data,
+      });
+      
+      toast({
+        title: "Equipment updated",
+        description: "Your changes have been saved",
+      });
+      
+      setEditEquipmentDialogOpen(false);
+      setEditingEquipment(null);
+    } catch (error: any) {
+      toast({
+        title: "Failed to update",
+        description: error.message || "Could not update equipment",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleExportCSV = async () => {
     try {
       const response = await fetch('/api/equipment/export/csv', {
@@ -168,7 +204,7 @@ export default function Surplus() {
       isDraft={isDraft}
       onPublish={setPublishingId}
       onUnpublish={handleUnpublish}
-      onEdit={(id) => console.log('Edit equipment:', id)}
+      onEdit={handleEdit}
       onMarkAsSold={handleMarkAsSold}
       onDelete={setDeletingId}
     />
@@ -282,6 +318,42 @@ export default function Surplus() {
               onSubmit={handleSubmit}
               isSubmitting={createEquipment.isPending}
             />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={editEquipmentDialogOpen} onOpenChange={(open) => {
+          setEditEquipmentDialogOpen(open);
+          if (!open) setEditingEquipment(null);
+        }}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-surplus">
+            <DialogHeader>
+              <DialogTitle>Edit Equipment</DialogTitle>
+              <DialogDescription>
+                Update the details for your equipment listing.
+              </DialogDescription>
+            </DialogHeader>
+
+            {editingEquipment && (
+              <SurplusForm
+                onSubmit={handleUpdate}
+                isSubmitting={updateEquipment.isPending}
+                initialData={{
+                  brand: editingEquipment.brand,
+                  model: editingEquipment.model,
+                  category: editingEquipment.category,
+                  condition: editingEquipment.condition,
+                  askingPrice: editingEquipment.askingPrice,
+                  location: editingEquipment.location,
+                  description: editingEquipment.description || "",
+                  images: (editingEquipment.images as string[]) || [],
+                  documents: (editingEquipment.documents as string[]) || [],
+                  specifications: (editingEquipment.specifications as Record<string, string>) || {},
+                  marketPriceRange: editingEquipment.marketPriceRange || null,
+                  priceSource: editingEquipment.priceSource || null,
+                  priceBreakdown: editingEquipment.priceBreakdown || null,
+                }}
+              />
+            )}
           </DialogContent>
         </Dialog>
 

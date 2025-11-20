@@ -126,22 +126,29 @@ export function useImageUpload() {
   }, []);
 
   const clearAll = useCallback(() => {
-    queue.forEach(item => {
-      if (item.previewUrl) {
-        URL.revokeObjectURL(item.previewUrl);
-      }
-      if (item.abortController) {
-        item.abortController.abort();
-      }
+    setQueue(prev => {
+      prev.forEach(item => {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl);
+        }
+        if (item.abortController) {
+          item.abortController.abort();
+        }
+      });
+      return [];
     });
-    setQueue([]);
-  }, [queue]);
+  }, []);
 
   const getUploadedUrls = useCallback(() => {
-    return queue
-      .filter(item => item.status === 'complete' && item.url)
-      .map(item => item.url as string);
-  }, [queue]);
+    let urls: string[] = [];
+    setQueue(prev => {
+      urls = prev
+        .filter(item => item.status === 'complete' && item.url)
+        .map(item => item.url as string);
+      return prev;
+    });
+    return urls;
+  }, []);
 
   return {
     queue,

@@ -47,10 +47,12 @@ interface SpecField {
 interface SurplusFormProps {
   onSubmit: (data: EquipmentFormData) => void;
   isSubmitting: boolean;
+  initialData?: Partial<EquipmentFormData>;
 }
 
-export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
+export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusFormProps) {
   const { toast } = useToast();
+  
   const [specs, setSpecs] = useState<SpecField[]>([]);
   const [priceData, setPriceData] = useState<any>(null);
   const [externalResults, setExternalResults] = useState<any[]>([]);
@@ -78,6 +80,60 @@ export function SurplusForm({ onSubmit, isSubmitting }: SurplusFormProps) {
 
   const imageUpload = useImageUpload();
   const { analyzeEquipment } = useAiAnalysis();
+
+  // Reset form and all state when initialData changes (for editing)
+  useEffect(() => {
+    // Clear all derived state first to prevent cross-contamination
+    setPriceData(null);
+    setExternalResults([]);
+    setIsSearchingSources(false);
+    setIsFetchingPrices(false);
+    imageUpload.clearAll();
+    
+    if (initialData) {
+      // Sync specs state with initial data
+      const initialSpecs = initialData.specifications 
+        ? Object.entries(initialData.specifications).map(([key, value]) => ({ key, value }))
+        : [];
+      setSpecs(initialSpecs);
+      
+      // Reset form with initial data - MUST explicitly set images/documents to prevent stale uploads
+      form.reset({
+        brand: initialData.brand || "",
+        model: initialData.model || "",
+        category: initialData.category || "",
+        condition: initialData.condition || "used",
+        askingPrice: initialData.askingPrice || "",
+        location: initialData.location || "",
+        description: initialData.description || "",
+        images: Array.isArray(initialData.images) ? [...initialData.images] : [],
+        documents: Array.isArray(initialData.documents) ? [...initialData.documents] : [],
+        specifications: initialData.specifications || {},
+        marketPriceRange: initialData.marketPriceRange || null,
+        priceSource: initialData.priceSource || null,
+        priceBreakdown: initialData.priceBreakdown || null,
+      });
+    } else {
+      // Reset to empty form when no initial data (creating new equipment)
+      setSpecs([]);
+      form.reset({
+        brand: "",
+        model: "",
+        category: "",
+        condition: "used",
+        askingPrice: "",
+        location: "",
+        description: "",
+        images: [],
+        documents: [],
+        specifications: {},
+        marketPriceRange: null,
+        priceSource: null,
+        priceBreakdown: null,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
