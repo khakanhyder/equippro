@@ -153,7 +153,7 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
         </div>
 
         {isExpanded && (
-          <div className="mt-6 space-y-6" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-6 max-h-[600px] overflow-y-auto space-y-6 pr-2" onClick={(e) => e.stopPropagation()}>
             {/* Image Gallery in Expanded View */}
             {item.images && Array.isArray(item.images) && item.images.length > 0 && (
               <div>
@@ -162,7 +162,7 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
                   <img 
                     src={item.images[0]} 
                     alt={`${item.brand} ${item.model}`}
-                    className="w-full max-w-md h-64 object-cover rounded-lg border"
+                    className="w-full max-w-md h-48 object-cover rounded-lg border"
                   />
                 ) : (
                   <Carousel className="w-full max-w-md">
@@ -172,7 +172,7 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
                           <img 
                             src={imageUrl} 
                             alt={`${item.brand} ${item.model} - Image ${idx + 1}`}
-                            className="w-full h-64 object-cover rounded-lg border"
+                            className="w-full h-48 object-cover rounded-lg border"
                           />
                         </CarouselItem>
                       ))}
