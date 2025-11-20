@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useProjects, useProjectMutations, useWishlistItems } from "@/hooks/use-wishlist";
+import { useProjects, useProjectMutations, useWishlistItems, useWishlistMutations } from "@/hooks/use-wishlist";
 import { ProjectCardWrapper } from "@/components/project-card-wrapper";
 import { WishlistItemForm } from "@/components/wishlist-item-form";
 import { WishlistItemCard } from "@/components/wishlist-item-card";
@@ -23,7 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 export default function Wishlist() {
   const { toast } = useToast();
   const { data: projects, isLoading: projectsLoading } = useProjects();
-  const { createProject } = useProjectMutations();
+  const { createProject, deleteProject } = useProjectMutations();
+  const { deleteWishlistItem } = useWishlistMutations();
 
   const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
@@ -124,6 +125,21 @@ export default function Wishlist() {
                   }}
                   onEdit={(itemId) => {
                     console.log('Edit item:', itemId);
+                  }}
+                  onDelete={async (itemId) => {
+                    try {
+                      await deleteWishlistItem.mutateAsync(itemId);
+                      toast({
+                        title: "Item deleted",
+                        description: "Wishlist item has been removed successfully",
+                      });
+                    } catch (error: any) {
+                      toast({
+                        title: "Failed to delete item",
+                        description: error.message || "An error occurred",
+                        variant: "destructive",
+                      });
+                    }
                   }}
                 />
               ))}

@@ -1156,6 +1156,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/wishlist-projects/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.session.userId!;
+      
+      // Verify ownership before deleting
+      const project = await db.select()
+        .from(wishlistProjects)
+        .where(eq(wishlistProjects.id, id))
+        .limit(1);
+      
+      if (project.length === 0) {
+        return res.status(404).json({ message: "Wishlist project not found" });
+      }
+      
+      if (project[0].createdBy !== userId) {
+        return res.status(403).json({ message: "You can only delete your own wishlist projects" });
+      }
+      
+      // Cascade delete will automatically remove all items in the project
+      await db.delete(wishlistProjects).where(eq(wishlistProjects.id, id));
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Delete wishlist project error:', error);
+      res.status(500).json({ message: error.message || "Failed to delete wishlist project" });
+    }
+  });
+
   app.get("/api/wishlist-items", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;
@@ -1198,6 +1227,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Create wishlist item error:', error);
       res.status(400).json({ message: error.message || "Failed to create wishlist item" });
+    }
+  });
+
+  app.patch("/api/wishlist-items/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.session.userId!;
+      const updates = req.body;
+      
+      // Verify ownership
+      const currentItem = await db.select()
+        .from(wishlistItems)
+        .where(eq(wishlistItems.id, id))
+        .limit(1);
+      
+      if (currentItem.length === 0) {
+        return res.status(404).json({ message: "Wishlist item not found" });
+      }
+
+      if (currentItem[0].createdBy !== userId) {
+        return res.status(403).json({ message: "You can only edit your own wishlist items" });
+      }
+
+      // Prevent changing owner
+      if (updates.createdBy && updates.createdBy !== userId) {
+        return res.status(403).json({ message: "Cannot change wishlist item owner" });
+      }
+
+      // If projectId is being updated, verify the target project belongs to the user
+      if (updates.projectId && updates.projectId !== currentItem[0].projectId) {
+        const targetProject = await db.select()
+          .from(wishlistProjects)
+          .where(eq(wishlistProjects.id, updates.projectId))
+          .limit(1);
+        
+        if (targetProject.length === 0) {
+          return res.status(404).json({ message: "Target project not found" });
+        }
+        
+        if (targetProject[0].createdBy !== userId) {
+          return res.status(403).json({ message: "Cannot move item to another user's project" });
+        }
+      }
+
+      const validatedUpdates = insertWishlistItemSchema.partial().parse(updates);
+      
+      const result = await db.update(wishlistItems)
+        .set({
+          ...validatedUpdates,
+          updatedAt: new Date(),
+        })
+        .where(eq(wishlistItems.id, id))
+        .returning();
+
+      res.json(result[0]);
+    } catch (error: any) {
+      console.error('Update wishlist item error:', error);
+      res.status(400).json({ message: error.message || "Failed to update wishlist item" });
+    }
+  });
+
+  app.delete("/api/wishlist-items/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.session.userId!;
+      
+      // Verify ownership before deleting
+      const item = await db.select()
+        .from(wishlistItems)
+        .where(eq(wishlistItems.id, id))
+        .limit(1);
+      
+      if (item.length === 0) {
+        return res.status(404).json({ message: "Wishlist item not found" });
+      }
+      
+      if (item[0].createdBy !== userId) {
+        return res.status(403).json({ message: "You can only delete your own wishlist items" });
+      }
+      
+      // Cascade delete will automatically remove matches
+      await db.delete(wishlistItems).where(eq(wishlistItems.id, id));
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Delete wishlist item error:', error);
+      res.status(500).json({ message: error.message || "Failed to delete wishlist item" });
     }
   });
 
