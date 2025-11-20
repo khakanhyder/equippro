@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, Edit, Eye, MapPin, Trash2 } from "lucide-react";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import type { Equipment } from "@shared/schema";
 
 interface SurplusItemCardProps {
@@ -75,11 +76,31 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
       <CardContent className="p-6">
         <div className="flex items-start gap-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
           {item.images && Array.isArray(item.images) && item.images.length > 0 && (
-            <img 
-              src={item.images[0]} 
-              alt={`${item.brand} ${item.model}`}
-              className="w-24 h-24 object-cover rounded"
-            />
+            <div className="w-32 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+              {item.images.length === 1 ? (
+                <img 
+                  src={item.images[0]} 
+                  alt={`${item.brand} ${item.model}`}
+                  className="w-full h-32 object-cover rounded border"
+                />
+              ) : (
+                <Carousel className="w-full">
+                  <CarouselContent>
+                    {item.images.map((imageUrl, idx) => (
+                      <CarouselItem key={idx}>
+                        <img 
+                          src={imageUrl} 
+                          alt={`${item.brand} ${item.model} - Image ${idx + 1}`}
+                          className="w-full h-32 object-cover rounded border"
+                        />
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="left-1" />
+                  <CarouselNext className="right-1" />
+                </Carousel>
+              )}
+            </div>
           )}
 
           <div className="flex-1 min-w-0">
