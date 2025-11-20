@@ -327,7 +327,7 @@ export default function Surplus() {
         </Tabs>
 
         <Dialog open={addEquipmentDialogOpen} onOpenChange={setAddEquipmentDialogOpen}>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-add-surplus">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col" data-testid="dialog-add-surplus">
             <DialogHeader>
               <DialogTitle>Add Surplus Equipment</DialogTitle>
               <DialogDescription>
@@ -335,10 +335,12 @@ export default function Surplus() {
               </DialogDescription>
             </DialogHeader>
 
-            <SurplusForm
-              onSubmit={handleSubmit}
-              isSubmitting={createEquipment.isPending}
-            />
+            <div className="flex-1 overflow-y-auto -mx-6 px-6">
+              <SurplusForm
+                onSubmit={handleSubmit}
+                isSubmitting={createEquipment.isPending}
+              />
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -346,7 +348,7 @@ export default function Surplus() {
           setEditEquipmentDialogOpen(open);
           if (!open) setEditingEquipment(null);
         }}>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-surplus">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col" data-testid="dialog-edit-surplus">
             <DialogHeader>
               <DialogTitle>Edit Equipment</DialogTitle>
               <DialogDescription>
@@ -354,13 +356,15 @@ export default function Surplus() {
               </DialogDescription>
             </DialogHeader>
 
-            {editingEquipment && (
-              <SurplusForm
-                onSubmit={handleUpdate}
-                isSubmitting={updateEquipment.isPending}
-                initialData={editFormData}
-              />
-            )}
+            <div className="flex-1 overflow-y-auto -mx-6 px-6">
+              {editingEquipment && (
+                <SurplusForm
+                  onSubmit={handleUpdate}
+                  isSubmitting={updateEquipment.isPending}
+                  initialData={editFormData}
+                />
+              )}
+            </div>
           </DialogContent>
         </Dialog>
 
