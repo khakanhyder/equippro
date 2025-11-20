@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, Edit, Eye, MapPin, Trash2 } from "lucide-react";
+import { Edit, Eye, MapPin, Trash2 } from "lucide-react";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import type { Equipment } from "@shared/schema";
 
@@ -23,7 +23,7 @@ const conditionColors = {
 };
 
 export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish, onEdit, onMarkAsSold, onDelete }: SurplusItemCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const parseMarketPrices = () => {
     if (!item.marketPriceRange) {
@@ -69,43 +69,12 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
   };
 
   return (
-    <Card 
-      className="hover-elevate" 
-      data-testid={`card-surplus-${item.id}`}
-    >
-      <CardContent className="p-6">
-        <div className="flex items-start gap-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-          {item.images && Array.isArray(item.images) && item.images.length > 0 && (
-            <div className="w-32 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-              {item.images.length === 1 ? (
-                <img 
-                  src={item.images[0]} 
-                  alt={`${item.brand} ${item.model}`}
-                  className="w-full h-32 object-cover rounded border"
-                />
-              ) : (
-                <Carousel className="w-full">
-                  <CarouselContent>
-                    {item.images.map((imageUrl, idx) => (
-                      <CarouselItem key={idx}>
-                        <img 
-                          src={imageUrl} 
-                          alt={`${item.brand} ${item.model} - Image ${idx + 1}`}
-                          className="w-full h-32 object-cover rounded border"
-                        />
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  <CarouselPrevious className="left-1" />
-                  <CarouselNext className="right-1" />
-                </Carousel>
-              )}
-            </div>
-          )}
-
+    <Card className="hover-elevate" data-testid={`card-surplus-${item.id}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="font-semibold text-lg truncate">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h3 className="font-semibold text-lg">
                 {item.brand} {item.model}
               </h3>
               <Badge 
@@ -121,105 +90,100 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
               )}
             </div>
             <p className="text-sm text-muted-foreground">{item.category}</p>
-            
-            {!isExpanded && (
-              <div className="mt-2 space-y-1">
-                <p className="text-2xl font-bold">${parseFloat(item.askingPrice).toLocaleString()}</p>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4" />
-                  {item.location}
-                </div>
-                {!isDraft && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Eye className="w-4 h-4" />
-                    {item.viewsCount || 0} views
-                  </div>
-                )}
-              </div>
+          </div>
+          
+          <div className="text-right">
+            <p className="text-2xl font-bold">${parseFloat(item.askingPrice).toLocaleString()}</p>
+            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+              <MapPin className="w-3 h-3" />
+              <span>{item.location}</span>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Image Carousel */}
+        {item.images && Array.isArray(item.images) && item.images.length > 0 && (
+          <div>
+            {item.images.length === 1 ? (
+              <img 
+                src={item.images[0]} 
+                alt={`${item.brand} ${item.model}`}
+                className="w-full h-48 object-cover rounded-lg border"
+              />
+            ) : (
+              <Carousel className="w-full">
+                <CarouselContent>
+                  {item.images.map((imageUrl, idx) => (
+                    <CarouselItem key={idx}>
+                      <img 
+                        src={imageUrl} 
+                        alt={`${item.brand} ${item.model} - Image ${idx + 1}`}
+                        className="w-full h-48 object-cover rounded-lg border"
+                      />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious />
+                <CarouselNext />
+              </Carousel>
             )}
           </div>
+        )}
 
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsExpanded(!isExpanded);
-            }}
-            data-testid={`button-expand-surplus-${item.id}`}
-          >
-            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </Button>
-        </div>
+        {/* Quick Info */}
+        {!isDraft && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Eye className="w-4 h-4" />
+            {item.viewsCount || 0} views
+          </div>
+        )}
 
-        {isExpanded && (
-          <div className="mt-6 max-h-[600px] overflow-y-auto space-y-6 pr-2" onClick={(e) => e.stopPropagation()}>
-            {/* Image Gallery in Expanded View */}
-            {item.images && Array.isArray(item.images) && item.images.length > 0 && (
-              <div>
-                <p className="text-sm font-medium mb-3">Equipment Images</p>
-                {item.images.length === 1 ? (
-                  <img 
-                    src={item.images[0]} 
-                    alt={`${item.brand} ${item.model}`}
-                    className="w-full max-w-md h-48 object-cover rounded-lg border"
-                  />
-                ) : (
-                  <Carousel className="w-full max-w-md">
-                    <CarouselContent>
-                      {item.images.map((imageUrl, idx) => (
-                        <CarouselItem key={idx}>
-                          <img 
-                            src={imageUrl} 
-                            alt={`${item.brand} ${item.model} - Image ${idx + 1}`}
-                            className="w-full h-48 object-cover rounded-lg border"
-                          />
-                        </CarouselItem>
-                      ))}
-                    </CarouselContent>
-                    <CarouselPrevious />
-                    <CarouselNext />
-                  </Carousel>
-                )}
-              </div>
+        {/* Description */}
+        {item.description && (
+          <div>
+            <p className="text-sm text-muted-foreground line-clamp-2">
+              {item.description}
+            </p>
+            {item.description.length > 100 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0 text-xs"
+                onClick={() => setShowDetails(!showDetails)}
+              >
+                {showDetails ? 'Show less' : 'Show more'}
+              </Button>
             )}
+          </div>
+        )}
 
+        {/* Expandable Details */}
+        {showDetails && (
+          <div className="space-y-4 pt-2 border-t">
             {item.description && (
               <div>
-                <p className="text-sm font-medium mb-1">Description</p>
+                <p className="text-sm font-medium mb-1">Full Description</p>
                 <p className="text-sm text-muted-foreground">{item.description}</p>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium mb-1">Asking Price</p>
-                <p className="text-2xl font-bold">${parseFloat(item.askingPrice).toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium mb-1">Location</p>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="w-4 h-4" />
-                  <span className="text-sm">{item.location}</span>
-                </div>
-              </div>
-            </div>
-
             {prices && (
               <div>
-                <p className="text-sm font-medium mb-3">Market Price Context</p>
-                <div className="grid grid-cols-3 gap-4 text-sm">
+                <p className="text-sm font-medium mb-2">Market Price Context</p>
+                <div className="grid grid-cols-3 gap-3 text-sm">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Used</p>
-                    <p className="font-semibold">{formatPriceRange(prices.used_min, prices.used_max)}</p>
+                    <p className="font-semibold text-xs">{formatPriceRange(prices.used_min, prices.used_max)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Refurbished</p>
-                    <p className="font-semibold">{formatPriceRange(prices.refurbished_min, prices.refurbished_max)}</p>
+                    <p className="font-semibold text-xs">{formatPriceRange(prices.refurbished_min, prices.refurbished_max)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">New</p>
-                    <p className="font-semibold">{formatPriceRange(prices.new_min, prices.new_max)}</p>
+                    <p className="font-semibold text-xs">{formatPriceRange(prices.new_min, prices.new_max)}</p>
                   </div>
                 </div>
               </div>
@@ -231,93 +195,80 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   {Object.entries(item.specifications).map(([key, value]) => (
                     <div key={key} className="flex gap-2">
-                      <span className="font-medium text-muted-foreground">{key}:</span>
-                      <span>{String(value)}</span>
+                      <span className="font-medium text-muted-foreground text-xs">{key}:</span>
+                      <span className="text-xs">{String(value)}</span>
                     </div>
                   ))}
                 </div>
               </div>
             ) : null}
-
-            {!isDraft && (
-              <div className="flex items-center justify-between py-3 border-t">
-                <span className="text-sm text-muted-foreground">Views</span>
-                <div className="flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-semibold">{item.viewsCount || 0}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-4 border-t">
-              {isDraft && onPublish && (
-                <Button
-                  className="flex-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onPublish(item.id);
-                  }}
-                  data-testid={`button-publish-${item.id}`}
-                >
-                  Publish to Marketplace
-                </Button>
-              )}
-              {!isDraft && onUnpublish && (
-                <Button
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onUnpublish(item.id);
-                  }}
-                  data-testid={`button-unpublish-${item.id}`}
-                >
-                  Unpublish
-                </Button>
-              )}
-              {!isDraft && onMarkAsSold && (
-                <Button
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onMarkAsSold(item.id);
-                  }}
-                  data-testid={`button-mark-sold-${item.id}`}
-                >
-                  Mark as Sold
-                </Button>
-              )}
-              {onEdit && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit(item.id);
-                  }}
-                  data-testid={`button-edit-surplus-${item.id}`}
-                >
-                  <Edit className="w-4 h-4" />
-                </Button>
-              )}
-              {onDelete && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(item.id);
-                  }}
-                  data-testid={`button-delete-${item.id}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
           </div>
         )}
       </CardContent>
+
+      {/* Action Buttons - Always Visible */}
+      <CardFooter className="flex gap-2 border-t pt-4">
+        {isDraft ? (
+          <>
+            <Button
+              className="flex-1"
+              onClick={() => onPublish?.(item.id)}
+              data-testid={`button-publish-${item.id}`}
+            >
+              Publish
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onEdit?.(item.id)}
+              data-testid={`button-edit-surplus-${item.id}`}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onDelete?.(item.id)}
+              data-testid={`button-delete-${item.id}`}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => onUnpublish?.(item.id)}
+              data-testid={`button-unpublish-${item.id}`}
+            >
+              Unpublish
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => onMarkAsSold?.(item.id)}
+              data-testid={`button-mark-sold-${item.id}`}
+            >
+              Mark as Sold
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onEdit?.(item.id)}
+              data-testid={`button-edit-surplus-${item.id}`}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onDelete?.(item.id)}
+              data-testid={`button-delete-${item.id}`}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </>
+        )}
+      </CardFooter>
     </Card>
   );
 }
