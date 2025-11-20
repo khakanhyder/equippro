@@ -16,7 +16,7 @@ interface SurplusItemCardProps {
   onDelete?: (itemId: number) => void;
 }
 
-const conditionColors = {
+const conditionColors: Record<string, string> = {
   new: "bg-emerald-100 text-emerald-800 border-emerald-200",
   refurbished: "bg-yellow-100 text-yellow-800 border-yellow-200",
   used: "bg-slate-100 text-slate-800 border-slate-200",
@@ -78,7 +78,7 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
                 {item.brand} {item.model}
               </h3>
               <Badge 
-                className={conditionColors[item.condition as keyof typeof conditionColors]} 
+                className={conditionColors[item.condition] || "bg-slate-100 text-slate-800 border-slate-200"} 
                 variant="outline"
               >
                 {item.condition}
@@ -152,6 +152,7 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
                 size="sm"
                 className="h-auto p-0 text-xs"
                 onClick={() => setShowDetails(!showDetails)}
+                data-testid={`button-toggle-details-${item.id}`}
               >
                 {showDetails ? 'Show less' : 'Show more'}
               </Button>

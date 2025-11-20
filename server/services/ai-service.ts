@@ -23,15 +23,16 @@ export async function analyzeEquipmentFromImages(imageUrls: string[]) {
 - Brand name
 - Model number
 - Category (analytical/processing/testing/other)
+- Description (detailed description of the equipment, its purpose, features, condition, and any visible details - 2-3 sentences)
 - Technical specifications (name, value, unit)
 
-Return JSON: { "brand": "...", "model": "...", "category": "...", "specifications": [{"name": "...", "value": "...", "unit": "..."}] }`
+Return JSON: { "brand": "...", "model": "...", "category": "...", "description": "...", "specifications": [{"name": "...", "value": "...", "unit": "..."}] }`
           },
           ...imageUrls.map(url => ({ type: "image_url" as const, image_url: { url } }))
         ]
       }
     ],
-    max_tokens: 1000,
+    max_tokens: 1500,
     response_format: { type: "json_object" },
   });
 
@@ -56,11 +57,12 @@ Return JSON: { "brand": "...", "model": "...", "category": "...", "specification
       brand: parsed.brand || '',
       model: parsed.model || '',
       category: parsed.category || 'other',
+      description: parsed.description || '',
       specifications
     };
   } catch (error) {
     console.error('Failed to parse AI response:', content);
-    return { brand: '', model: '', category: 'other', specifications: {} };
+    return { brand: '', model: '', category: 'other', description: '', specifications: {} };
   }
 }
 
