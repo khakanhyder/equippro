@@ -16,12 +16,14 @@ import {
   wishlistProjects,
   wishlistItems,
   matches,
+  bids,
   priceContextCache,
   insertEquipmentSchema,
   insertSurplusProjectSchema,
   insertWishlistProjectSchema,
   insertWishlistItemSchema,
-  insertMatchSchema
+  insertMatchSchema,
+  insertBidSchema
 } from "@shared/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 
@@ -984,6 +986,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Delete equipment error:', error);
       res.status(500).json({ message: error.message || "Failed to delete equipment" });
+    }
+  });
+
+  // ===== Dashboard Stats Endpoint =====
+  app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      
+      // Get surplus equipment count (user-specific)
+      const [surplusCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(equipment)
+        .where(eq(equipment.createdBy, userId));
+      
+      // Get published equipment count
+      const [publishedCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(equipment)
+        .where(and(eq(equipment.createdBy, userId), eq(equipment.listingStatus, 'active')));
+      
+      // Get wishlist items count (user-specific)
+      const [wishlistCount] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(wishlistItems)
+        .where(eq(wishlistItems.createdBy, userId));
+      
+      // Get bids received on user's published equipment
+      const userEquipment = await db.select({ id: equipment.id })
+        .from(equipment)
+        .where(and(eq(equipment.createdBy, userId), eq(equipment.listingStatus, 'active')));
+      
+      const equipmentIds = userEquipment.map(e => e.id);
+      
+      let bidsReceivedCount = 0;
+      let totalBidValue = 0;
+      let activeBidsCount = 0;
+      
+      if (equipmentIds.length > 0) {
+        const bidsReceived = await db.select()
+          .from(bids)
+          .where(sql`${bids.equipmentId} = ANY(${equipmentIds})`);
+        
+        bidsReceivedCount = bidsReceived.length;
+        activeBidsCount = bidsReceived.filter(b => b.status === 'pending').length;
+        totalBidValue = bidsReceived
+          .filter(b => b.status === 'pending')
+          .reduce((sum, bid) => sum + parseFloat(bid.bidAmount), 0);
+      }
+      
+      // Get matches count (user-specific - matches for user's wishlist items)
+      const userWishlistItems = await db.select({ id: wishlistItems.id })
+        .from(wishlistItems)
+        .where(eq(wishlistItems.createdBy, userId));
+      
+      const wishlistItemIds = userWishlistItems.map(w => w.id);
+      
+      let matchesCount = 0;
+      let newMatchesToday = 0;
+      
+      if (wishlistItemIds.length > 0) {
+        const allMatches = await db.select()
+          .from(matches)
+          .where(sql`${matches.wishlistItemId} = ANY(${wishlistItemIds})`);
+        
+        matchesCount = allMatches.length;
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        newMatchesToday = allMatches.filter(m => m.createdAt >= today).length;
+      }
+      
+      res.json({
+        surplusCount: surplusCount.count || 0,
+        publishedCount: publishedCount.count || 0,
+        wishlistCount: wishlistCount.count || 0,
+        bidsReceivedCount,
+        activeBidsCount,
+        totalBidValue,
+        matchesCount,
+        newMatchesToday,
+      });
+    } catch (error: any) {
+      console.error('Dashboard stats error:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // ===== Marketplace Endpoint (Public - shows all active equipment) =====
+  app.get("/api/marketplace", requireAuth, async (req, res) => {
+    try {
+      // Marketplace shows ALL users' published equipment (not user-specific)
+      const results = await db.select()
+        .from(equipment)
+        .where(eq(equipment.listingStatus, 'active'))
+        .orderBy(desc(equipment.createdAt));
+      
+      res.json(results);
+    } catch (error: any) {
+      console.error('Marketplace error:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch marketplace listings" });
     }
   });
 

@@ -26,9 +26,9 @@ export default function Marketplace() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [conditionFilter, setConditionFilter] = useState("all");
 
-  // Fetch published equipment from API (only active listings)
+  // Fetch published equipment from API (shows ALL users' active listings - generic marketplace)
   const { data: equipmentList, isLoading, error } = useQuery<Equipment[]>({
-    queryKey: ["/api/equipment", { status: "active" }],
+    queryKey: ["/api/marketplace"],
   });
 
   // Calculate price variance based on market data

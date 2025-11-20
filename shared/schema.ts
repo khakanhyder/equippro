@@ -182,6 +182,33 @@ export const insertMatchSchema = createInsertSchema(matches).omit({
 export type InsertMatch = z.infer<typeof insertMatchSchema>;
 export type Match = typeof matches.$inferSelect;
 
+// Bids table (for marketplace bidding on published equipment)
+export const bids = pgTable("bids", {
+  id: serial("id").primaryKey(),
+  equipmentId: integer("equipment_id").notNull().references(() => equipment.id, { onDelete: 'cascade' }),
+  bidderUserId: text("bidder_user_id").notNull(), // User ID who placed the bid
+  bidAmount: decimal("bid_amount", { precision: 10, scale: 2 }).notNull(),
+  message: text("message"), // Optional message from bidder
+  status: text("status").notNull().default('pending'), // pending, accepted, rejected, expired
+  expiresAt: timestamp("expires_at"), // Optional expiration date for bid
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  equipmentIdIdx: index("bids_equipment_id_idx").on(table.equipmentId),
+  bidderUserIdIdx: index("bids_bidder_user_id_idx").on(table.bidderUserId),
+  statusIdx: index("bids_status_idx").on(table.status),
+}));
+
+export const insertBidSchema = createInsertSchema(bids).omit({
+  id: true,
+  bidderUserId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertBid = z.infer<typeof insertBidSchema>;
+export type Bid = typeof bids.$inferSelect;
+
 // Price Context Cache (to avoid repeated API calls)
 export const priceContextCache = pgTable("price_context_cache", {
   id: serial("id").primaryKey(),
