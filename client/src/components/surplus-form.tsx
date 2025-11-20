@@ -140,6 +140,12 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
     imageUpload.addFiles(files);
   };
 
+  const handleRemoveExistingImage = (urlToRemove: string) => {
+    const currentImages = form.getValues('images') || [];
+    const updatedImages = currentImages.filter(url => url !== urlToRemove);
+    form.setValue('images', updatedImages);
+  };
+
   const handleUploadImages = async () => {
     const hasPending = imageUpload.queue.some(item => item.status === 'pending' || item.status === 'error');
     
@@ -523,6 +529,34 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
               </div>
             </label>
             
+            {/* Display existing uploaded images */}
+            {form.watch('images')?.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Uploaded Images</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {form.watch('images').map((url: string, index: number) => (
+                    <div key={url} className="relative group">
+                      <img 
+                        src={url} 
+                        alt={`Equipment ${index + 1}`}
+                        className="w-full h-24 object-cover rounded border"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => handleRemoveExistingImage(url)}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Display new pending/uploading images */}
             {imageUpload.queue.length > 0 && (
               <div className="space-y-2">
                 {imageUpload.queue.map((item, index) => (
