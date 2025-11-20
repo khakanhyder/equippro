@@ -154,6 +154,36 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
 
         {isExpanded && (
           <div className="mt-6 space-y-6" onClick={(e) => e.stopPropagation()}>
+            {/* Image Gallery in Expanded View */}
+            {item.images && Array.isArray(item.images) && item.images.length > 0 && (
+              <div>
+                <p className="text-sm font-medium mb-3">Equipment Images</p>
+                {item.images.length === 1 ? (
+                  <img 
+                    src={item.images[0]} 
+                    alt={`${item.brand} ${item.model}`}
+                    className="w-full max-w-md h-64 object-cover rounded-lg border"
+                  />
+                ) : (
+                  <Carousel className="w-full max-w-md">
+                    <CarouselContent>
+                      {item.images.map((imageUrl, idx) => (
+                        <CarouselItem key={idx}>
+                          <img 
+                            src={imageUrl} 
+                            alt={`${item.brand} ${item.model} - Image ${idx + 1}`}
+                            className="w-full h-64 object-cover rounded-lg border"
+                          />
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselPrevious />
+                    <CarouselNext />
+                  </Carousel>
+                )}
+              </div>
+            )}
+
             {item.description && (
               <div>
                 <p className="text-sm font-medium mb-1">Description</p>
