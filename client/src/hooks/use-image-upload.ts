@@ -140,15 +140,10 @@ export function useImageUpload() {
   }, []);
 
   const getUploadedUrls = useCallback(() => {
-    let urls: string[] = [];
-    setQueue(prev => {
-      urls = prev
-        .filter(item => item.status === 'complete' && item.url)
-        .map(item => item.url as string);
-      return prev;
-    });
-    return urls;
-  }, []);
+    return queue
+      .filter(item => item.status === 'complete' && item.url)
+      .map(item => item.url as string);
+  }, [queue]);
 
   return {
     queue,
