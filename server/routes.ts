@@ -620,6 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           brand: analysis.brand,
           model: analysis.model,
           category: analysis.category,
+          description: analysis.description,
           specifications: specs,
         },
       });

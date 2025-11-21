@@ -2,6 +2,7 @@ interface AiAnalysisResult {
   brand?: string;
   model?: string;
   category?: string;
+  description?: string;
   specifications?: Array<{ name: string; value: string; unit?: string }>;
   confidence?: number;
 }

@@ -165,6 +165,7 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
       if (result.brand) setAiSuggestions(prev => ({ ...prev, brand: { value: result.brand!, confidence } }));
       if (result.model) setAiSuggestions(prev => ({ ...prev, model: { value: result.model!, confidence } }));
       if (result.category) setAiSuggestions(prev => ({ ...prev, category: { value: result.category!, confidence } }));
+      if (result.description) form.setValue('notes', result.description);
       if (result.specifications?.length) setAiSuggestions(prev => ({ ...prev, specifications: result.specifications! }));
 
       toast({ title: "Analysis complete", description: `Found ${result.specifications?.length || 0} specifications` });
