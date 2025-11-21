@@ -15,8 +15,12 @@ import {
 } from "@/components/ui/select";
 import { Search, Grid3x3, List, Filter, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useBidMutations } from "@/hooks/use-bids";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Marketplace() {
+  const { toast } = useToast();
+  const { createBid } = useBidMutations();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const [bidDialogOpen, setBidDialogOpen] = useState(false);
@@ -247,8 +251,26 @@ export default function Marketplace() {
               model: currentEquipment.model,
               askingPrice: currentEquipment.price,
             }}
-            onSubmit={(amount, notes) => {
-              console.log("Bid submitted:", { amount, notes });
+            onSubmit={async (amount, notes) => {
+              try {
+                await createBid.mutateAsync({
+                  equipmentId: parseInt(currentEquipment.id),
+                  bidAmount: amount.toString(),
+                  message: notes || null,
+                  expiresAt: null,
+                });
+                toast({
+                  title: "Bid submitted successfully",
+                  description: `Your bid of $${amount.toLocaleString()} has been submitted`,
+                });
+                setBidDialogOpen(false);
+              } catch (error: any) {
+                toast({
+                  title: "Failed to submit bid",
+                  description: error.message || "Please try again",
+                  variant: "destructive",
+                });
+              }
             }}
           />
           <EquipmentDetailModal

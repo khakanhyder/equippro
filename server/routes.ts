@@ -1427,6 +1427,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== Bids Endpoints =====
+  app.post("/api/bids", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const validatedData = insertBidSchema.parse(req.body);
+      
+      // Verify the equipment exists and is active
+      const equipmentData = await db.select()
+        .from(equipment)
+        .where(eq(equipment.id, validatedData.equipmentId))
+        .limit(1);
+      
+      if (equipmentData.length === 0) {
+        return res.status(404).json({ message: "Equipment not found" });
+      }
+      
+      if (equipmentData[0].listingStatus !== 'active') {
+        return res.status(400).json({ message: "This equipment is no longer available for bidding" });
+      }
+      
+      // Prevent users from bidding on their own equipment
+      if (equipmentData[0].createdBy === userId) {
+        return res.status(400).json({ message: "You cannot bid on your own equipment" });
+      }
+      
+      // Create the bid - always set status to 'pending' (ignore client-provided status)
+      const [newBid] = await db.insert(bids)
+        .values({
+          equipmentId: validatedData.equipmentId,
+          bidAmount: validatedData.bidAmount,
+          message: validatedData.message,
+          bidderUserId: userId,
+          status: 'pending', // Always pending for new bids
+          expiresAt: validatedData.expiresAt,
+        })
+        .returning();
+      
+      res.json(newBid);
+    } catch (error: any) {
+      console.error('Create bid error:', error);
+      res.status(500).json({ message: error.message || "Failed to submit bid" });
+    }
+  });
+  
+  app.get("/api/bids/received", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      
+      // Get all equipment owned by the user
+      const userEquipment = await db.select({ id: equipment.id })
+        .from(equipment)
+        .where(eq(equipment.createdBy, userId));
+      
+      const equipmentIds = userEquipment.map(e => e.id);
+      
+      if (equipmentIds.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get all bids on user's equipment with equipment details
+      const bidsReceived = await db.select({
+        bid: bids,
+        equipment: equipment,
+      })
+        .from(bids)
+        .innerJoin(equipment, eq(bids.equipmentId, equipment.id))
+        .where(inArray(bids.equipmentId, equipmentIds))
+        .orderBy(desc(bids.createdAt));
+      
+      res.json(bidsReceived);
+    } catch (error: any) {
+      console.error('Get bids received error:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch bids" });
+    }
+  });
+  
+  app.patch("/api/bids/:id/status", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const bidId = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      if (!['accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status. Must be 'accepted' or 'rejected'" });
+      }
+      
+      // Get the bid with equipment details
+      const [bidData] = await db.select({
+        bid: bids,
+        equipment: equipment,
+      })
+        .from(bids)
+        .innerJoin(equipment, eq(bids.equipmentId, equipment.id))
+        .where(eq(bids.id, bidId))
+        .limit(1);
+      
+      if (!bidData) {
+        return res.status(404).json({ message: "Bid not found" });
+      }
+      
+      // Verify the user owns the equipment
+      if (bidData.equipment.createdBy !== userId) {
+        return res.status(403).json({ message: "You can only manage bids on your own equipment" });
+      }
+      
+      // Update the bid status
+      const [updatedBid] = await db.update(bids)
+        .set({ 
+          status,
+          updatedAt: new Date(),
+        })
+        .where(eq(bids.id, bidId))
+        .returning();
+      
+      res.json(updatedBid);
+    } catch (error: any) {
+      console.error('Update bid status error:', error);
+      res.status(500).json({ message: error.message || "Failed to update bid status" });
+    }
+  });
+
   app.patch("/api/matches/:id/status", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
