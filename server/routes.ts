@@ -369,13 +369,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Read-only endpoint for polling - does NOT trigger new scrapes
+  app.get("/api/price-context/status", async (req, res) => {
+    try {
+      let { brand, model, category } = req.query;
+      
+      if (!brand || !model || typeof brand !== 'string' || typeof model !== 'string') {
+        return res.status(400).json({ message: "brand and model are required" });
+      }
+
+      // Normalize brand/model for consistent cache lookup
+      const { normalizeSearchTerm } = await import('./services/apify-service');
+      brand = normalizeSearchTerm(brand);
+      model = normalizeSearchTerm(model);
+
+      // Check for cached data (AI or marketplace) that's not expired
+      const cached = await db.select()
+        .from(priceContextCache)
+        .where(and(
+          eq(priceContextCache.brand, brand),
+          eq(priceContextCache.model, model),
+          eq(priceContextCache.category, (category as string) || 'Unknown'),
+          sql`${priceContextCache.expiresAt} > NOW()`
+        ))
+        .limit(1);
+
+      const hasMarketplaceData = cached.length > 0 && cached[0].hasMarketplaceData === 'true';
+      const hasAnyCache = cached.length > 0;
+
+      if (hasAnyCache) {
+        const sanitized = sanitizePriceContext({
+          priceRanges: cached[0].priceRanges,
+          priceSource: cached[0].priceSource,
+          priceBreakdown: cached[0].priceBreakdown
+        });
+        
+        if (sanitized) {
+          return res.json({
+            ...sanitized.priceRanges,
+            source: sanitized.priceSource,
+            breakdown: sanitized.priceBreakdown,
+            cached: true,
+            has_marketplace_data: hasMarketplaceData,
+            scraping_in_background: !hasMarketplaceData
+          });
+        }
+      }
+
+      // No cache found
+      return res.status(404).json({ 
+        message: "No cached price data found. Call POST /api/price-context/scrape first.",
+        has_marketplace_data: false,
+        cached: false
+      });
+    } catch (error: any) {
+      console.error('Price status check error:', error);
+      res.status(500).json({ message: error.message || "Status check failed" });
+    }
+  });
+
   app.post("/api/price-context/scrape", async (req, res) => {
     try {
-      const { brand, model, category } = req.body;
+      let { brand, model, category } = req.body;
       
       if (!brand || !model) {
         return res.status(400).json({ message: "brand and model are required" });
       }
+
+      // Normalize brand/model for consistent caching and search
+      const { normalizeSearchTerm } = await import('./services/apify-service');
+      brand = normalizeSearchTerm(brand);
+      model = normalizeSearchTerm(model);
 
       const cacheKey = getCacheKey(brand, model, category || 'Unknown');
 

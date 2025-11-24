@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertWishlistItemSchema, type InsertWishlistItem } from "@shared/schema";
@@ -69,6 +69,8 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
   const [isSearchingExternal, setIsSearchingExternal] = useState(false);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string }>>([]);
+  const [isPollingScrape, setIsPollingScrape] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const form = useForm<InsertWishlistItem>({
     resolver: zodResolver(insertWishlistItemSchema),
@@ -91,6 +93,15 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
       priceBreakdown: null,
     },
   });
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
 
   const addSpec = () => {
     setSpecs([...specs, { key: "", value: "" }]);
@@ -202,7 +213,102 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
     }
   };
 
+  const startPollingForMarketplaceData = (brand: string, model: string, category: string) => {
+    // Clear any existing polling to allow new parameters
+    if (pollingIntervalRef.current) {
+      console.log('[Polling] Clearing previous interval for new request');
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
+    setIsPollingScrape(true);
+    let pollCount = 0;
+    const maxPolls = 12; // Poll for up to 60 seconds (12 * 5s)
+
+    const intervalId = setInterval(async () => {
+      pollCount++;
+
+      try {
+        // Use GET endpoint for read-only polling (doesn't trigger new scrapes)
+        const params = new URLSearchParams({ 
+          brand, 
+          model, 
+          category: category || '' 
+        });
+        const response = await fetch(`/api/price-context/status?${params}`, {
+          method: 'GET',
+        });
+
+        // 404 means no cache yet, keep polling
+        if (response.status === 404) {
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Polling failed');
+        }
+
+        const result = await response.json();
+
+        // Guard ALL state updates - only active interval can modify state
+        if (pollingIntervalRef.current !== intervalId) {
+          console.log('[Polling] Stale callback detected, skipping all updates');
+          return;
+        }
+
+        // Stop polling if marketplace data is ready or max attempts reached
+        if (result.has_marketplace_data || pollCount >= maxPolls) {
+          clearInterval(intervalId);
+          pollingIntervalRef.current = null;
+          setIsPollingScrape(false);
+
+          if (result.has_marketplace_data) {
+            // Update prices with real marketplace data
+            setPriceData(result);
+            const priceRange = {
+              new_min: result.new_min,
+              new_max: result.new_max,
+              refurbished_min: result.refurbished_min,
+              refurbished_max: result.refurbished_max,
+              used_min: result.used_min,
+              used_max: result.used_max,
+            };
+            form.setValue('marketPriceRange', priceRange as any);
+            form.setValue('priceSource', result.source || 'Market data');
+            form.setValue('priceBreakdown', result.breakdown || null);
+
+            toast({
+              title: "Real marketplace data ready!",
+              description: result.totalListingsFound 
+                ? `Found ${result.totalListingsFound} marketplace listing(s)` 
+                : "Prices updated with latest market data",
+              duration: 4000,
+            });
+          } else if (pollCount >= maxPolls) {
+            // Timeout reached without marketplace data
+            toast({
+              title: "Background scrape still processing",
+              description: "AI estimate shown. Real marketplace data may take longer. Try refreshing in a moment.",
+              duration: 5000,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+        // Continue polling even if one attempt fails
+      }
+    }, 5000); // Poll every 5 seconds
+
+    pollingIntervalRef.current = intervalId;
+  };
+
   const handleGetPriceContext = async () => {
+    // Guard against duplicate fetches (polling is independent background operation)
+    if (isFetchingPrices) {
+      console.log('[Fetch Guard] Already fetching, skipping');
+      return;
+    }
+
     const brand = form.getValues('brand');
     const model = form.getValues('model');
     const category = form.getValues('category');
@@ -245,14 +351,28 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
       form.setValue('priceSource', result.source || 'Market data');
       form.setValue('priceBreakdown', result.breakdown || null);
 
+      // Reset fetch state - POST is complete
+      setIsFetchingPrices(false);
+
       // Show different toast based on whether scraping is happening in background
       if (result.scraping_in_background) {
         toast({
           title: "AI estimate ready",
-          description: "Live marketplace data is being fetched in the background. Refresh for latest prices.",
+          description: "Fetching real marketplace data in background... Prices will update automatically.",
           duration: 5000,
         });
-      } else if (result.cached) {
+        // Start polling for marketplace data (guard prevents duplicates)
+        startPollingForMarketplaceData(brand, model, category);
+      } else {
+        // Data is immediate (not background) - ensure polling state is clean
+        setIsPollingScrape(false);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      }
+
+      if (result.cached) {
         // Handle breakdown which might be a string or object
         const breakdownText = typeof result.breakdown === 'string' 
           ? result.breakdown 
@@ -277,13 +397,12 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
         });
       }
     } catch (error: any) {
+      setIsFetchingPrices(false);
       toast({
         title: "Price scraping failed",
         description: error.message || "Could not retrieve market prices. Try checking eBay manually.",
         variant: "destructive",
       });
-    } finally {
-      setIsFetchingPrices(false);
     }
   };
 

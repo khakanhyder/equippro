@@ -14,15 +14,32 @@ interface MarketplaceListing {
   source: string;
 }
 
+/**
+ * Normalizes brand/model strings for consistent search queries
+ * Removes extra spaces, standardizes punctuation, converts to lowercase
+ * Example: "Perkin Elmer" and "PerkinElmer" both become "perkin elmer"
+ */
+export function normalizeSearchTerm(term: string): string {
+  return term
+    .toLowerCase()
+    .replace(/[-_]/g, ' ')  // Replace hyphens and underscores with spaces
+    .replace(/\s+/g, ' ')    // Collapse multiple spaces to single space
+    .trim();
+}
+
 export async function searchPDFsAndWeb(brand: string, model: string): Promise<ApifySearchResult[]> {
   if (!APIFY_TOKEN) {
     console.warn('APIFY_API_TOKEN not configured');
     throw new Error('Search service not configured. Please contact support.');
   }
 
-  const query = `"${brand}" "${model}" manual OR datasheet OR specifications`;
+  // Normalize brand and model for consistent search results
+  const normalizedBrand = normalizeSearchTerm(brand);
+  const normalizedModel = normalizeSearchTerm(model);
+
+  const query = `"${normalizedBrand}" "${normalizedModel}" manual OR datasheet OR specifications`;
   
-  console.log('[Apify] Searching for:', query);
+  console.log('[Apify] Searching for (normalized):', query);
   
   try {
     const response = await fetch(`https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`, {
@@ -62,7 +79,6 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
         const url = r.url.toLowerCase();
         const title = r.title.toLowerCase();
         const description = (r.description || '').toLowerCase();
-        const modelLower = model.toLowerCase();
         
         const isSearchPage = url.includes('/search/') || 
                              url.includes('/search?') ||
@@ -76,9 +92,10 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
           return false;
         }
         
-        const hasModelInTitle = title.includes(modelLower);
-        const hasModelInUrl = url.includes(modelLower);
-        const hasModelInDescription = description.includes(modelLower);
+        // Use normalized model for comparison
+        const hasModelInTitle = title.includes(normalizedModel);
+        const hasModelInUrl = url.includes(normalizedModel);
+        const hasModelInDescription = description.includes(normalizedModel);
         
         if (!hasModelInTitle && !hasModelInUrl && !hasModelInDescription) {
           console.log('[Apify] Filtered out - model not found in content:', r.url);
@@ -117,9 +134,13 @@ export async function searchMarketplaceListings(brand: string, model: string): P
     throw new Error('Search service not configured. Please contact support.');
   }
 
-  const query = `"${brand}" "${model}" buy OR price OR "for sale"`;
+  // Normalize brand and model for consistent marketplace search
+  const normalizedBrand = normalizeSearchTerm(brand);
+  const normalizedModel = normalizeSearchTerm(model);
+
+  const query = `"${normalizedBrand}" "${normalizedModel}" buy OR price OR "for sale"`;
   
-  console.log('[Apify] Searching marketplace for:', query);
+  console.log('[Apify] Searching marketplace for (normalized):', query);
   
   try {
     const response = await fetch(`https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`, {
@@ -161,7 +182,6 @@ export async function searchMarketplaceListings(brand: string, model: string): P
         const url = r.url.toLowerCase();
         const title = r.title.toLowerCase();
         const description = (r.description || '').toLowerCase();
-        const modelLower = model.toLowerCase();
         
         const isSearchPage = url.includes('/search/') || 
                              url.includes('/search?') ||
@@ -175,14 +195,22 @@ export async function searchMarketplaceListings(brand: string, model: string): P
           return false;
         }
         
-        const hasModelInTitle = title.includes(modelLower);
-        const hasModelInUrl = url.includes(modelLower);
-        const hasModelInDescription = description.includes(modelLower);
+        // Use normalized model for comparison
+        const hasModelInTitle = title.includes(normalizedModel);
+        const hasModelInUrl = url.includes(normalizedModel);
+        const hasModelInDescription = description.includes(normalizedModel);
         
         if (!hasModelInTitle && !hasModelInUrl && !hasModelInDescription) {
           console.log('[Apify] Filtered out - model not found:', r.title);
           return false;
         }
+        
+        // Also check for brand presence for better relevance
+        const hasBrandInTitle = title.includes(normalizedBrand);
+        const hasBrandInUrl = url.includes(normalizedBrand);
+        const hasBrandInDescription = description.includes(normalizedBrand);
+        
+        const hasBrand = hasBrandInTitle || hasBrandInUrl || hasBrandInDescription;
         
         const isMarketplace = url.includes('ebay.com/itm/') || 
                               url.includes('labx.com/item/') || 
@@ -204,7 +232,16 @@ export async function searchMarketplaceListings(brand: string, model: string): P
                                   title.includes('sale') ||
                                   title.includes('usd');
         
-        return isMarketplace || hasPriceIndicator;
+        // Prioritize results that have both brand and are from known marketplaces
+        const isRelevant = (isMarketplace || hasPriceIndicator);
+        
+        // If it's a marketplace, we're more lenient on brand matching
+        // Otherwise, require brand presence for better accuracy
+        if (isMarketplace) {
+          return isRelevant;
+        } else {
+          return isRelevant && hasBrand;
+        }
       })
       .map((r: any) => ({
         url: r.url,
@@ -214,10 +251,10 @@ export async function searchMarketplaceListings(brand: string, model: string): P
 
     console.log('[Apify] Marketplace filtered results count:', filtered.length);
     
-    // Limit to 4 URLs for faster scraping (down from 6)
-    const limited = filtered.slice(0, 4);
-    if (filtered.length > 4) {
-      console.log('[Apify] Limited to 4 URLs for faster scraping (from', filtered.length, 'found)');
+    // Increased from 4 to 12 URLs for better marketplace data coverage
+    const limited = filtered.slice(0, 12);
+    if (filtered.length > 12) {
+      console.log('[Apify] Limited to 12 URLs for realistic price data (from', filtered.length, 'found)');
     }
     
     return limited;
@@ -237,19 +274,19 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
     return [];
   }
 
-  console.log('[Apify] Scraping prices from', urls.length, 'URLs using Playwright with residential proxies (optimized for speed)');
+  console.log('[Apify] Scraping prices from', urls.length, 'URLs using Playwright with residential proxies');
   
   try {
-    // Reduced timeout from 480s to 45s for faster responses
-    const response = await fetch(`https://api.apify.com/v2/acts/apify~playwright-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=45`, {
+    // Timeout increased to 60s to handle 12 URLs (was 45s for 4 URLs)
+    const response = await fetch(`https://api.apify.com/v2/acts/apify~playwright-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=60`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         startUrls: urls.map(url => ({ url })),
         maxRequestsPerCrawl: urls.length,
-        maxConcurrency: 4, // Increased from 3 for parallel processing
-        maxRequestRetries: 1, // Reduced from 2 to fail faster
-        navigationTimeoutSecs: 15, // Add hard timeout per page
+        maxConcurrency: 6, // Increased from 4 to handle more URLs concurrently
+        maxRequestRetries: 2, // Increased retries for better success rate
+        navigationTimeoutSecs: 20, // Slightly increased timeout per page
         proxyConfiguration: {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL'],
