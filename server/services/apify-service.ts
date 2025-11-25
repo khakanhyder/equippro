@@ -460,8 +460,21 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
       console.log('[Apify] Sample Playwright result:', JSON.stringify(results[0], null, 2));
     }
 
+    const MIN_REASONABLE_PRICE = 50;      // No lab equipment costs less than $50
+    const MAX_REASONABLE_PRICE = 500000;  // No single lab equipment item costs more than $500k
+    
     const listings: MarketplaceListing[] = results
-      .filter((r: any) => r.price && r.price > 0)
+      .filter((r: any) => {
+        if (!r.price || r.price <= 0) return false;
+        
+        // Sanity check: filter out unreasonable prices (parsing errors)
+        if (r.price < MIN_REASONABLE_PRICE || r.price > MAX_REASONABLE_PRICE) {
+          console.log('[Apify] Filtered out unreasonable price:', r.price, 'from', r.url);
+          return false;
+        }
+        
+        return true;
+      })
       .map((r: any) => ({
         url: r.url,
         title: r.title,

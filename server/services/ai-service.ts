@@ -108,10 +108,16 @@ export function validatePriceEstimate(estimate: any) {
   return {
     new_min: normalizeCurrency(estimate.new_min),
     new_max: normalizeCurrency(estimate.new_max),
+    new_avg: normalizeCurrency(estimate.new_avg),
+    new_count: typeof estimate.new_count === 'number' ? estimate.new_count : 0,
     refurbished_min: normalizeCurrency(estimate.refurbished_min),
     refurbished_max: normalizeCurrency(estimate.refurbished_max),
+    refurbished_avg: normalizeCurrency(estimate.refurbished_avg),
+    refurbished_count: typeof estimate.refurbished_count === 'number' ? estimate.refurbished_count : 0,
     used_min: normalizeCurrency(estimate.used_min),
     used_max: normalizeCurrency(estimate.used_max),
+    used_avg: normalizeCurrency(estimate.used_avg),
+    used_count: typeof estimate.used_count === 'number' ? estimate.used_count : 0,
     source: String(estimate.source || 'ai_estimate'),
     breakdown: String(estimate.breakdown || 'AI-generated estimate')
   };
