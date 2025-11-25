@@ -238,7 +238,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
 
     setIsPollingScrape(true);
     let pollCount = 0;
-    const maxPolls = 12; // Poll for up to 60 seconds (12 * 5s)
+    const maxPolls = 18; // Poll for up to 90 seconds (18 * 5s) to match scraping timeout
 
     const intervalId = setInterval(async () => {
       pollCount++;
@@ -779,7 +779,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
                         Real Marketplace Data
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        Averaged from actual listings
+                        Averaged from {priceData.marketplace_listings?.length || 0} actual listings
                       </span>
                     </>
                   ) : (
@@ -789,11 +789,30 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {priceData.scraping_in_background 
-                          ? 'Fetching real marketplace data in background...' 
+                          ? 'Based on AI analysis' 
                           : 'Based on AI analysis'}
                       </span>
                     </>
                   )}
+                </div>
+              )}
+              
+              {/* Live Scraping Progress Indicator */}
+              {(priceData.scraping_in_background || isPollingScrape) && !priceData.has_marketplace_data && (
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-2" data-testid="scraping-progress">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      Searching Global Marketplaces...
+                    </span>
+                  </div>
+                  <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
+                    <p>Scanning eBay, LabX, Fisher Scientific, BioSurplus and more</p>
+                    <p className="opacity-75">This may take up to 90 seconds for comprehensive results</p>
+                  </div>
+                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-blue-600 h-1.5 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                  </div>
                 </div>
               )}
               

@@ -345,10 +345,10 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       return true;
     });
     
-    // Limit to 8 URLs for fast scraping
-    const limited = deduped.slice(0, 8);
-    if (deduped.length > 8) {
-      console.log('[Apify] Limited to 8 URLs for price data (from', deduped.length, 'unique found)');
+    // Limit to 15 URLs for more data while staying within timeout
+    const limited = deduped.slice(0, 15);
+    if (deduped.length > 15) {
+      console.log('[Apify] Limited to 15 URLs for price data (from', deduped.length, 'unique found)');
     }
     
     return limited;
