@@ -252,13 +252,33 @@ export async function searchMarketplaceListings(brand: string, model: string): P
           return false;
         }
         
-        // Use normalized model for comparison
-        const hasModelInTitle = title.includes(normalizedModel);
-        const hasModelInUrl = url.includes(normalizedModel);
-        const hasModelInDescription = description.includes(normalizedModel);
+        // Create flexible model variations for matching
+        // "Centrifuge 5810 R" -> ["centrifuge 5810 r", "5810 r", "5810r", "5810"]
+        const modelVariations = [
+          normalizedModel,                                    // "centrifuge 5810 r"
+          normalizedModel.replace(/\s+/g, ''),                // "centrifuge5810r"
+          normalizedModel.split(' ').slice(-2).join(' '),     // "5810 r"
+          normalizedModel.split(' ').slice(-2).join(''),      // "5810r"
+          normalizedModel.split(' ').pop() || '',             // "r" (just letter)
+          normalizedModel.replace(/[^0-9]/g, ''),             // "5810" (just numbers)
+        ].filter(v => v.length >= 3); // Only use variations with 3+ chars
+        
+        // Also extract model numbers like "5810" from the normalized model
+        const modelNumber = normalizedModel.match(/\d{3,}/)?.[0] || '';
+        if (modelNumber.length >= 3) {
+          modelVariations.push(modelNumber);
+        }
+        
+        // Check if any model variation is in title/url/description
+        const hasModelInTitle = modelVariations.some(v => title.includes(v));
+        const hasModelInUrl = modelVariations.some(v => url.includes(v));
+        const hasModelInDescription = modelVariations.some(v => description.includes(v));
         
         if (!hasModelInTitle && !hasModelInUrl && !hasModelInDescription) {
-          console.log('[Apify] Filtered out - model not found:', r.title);
+          // Only log if there's something interesting (not generic titles)
+          if (title.length > 10) {
+            console.log('[Apify] Filtered out - model not found:', r.title.substring(0, 60));
+          }
           return false;
         }
         
@@ -325,10 +345,10 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       return true;
     });
     
-    // Increased to 40 URLs for maximum marketplace coverage (broad Google search)
-    const limited = deduped.slice(0, 40);
-    if (deduped.length > 40) {
-      console.log('[Apify] Limited to 40 URLs for price data (from', deduped.length, 'unique found)');
+    // Limit to 5 URLs to avoid Apify timeout
+    const limited = deduped.slice(0, 5);
+    if (deduped.length > 5) {
+      console.log('[Apify] Limited to 5 URLs for price data (from', deduped.length, 'unique found)');
     }
     
     return limited;
@@ -351,16 +371,16 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
   console.log('[Apify] Scraping prices from', urls.length, 'URLs using Playwright with residential proxies');
   
   try {
-    // Timeout increased to 60s to handle 12 URLs (was 45s for 4 URLs)
-    const response = await fetch(`https://api.apify.com/v2/acts/apify~playwright-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=60`, {
+    // Timeout increased to 90s for 10 URLs
+    const response = await fetch(`https://api.apify.com/v2/acts/apify~playwright-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=90`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         startUrls: urls.map(url => ({ url })),
         maxRequestsPerCrawl: urls.length,
-        maxConcurrency: 6, // Increased from 4 to handle more URLs concurrently
-        maxRequestRetries: 2, // Increased retries for better success rate
-        navigationTimeoutSecs: 20, // Slightly increased timeout per page
+        maxConcurrency: 5, // Parallel scraping
+        maxRequestRetries: 1, // Quick retries only
+        navigationTimeoutSecs: 15, // Fast page load timeout
         proxyConfiguration: {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL'],
@@ -371,9 +391,9 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
             const url = request.url;
             const hostname = new URL(url).hostname;
             
-            // Reduced wait time from 2000ms to 1000ms for faster scraping
+            // Fast scraping - minimal wait time
             await page.waitForLoadState('domcontentloaded');
-            await page.waitForTimeout(1000);
+            await page.waitForTimeout(500);
             
             let priceText = '';
             let title = '';
