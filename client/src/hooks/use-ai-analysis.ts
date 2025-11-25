@@ -13,10 +13,16 @@ export interface AiAnalysisResult {
 export interface PriceEstimate {
   new_min: number | null;
   new_max: number | null;
+  new_avg?: number | null;
+  new_count?: number;
   refurbished_min: number | null;
   refurbished_max: number | null;
+  refurbished_avg?: number | null;
+  refurbished_count?: number;
   used_min: number | null;
   used_max: number | null;
+  used_avg?: number | null;
+  used_count?: number;
   source: string;
   breakdown: string;
   has_marketplace_data?: boolean;

@@ -902,11 +902,12 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
           </div>
 
           {priceData && (
-            <div className="p-4 border rounded-lg space-y-3 bg-muted/30" data-testid="price-context">
+            <div className="p-4 border rounded-lg space-y-4 bg-muted/30" data-testid="price-context">
+              {/* New Condition */}
               {priceData.new_min !== null && priceData.new_max !== null && (
-                <div className="space-y-1" data-testid="price-new">
+                <div className="space-y-2" data-testid="price-new">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">New {priceData.new_count > 0 ? `(${priceData.new_count} listings)` : ''}:</span>
+                    <span className="font-medium text-green-600 dark:text-green-400">New {(priceData.new_count ?? 0) > 0 ? `(${priceData.new_count} listings)` : '(AI Estimate)'}:</span>
                     <span className="font-medium">
                       ${priceData.new_min?.toLocaleString()} - ${priceData.new_max?.toLocaleString()}
                     </span>
@@ -917,12 +918,31 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
                       <span className="font-semibold text-foreground">${priceData.new_avg?.toLocaleString()}</span>
                     </div>
                   )}
+                  {(priceData.marketplace_listings?.filter((l) => l.condition === 'new').length ?? 0) > 0 && (
+                    <div className="pl-3 border-l-2 border-green-300 dark:border-green-700 space-y-1">
+                      {priceData.marketplace_listings?.filter((l) => l.condition === 'new').map((listing, idx) => (
+                        <a
+                          key={idx}
+                          href={listing.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
+                          data-testid={`link-new-listing-${idx}`}
+                        >
+                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
+                          <span className="font-medium shrink-0">${listing.price?.toLocaleString()}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
+              
+              {/* Refurbished Condition */}
               {priceData.refurbished_min !== null && priceData.refurbished_max !== null && (
-                <div className="space-y-1" data-testid="price-refurbished">
+                <div className="space-y-2" data-testid="price-refurbished">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Refurbished {priceData.refurbished_count > 0 ? `(${priceData.refurbished_count} listings)` : ''}:</span>
+                    <span className="font-medium text-amber-600 dark:text-amber-400">Refurbished {(priceData.refurbished_count ?? 0) > 0 ? `(${priceData.refurbished_count} listings)` : '(AI Estimate)'}:</span>
                     <span className="font-medium">
                       ${priceData.refurbished_min?.toLocaleString()} - ${priceData.refurbished_max?.toLocaleString()}
                     </span>
@@ -933,12 +953,31 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
                       <span className="font-semibold text-foreground">${priceData.refurbished_avg?.toLocaleString()}</span>
                     </div>
                   )}
+                  {(priceData.marketplace_listings?.filter((l) => l.condition === 'refurbished').length ?? 0) > 0 && (
+                    <div className="pl-3 border-l-2 border-amber-300 dark:border-amber-700 space-y-1">
+                      {priceData.marketplace_listings?.filter((l) => l.condition === 'refurbished').map((listing, idx) => (
+                        <a
+                          key={idx}
+                          href={listing.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
+                          data-testid={`link-refurbished-listing-${idx}`}
+                        >
+                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
+                          <span className="font-medium shrink-0">${listing.price?.toLocaleString()}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
+              
+              {/* Used Condition */}
               {priceData.used_min !== null && priceData.used_max !== null && (
-                <div className="space-y-1" data-testid="price-used">
+                <div className="space-y-2" data-testid="price-used">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Used {priceData.used_count > 0 ? `(${priceData.used_count} listings)` : ''}:</span>
+                    <span className="font-medium text-gray-600 dark:text-gray-400">Used {(priceData.used_count ?? 0) > 0 ? `(${priceData.used_count} listings)` : '(AI Estimate)'}:</span>
                     <span className="font-medium">
                       ${priceData.used_min?.toLocaleString()} - ${priceData.used_max?.toLocaleString()}
                     </span>
@@ -949,47 +988,31 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
                       <span className="font-semibold text-foreground">${priceData.used_avg?.toLocaleString()}</span>
                     </div>
                   )}
+                  {(priceData.marketplace_listings?.filter((l) => l.condition === 'used').length ?? 0) > 0 && (
+                    <div className="pl-3 border-l-2 border-gray-300 dark:border-gray-700 space-y-1">
+                      {priceData.marketplace_listings?.filter((l) => l.condition === 'used').map((listing, idx) => (
+                        <a
+                          key={idx}
+                          href={listing.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
+                          data-testid={`link-used-listing-${idx}`}
+                        >
+                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
+                          <span className="font-medium shrink-0">${listing.price?.toLocaleString()}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
+              
               {priceData.breakdown && (
                 <p className="text-xs text-muted-foreground pt-2 border-t" data-testid="price-breakdown">
                   {priceData.breakdown}
                 </p>
               )}
-            </div>
-          )}
-
-          {priceData && priceData.marketplace_listings && priceData.marketplace_listings.length > 0 && (
-            <div className="mt-3 p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800" data-testid="marketplace-listings">
-              <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Found {priceData.marketplace_listings.length} Marketplace Listing{priceData.marketplace_listings.length !== 1 ? 's' : ''}
-              </h4>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {priceData.marketplace_listings.map((listing: any, idx: number) => (
-                  <a
-                    key={idx}
-                    href={listing.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block p-3 bg-background hover-elevate rounded border text-sm"
-                    data-testid={`link-marketplace-listing-${idx}`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <div className="font-medium text-foreground flex-1">
-                        {listing.title || `Listing from ${listing.source}`}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge variant="secondary" className="text-xs capitalize" data-testid={`badge-condition-${idx}`}>
-                          {listing.condition}
-                        </Badge>
-                        <span className="font-semibold text-foreground">${listing.price?.toLocaleString()}</span>
-                      </div>
-                    </div>
-                    <div className="text-xs text-blue-600 dark:text-blue-400 truncate">{listing.source}</div>
-                  </a>
-                ))}
-              </div>
             </div>
           )}
         </div>

@@ -770,7 +770,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
           </div>
           
           {priceData && (
-            <div className="border rounded-lg p-4 space-y-3">
+            <div className="border rounded-lg p-4 space-y-4">
               {priceData.has_marketplace_data !== undefined && (
                 <div className="flex items-center gap-2 pb-2 border-b">
                   {priceData.has_marketplace_data ? (
@@ -796,51 +796,121 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
                   )}
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">
-                    New {priceData.new_count > 0 ? `(${priceData.new_count})` : ''}
-                  </p>
-                  <p className="font-semibold">
-                    {formatPrice(priceData.new_min)} - {formatPrice(priceData.new_max)}
-                  </p>
+              
+              {/* New Condition */}
+              {(priceData.new_min !== null || priceData.new_max !== null) && (
+                <div className="space-y-2" data-testid="price-new">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-green-600 dark:text-green-400">
+                      New {priceData.new_count > 0 ? `(${priceData.new_count} listings)` : '(AI Estimate)'}
+                    </span>
+                    <span className="font-medium">
+                      {formatPrice(priceData.new_min)} - {formatPrice(priceData.new_max)}
+                    </span>
+                  </div>
                   {priceData.new_avg && (
-                    <p className="text-xs text-muted-foreground">
-                      Avg: <span className="text-foreground font-medium">{formatPrice(priceData.new_avg)}</span>
-                    </p>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Average:</span>
+                      <span className="font-semibold text-foreground">{formatPrice(priceData.new_avg)}</span>
+                    </div>
+                  )}
+                  {priceData.marketplace_listings?.filter((l: any) => l.condition === 'new').length > 0 && (
+                    <div className="pl-3 border-l-2 border-green-300 dark:border-green-700 space-y-1">
+                      {priceData.marketplace_listings.filter((l: any) => l.condition === 'new').map((listing: any, idx: number) => (
+                        <a
+                          key={idx}
+                          href={listing.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
+                          data-testid={`link-new-listing-${idx}`}
+                        >
+                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
+                          <span className="font-medium shrink-0">{formatPrice(listing.price)}</span>
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <div>
-                  <p className="text-muted-foreground">
-                    Refurbished {priceData.refurbished_count > 0 ? `(${priceData.refurbished_count})` : ''}
-                  </p>
-                  <p className="font-semibold">
-                    {formatPrice(priceData.refurbished_min)} - {formatPrice(priceData.refurbished_max)}
-                  </p>
+              )}
+              
+              {/* Refurbished Condition */}
+              {(priceData.refurbished_min !== null || priceData.refurbished_max !== null) && (
+                <div className="space-y-2" data-testid="price-refurbished">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-amber-600 dark:text-amber-400">
+                      Refurbished {priceData.refurbished_count > 0 ? `(${priceData.refurbished_count} listings)` : '(AI Estimate)'}
+                    </span>
+                    <span className="font-medium">
+                      {formatPrice(priceData.refurbished_min)} - {formatPrice(priceData.refurbished_max)}
+                    </span>
+                  </div>
                   {priceData.refurbished_avg && (
-                    <p className="text-xs text-muted-foreground">
-                      Avg: <span className="text-foreground font-medium">{formatPrice(priceData.refurbished_avg)}</span>
-                    </p>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Average:</span>
+                      <span className="font-semibold text-foreground">{formatPrice(priceData.refurbished_avg)}</span>
+                    </div>
+                  )}
+                  {priceData.marketplace_listings?.filter((l: any) => l.condition === 'refurbished').length > 0 && (
+                    <div className="pl-3 border-l-2 border-amber-300 dark:border-amber-700 space-y-1">
+                      {priceData.marketplace_listings.filter((l: any) => l.condition === 'refurbished').map((listing: any, idx: number) => (
+                        <a
+                          key={idx}
+                          href={listing.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
+                          data-testid={`link-refurbished-listing-${idx}`}
+                        >
+                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
+                          <span className="font-medium shrink-0">{formatPrice(listing.price)}</span>
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <div>
-                  <p className="text-muted-foreground">
-                    Used {priceData.used_count > 0 ? `(${priceData.used_count})` : ''}
-                  </p>
-                  <p className="font-semibold">
-                    {formatPrice(priceData.used_min)} - {formatPrice(priceData.used_max)}
-                  </p>
+              )}
+              
+              {/* Used Condition */}
+              {(priceData.used_min !== null || priceData.used_max !== null) && (
+                <div className="space-y-2" data-testid="price-used">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-gray-600 dark:text-gray-400">
+                      Used {priceData.used_count > 0 ? `(${priceData.used_count} listings)` : '(AI Estimate)'}
+                    </span>
+                    <span className="font-medium">
+                      {formatPrice(priceData.used_min)} - {formatPrice(priceData.used_max)}
+                    </span>
+                  </div>
                   {priceData.used_avg && (
-                    <p className="text-xs text-muted-foreground">
-                      Avg: <span className="text-foreground font-medium">{formatPrice(priceData.used_avg)}</span>
-                    </p>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Average:</span>
+                      <span className="font-semibold text-foreground">{formatPrice(priceData.used_avg)}</span>
+                    </div>
+                  )}
+                  {priceData.marketplace_listings?.filter((l: any) => l.condition === 'used').length > 0 && (
+                    <div className="pl-3 border-l-2 border-gray-300 dark:border-gray-700 space-y-1">
+                      {priceData.marketplace_listings.filter((l: any) => l.condition === 'used').map((listing: any, idx: number) => (
+                        <a
+                          key={idx}
+                          href={listing.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
+                          data-testid={`link-used-listing-${idx}`}
+                        >
+                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
+                          <span className="font-medium shrink-0">{formatPrice(listing.price)}</span>
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
-              </div>
-              <p className="text-xs text-muted-foreground italic">{priceData.breakdown}</p>
-              <Badge variant="outline" className="text-xs">
-                Source: {priceData.source}
-              </Badge>
+              )}
+              
+              {priceData.breakdown && (
+                <p className="text-xs text-muted-foreground pt-2 border-t italic">{priceData.breakdown}</p>
+              )}
             </div>
           )}
         </div>
