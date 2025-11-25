@@ -140,8 +140,22 @@ const KNOWN_MARKETPLACES = [
   'fishersci.de', 'neolab.de', 'carlroth.de', 'vwr.de', 'merckmillipore.de',
   'labmarket.de', 'omnilab.de', 'labexchange.de', 'laborhandel.de',
   'fishersci.co.uk', 'vwr.com', 'agilent.com', 'thermofisher.com',
-  // Other International
-  'ebay.de', 'ebay.co.uk', 'ebay.ca', 'ebay.com.au',
+  // UK Marketplaces
+  'ebay.co.uk', 'fishersci.co.uk', 'scientificlabs.co.uk', 'wolflabs.co.uk',
+  // French Marketplaces
+  'fishersci.fr', 'vwr.fr', 'labbox.com', 'dutscher.com',
+  // Italian Marketplaces
+  'fishersci.it', 'vwr.it', 'carlroth.it',
+  // Japanese Marketplaces
+  'as-1.co.jp', 'monotaro.com', 'fishersci.jp', 'labchem-wako.co.jp',
+  // Australian Marketplaces
+  'fishersci.com.au', 'thermofisher.com.au', 'sigmaaldrich.com.au',
+  // Canadian Marketplaces
+  'fishersci.ca', 'vwr.ca', 'sigmaaldrich.ca',
+  // Global eBay
+  'ebay.de', 'ebay.co.uk', 'ebay.ca', 'ebay.com.au', 'ebay.fr', 'ebay.it', 'ebay.co.jp',
+  // China/Global
+  'alibaba.com', 'made-in-china.com', 'globalsources.com',
 ];
 
 export async function searchMarketplaceListings(brand: string, model: string): Promise<ApifySearchResult[]> {
@@ -154,71 +168,67 @@ export async function searchMarketplaceListings(brand: string, model: string): P
   const normalizedBrand = normalizeSearchTerm(brand);
   const normalizedModel = normalizeSearchTerm(model);
 
-  // Run parallel searches for US and international markets
-  const usQuery = `"${normalizedBrand}" "${normalizedModel}" buy OR price OR "for sale"`;
-  const deQuery = `"${normalizedBrand}" "${normalizedModel}" kaufen OR preis`;
+  // Run parallel searches across ALL major global markets
+  const globalQueries = [
+    { query: `"${normalizedBrand}" "${normalizedModel}" buy price "for sale"`, lang: 'en', country: 'us', name: 'US' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" buy price shop`, lang: 'en', country: 'gb', name: 'UK' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" kaufen preis`, lang: 'de', country: 'de', name: 'DE' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" acheter prix`, lang: 'fr', country: 'fr', name: 'FR' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" buy price`, lang: 'en', country: 'au', name: 'AU' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" buy price`, lang: 'en', country: 'ca', name: 'CA' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" 購入 価格`, lang: 'ja', country: 'jp', name: 'JP' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" comprare prezzo`, lang: 'it', country: 'it', name: 'IT' },
+  ];
   
-  console.log('[Apify] Searching marketplace (US + DE):', { usQuery, deQuery });
+  console.log('[Apify] Searching', globalQueries.length, 'global markets for:', normalizedBrand, normalizedModel);
   
   try {
-    // Parallel search for US and German markets
-    const [usResponse, deResponse] = await Promise.all([
-      // US search
+    // Parallel search across ALL global markets
+    const searchPromises = globalQueries.map(({ query, lang, country, name }) =>
       fetch(`https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          queries: usQuery,
-          maxPagesPerQuery: 3,
-          resultsPerPage: 50,
-          languageCode: 'en',
-          countryCode: 'us',
-          mobileResults: false,
-        }),
-      }),
-      // German/European search
-      fetch(`https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          queries: deQuery,
+          queries: query,
           maxPagesPerQuery: 2,
           resultsPerPage: 30,
-          languageCode: 'de',
-          countryCode: 'de',
+          languageCode: lang,
+          countryCode: country,
           mobileResults: false,
         }),
-      }),
-    ]);
+      }).then(async (res) => ({ name, response: res }))
+        .catch((err) => ({ name, error: err.message }))
+    );
 
-    const response = usResponse; // Use usResponse for error checking below
+    const responses = await Promise.all(searchPromises);
 
-    // Process both US and DE results
+    // Process ALL global results
     let allOrganicResults: any[] = [];
     
-    if (usResponse.ok) {
-      const usResults = await usResponse.json();
-      if (Array.isArray(usResults)) {
-        const usOrganic = usResults.flatMap((page: any) => page.organicResults || []);
-        console.log('[Apify] US organic results:', usOrganic.length);
-        allOrganicResults.push(...usOrganic);
+    for (const result of responses) {
+      if ('error' in result) {
+        console.error(`[Apify] ${result.name} search failed:`, result.error);
+        continue;
       }
-    } else {
-      console.error('[Apify] US search failed:', usResponse.status);
+      
+      const { name, response } = result;
+      if (response.ok) {
+        try {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            const organic = data.flatMap((page: any) => page.organicResults || []);
+            console.log(`[Apify] ${name} organic results:`, organic.length);
+            allOrganicResults.push(...organic);
+          }
+        } catch (e) {
+          console.error(`[Apify] ${name} parse error:`, e);
+        }
+      } else {
+        console.error(`[Apify] ${name} search failed:`, response.status);
+      }
     }
     
-    if (deResponse.ok) {
-      const deResults = await deResponse.json();
-      if (Array.isArray(deResults)) {
-        const deOrganic = deResults.flatMap((page: any) => page.organicResults || []);
-        console.log('[Apify] DE organic results:', deOrganic.length);
-        allOrganicResults.push(...deOrganic);
-      }
-    } else {
-      console.error('[Apify] DE search failed:', deResponse.status);
-    }
-    
-    console.log('[Apify] Total marketplace organic results:', allOrganicResults.length);
+    console.log('[Apify] Total global marketplace results:', allOrganicResults.length);
 
     const filtered = allOrganicResults
       .filter((r: any) => {
@@ -419,6 +429,8 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
                 'CAD': 0.74,  // Canadian Dollar to USD
                 'AUD': 0.65,  // Australian Dollar to USD
                 'CHF': 1.12,  // Swiss Franc to USD
+                'JPY': 0.0067, // Japanese Yen to USD
+                'CNY': 0.14,  // Chinese Yuan to USD
               };
               
               function normalizePriceText(text) {
@@ -445,13 +457,19 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
                 } else if (/CHF/i.test(trimmed)) {
                   conversionRate = CURRENCY_TO_USD['CHF'];
                   currency = 'CHF';
+                } else if (/¥|JPY|円/i.test(trimmed)) {
+                  conversionRate = CURRENCY_TO_USD['JPY'];
+                  currency = 'JPY';
+                } else if (/CNY|RMB|元/i.test(trimmed)) {
+                  conversionRate = CURRENCY_TO_USD['CNY'];
+                  currency = 'CNY';
                 }
                 
                 // Remove currency symbols
                 const cleanText = trimmed
                   .replace(/US\\s*\\$/gi, '')
-                  .replace(/USD|EUR|GBP|CAD|AUD|CHF/gi, '')
-                  .replace(/[€£$¥]/g, '')
+                  .replace(/USD|EUR|GBP|CAD|AUD|CHF|JPY|CNY|RMB/gi, '')
+                  .replace(/[€£$¥円元]/g, '')
                   .replace(/CA\\$|C\\$|AU\\$|A\\$/gi, '');
                 
                 const numericMatch = cleanText.match(/([0-9]+[0-9.,\\p{Zs}]*)/u);
