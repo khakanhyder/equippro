@@ -904,27 +904,51 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
           {priceData && (
             <div className="p-4 border rounded-lg space-y-3 bg-muted/30" data-testid="price-context">
               {priceData.new_min !== null && priceData.new_max !== null && (
-                <div className="flex justify-between text-sm" data-testid="price-new">
-                  <span className="text-muted-foreground">New:</span>
-                  <span className="font-medium">
-                    ${priceData.new_min?.toLocaleString()} - ${priceData.new_max?.toLocaleString()}
-                  </span>
+                <div className="space-y-1" data-testid="price-new">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">New {priceData.new_count > 0 ? `(${priceData.new_count} listings)` : ''}:</span>
+                    <span className="font-medium">
+                      ${priceData.new_min?.toLocaleString()} - ${priceData.new_max?.toLocaleString()}
+                    </span>
+                  </div>
+                  {priceData.new_avg && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Average:</span>
+                      <span className="font-semibold text-foreground">${priceData.new_avg?.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
               )}
               {priceData.refurbished_min !== null && priceData.refurbished_max !== null && (
-                <div className="flex justify-between text-sm" data-testid="price-refurbished">
-                  <span className="text-muted-foreground">Refurbished:</span>
-                  <span className="font-medium">
-                    ${priceData.refurbished_min?.toLocaleString()} - ${priceData.refurbished_max?.toLocaleString()}
-                  </span>
+                <div className="space-y-1" data-testid="price-refurbished">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Refurbished {priceData.refurbished_count > 0 ? `(${priceData.refurbished_count} listings)` : ''}:</span>
+                    <span className="font-medium">
+                      ${priceData.refurbished_min?.toLocaleString()} - ${priceData.refurbished_max?.toLocaleString()}
+                    </span>
+                  </div>
+                  {priceData.refurbished_avg && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Average:</span>
+                      <span className="font-semibold text-foreground">${priceData.refurbished_avg?.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
               )}
               {priceData.used_min !== null && priceData.used_max !== null && (
-                <div className="flex justify-between text-sm" data-testid="price-used">
-                  <span className="text-muted-foreground">Used:</span>
-                  <span className="font-medium">
-                    ${priceData.used_min?.toLocaleString()} - ${priceData.used_max?.toLocaleString()}
-                  </span>
+                <div className="space-y-1" data-testid="price-used">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Used {priceData.used_count > 0 ? `(${priceData.used_count} listings)` : ''}:</span>
+                    <span className="font-medium">
+                      ${priceData.used_min?.toLocaleString()} - ${priceData.used_max?.toLocaleString()}
+                    </span>
+                  </div>
+                  {priceData.used_avg && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Average:</span>
+                      <span className="font-semibold text-foreground">${priceData.used_avg?.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
               )}
               {priceData.breakdown && (

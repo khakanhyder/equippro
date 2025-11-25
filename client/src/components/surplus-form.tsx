@@ -798,22 +798,43 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
               )}
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">New</p>
+                  <p className="text-muted-foreground">
+                    New {priceData.new_count > 0 ? `(${priceData.new_count})` : ''}
+                  </p>
                   <p className="font-semibold">
                     {formatPrice(priceData.new_min)} - {formatPrice(priceData.new_max)}
                   </p>
+                  {priceData.new_avg && (
+                    <p className="text-xs text-muted-foreground">
+                      Avg: <span className="text-foreground font-medium">{formatPrice(priceData.new_avg)}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Refurbished</p>
+                  <p className="text-muted-foreground">
+                    Refurbished {priceData.refurbished_count > 0 ? `(${priceData.refurbished_count})` : ''}
+                  </p>
                   <p className="font-semibold">
                     {formatPrice(priceData.refurbished_min)} - {formatPrice(priceData.refurbished_max)}
                   </p>
+                  {priceData.refurbished_avg && (
+                    <p className="text-xs text-muted-foreground">
+                      Avg: <span className="text-foreground font-medium">{formatPrice(priceData.refurbished_avg)}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Used</p>
+                  <p className="text-muted-foreground">
+                    Used {priceData.used_count > 0 ? `(${priceData.used_count})` : ''}
+                  </p>
                   <p className="font-semibold">
                     {formatPrice(priceData.used_min)} - {formatPrice(priceData.used_max)}
                   </p>
+                  {priceData.used_avg && (
+                    <p className="text-xs text-muted-foreground">
+                      Avg: <span className="text-foreground font-medium">{formatPrice(priceData.used_avg)}</span>
+                    </p>
+                  )}
                 </div>
               </div>
               <p className="text-xs text-muted-foreground italic">{priceData.breakdown}</p>

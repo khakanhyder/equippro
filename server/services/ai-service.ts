@@ -154,6 +154,7 @@ export function sanitizePriceContext(cached: { priceRanges: any; priceSource: an
 export async function estimatePrice(brand: string, model: string, category: string, condition: string) {
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
+    temperature: 0, // Consistent results for same input
     messages: [
       {
         role: "user",
