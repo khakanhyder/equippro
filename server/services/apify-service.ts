@@ -128,6 +128,22 @@ export async function searchPDFsAndWeb(brand: string, model: string): Promise<Ap
   }
 }
 
+// Comprehensive list of known lab equipment marketplaces worldwide
+const KNOWN_MARKETPLACES = [
+  // US Marketplaces
+  'ebay.com', 'labx.com', 'biocompare.com', 'thomasnet.com', 'labwrench.com',
+  'equipnet.com', 'machinio.com', 'radwell.com', 'picclick.com', 'dotmed.com',
+  'usascientific.com', 'fishersci.com', 'sigmaaldrich.com', 'thelabworldgroup.com',
+  'americanlaboratorytrading.com', 'newlifescientific.com', 'scientific-equipment.com',
+  'reuzeit.com', 'questpair.com', 'ssllc.com', 'banebio.com', 'alibaba.com',
+  // German/European Marketplaces
+  'fishersci.de', 'neolab.de', 'carlroth.de', 'vwr.de', 'merckmillipore.de',
+  'labmarket.de', 'omnilab.de', 'labexchange.de', 'laborhandel.de',
+  'fishersci.co.uk', 'vwr.com', 'agilent.com', 'thermofisher.com',
+  // Other International
+  'ebay.de', 'ebay.co.uk', 'ebay.ca', 'ebay.com.au',
+];
+
 export async function searchMarketplaceListings(brand: string, model: string): Promise<ApifySearchResult[]> {
   if (!APIFY_TOKEN) {
     console.warn('APIFY_API_TOKEN not configured');
@@ -138,39 +154,70 @@ export async function searchMarketplaceListings(brand: string, model: string): P
   const normalizedBrand = normalizeSearchTerm(brand);
   const normalizedModel = normalizeSearchTerm(model);
 
-  const query = `"${normalizedBrand}" "${normalizedModel}" buy OR price OR "for sale"`;
+  // Run parallel searches for US and international markets
+  const usQuery = `"${normalizedBrand}" "${normalizedModel}" buy OR price OR "for sale"`;
+  const deQuery = `"${normalizedBrand}" "${normalizedModel}" kaufen OR preis`;
   
-  console.log('[Apify] Searching marketplace for (normalized):', query);
+  console.log('[Apify] Searching marketplace (US + DE):', { usQuery, deQuery });
   
   try {
-    const response = await fetch(`https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        queries: query,
-        maxPagesPerQuery: 3,
-        resultsPerPage: 40,
-        languageCode: 'en',
-        countryCode: 'us',
-        mobileResults: false,
+    // Parallel search for US and German markets
+    const [usResponse, deResponse] = await Promise.all([
+      // US search
+      fetch(`https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          queries: usQuery,
+          maxPagesPerQuery: 3,
+          resultsPerPage: 50,
+          languageCode: 'en',
+          countryCode: 'us',
+          mobileResults: false,
+        }),
       }),
-    });
+      // German/European search
+      fetch(`https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          queries: deQuery,
+          maxPagesPerQuery: 2,
+          resultsPerPage: 30,
+          languageCode: 'de',
+          countryCode: 'de',
+          mobileResults: false,
+        }),
+      }),
+    ]);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[Apify] Marketplace search API Error:', response.status, errorText);
-      throw new Error(`Apify API returned ${response.status}: ${errorText.substring(0, 200)}`);
+    const response = usResponse; // Use usResponse for error checking below
+
+    // Process both US and DE results
+    let allOrganicResults: any[] = [];
+    
+    if (usResponse.ok) {
+      const usResults = await usResponse.json();
+      if (Array.isArray(usResults)) {
+        const usOrganic = usResults.flatMap((page: any) => page.organicResults || []);
+        console.log('[Apify] US organic results:', usOrganic.length);
+        allOrganicResults.push(...usOrganic);
+      }
+    } else {
+      console.error('[Apify] US search failed:', usResponse.status);
     }
     
-    const results = await response.json();
-    console.log('[Apify] Marketplace raw results count:', results?.length || 0);
-    
-    if (!Array.isArray(results)) {
-      console.error('[Apify] Unexpected marketplace response format:', results);
-      throw new Error('Unexpected response format from search service');
+    if (deResponse.ok) {
+      const deResults = await deResponse.json();
+      if (Array.isArray(deResults)) {
+        const deOrganic = deResults.flatMap((page: any) => page.organicResults || []);
+        console.log('[Apify] DE organic results:', deOrganic.length);
+        allOrganicResults.push(...deOrganic);
+      }
+    } else {
+      console.error('[Apify] DE search failed:', deResponse.status);
     }
-
-    const allOrganicResults = results.flatMap((page: any) => page.organicResults || []);
+    
     console.log('[Apify] Total marketplace organic results:', allOrganicResults.length);
 
     const filtered = allOrganicResults
@@ -212,25 +259,20 @@ export async function searchMarketplaceListings(brand: string, model: string): P
         
         const hasBrand = hasBrandInTitle || hasBrandInUrl || hasBrandInDescription;
         
-        const isMarketplace = url.includes('ebay.com/itm/') || 
-                              url.includes('labx.com/item/') || 
-                              url.includes('biocompare.com') ||
-                              url.includes('thomasnet.com') ||
-                              url.includes('labwrench.com') ||
-                              url.includes('equipnet.com') ||
-                              url.includes('reuzeit.com/product/') ||
-                              url.includes('questpair.com/marketplace/') ||
-                              url.includes('ssllc.com/catalog/') ||
-                              url.includes('banebio.com/product/') ||
-                              url.includes('machinio.com') ||
-                              url.includes('radwell.com') ||
-                              url.includes('picclick.com');
+        // Check if URL is from any known marketplace
+        const isMarketplace = KNOWN_MARKETPLACES.some(domain => url.includes(domain));
         
         const hasPriceIndicator = title.includes('price') || 
                                   title.includes('$') || 
+                                  title.includes('€') ||
                                   title.includes('buy') ||
                                   title.includes('sale') ||
-                                  title.includes('usd');
+                                  title.includes('shop') ||
+                                  title.includes('kaufen') ||  // German: buy
+                                  title.includes('preis') ||   // German: price
+                                  title.includes('bestellen') || // German: order
+                                  title.includes('usd') ||
+                                  title.includes('eur');
         
         // Prioritize results that have both brand and are from known marketplaces
         const isRelevant = (isMarketplace || hasPriceIndicator);
@@ -251,10 +293,19 @@ export async function searchMarketplaceListings(brand: string, model: string): P
 
     console.log('[Apify] Marketplace filtered results count:', filtered.length);
     
-    // Increased from 4 to 12 URLs for better marketplace data coverage
-    const limited = filtered.slice(0, 12);
-    if (filtered.length > 12) {
-      console.log('[Apify] Limited to 12 URLs for realistic price data (from', filtered.length, 'found)');
+    // Deduplicate URLs (same page might appear in both US and DE searches)
+    const seenUrls = new Set<string>();
+    const deduped = filtered.filter((r: any) => {
+      const urlBase = r.url.split('?')[0].toLowerCase(); // Ignore query params for dedup
+      if (seenUrls.has(urlBase)) return false;
+      seenUrls.add(urlBase);
+      return true;
+    });
+    
+    // Increased to 25 URLs for comprehensive marketplace coverage (US + international)
+    const limited = deduped.slice(0, 25);
+    if (deduped.length > 25) {
+      console.log('[Apify] Limited to 25 URLs for price data (from', deduped.length, 'unique found)');
     }
     
     return limited;
@@ -348,21 +399,47 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
                 title = await page.title();
               }
               
+              // Approximate currency conversion rates (updated periodically)
+              const CURRENCY_TO_USD = {
+                'EUR': 1.08,  // Euro to USD
+                'GBP': 1.26,  // British Pound to USD
+                'CAD': 0.74,  // Canadian Dollar to USD
+                'AUD': 0.65,  // Australian Dollar to USD
+                'CHF': 1.12,  // Swiss Franc to USD
+              };
+              
               function normalizePriceText(text) {
                 if (!text) return null;
                 
                 const trimmed = text.trim();
                 
-                const foreignCurrency = /\\b(CAD|EUR|GBP|AUD|JPY|CNY|NZD|MXN)\\b|CA\\$|C\\$|AU\\$|A\\$|NZ\\$|MX\\$|£|€|¥/i;
-                if (foreignCurrency.test(trimmed)) {
-                  console.warn('Non-USD currency detected, skipping:', text.substring(0, 50));
-                  return null;
+                // Detect currency and get conversion rate
+                let conversionRate = 1.0;
+                let currency = 'USD';
+                
+                if (/€|EUR/i.test(trimmed)) {
+                  conversionRate = CURRENCY_TO_USD['EUR'];
+                  currency = 'EUR';
+                } else if (/£|GBP/i.test(trimmed)) {
+                  conversionRate = CURRENCY_TO_USD['GBP'];
+                  currency = 'GBP';
+                } else if (/CA\\$|C\\$|CAD/i.test(trimmed)) {
+                  conversionRate = CURRENCY_TO_USD['CAD'];
+                  currency = 'CAD';
+                } else if (/AU\\$|A\\$|AUD/i.test(trimmed)) {
+                  conversionRate = CURRENCY_TO_USD['AUD'];
+                  currency = 'AUD';
+                } else if (/CHF/i.test(trimmed)) {
+                  conversionRate = CURRENCY_TO_USD['CHF'];
+                  currency = 'CHF';
                 }
                 
+                // Remove currency symbols
                 const cleanText = trimmed
-                  .replace(/US\\s*\\$/gi, '$')
-                  .replace(/USD/gi, '$')
-                  .replace(/\\$/g, '');
+                  .replace(/US\\s*\\$/gi, '')
+                  .replace(/USD|EUR|GBP|CAD|AUD|CHF/gi, '')
+                  .replace(/[€£$¥]/g, '')
+                  .replace(/CA\\$|C\\$|AU\\$|A\\$/gi, '');
                 
                 const numericMatch = cleanText.match(/([0-9]+[0-9.,\\p{Zs}]*)/u);
                 if (!numericMatch) return null;
@@ -374,31 +451,46 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
                 const hasComma = lastCommaPos !== -1;
                 const hasPeriod = lastPeriodPos !== -1;
                 
+                // Handle European number format (1.234,56) vs US format (1,234.56)
                 if (hasComma && hasPeriod && lastCommaPos > lastPeriodPos) {
+                  // European format: 1.234,56 -> 1234.56
                   numericPart = numericPart.replace(/\\./g, '').replace(',', '.');
                 } else if (hasComma && hasPeriod) {
+                  // US format: 1,234.56 -> 1234.56
                   numericPart = numericPart.replace(/,/g, '');
                 } else if (hasComma && !hasPeriod) {
                   const parts = numericPart.split(',');
                   if (parts[1] && parts[1].length === 2) {
+                    // European decimal: 1234,56 -> 1234.56
                     numericPart = numericPart.replace(',', '.');
                   } else {
+                    // Thousands separator: 1,234 -> 1234
                     numericPart = numericPart.replace(/,/g, '');
                   }
                 } else if (!hasComma && hasPeriod) {
                   const periodCount = (numericPart.match(/\\./g) || []).length;
                   if (periodCount > 1) {
+                    // European thousands: 1.234.567 -> 1234567
                     numericPart = numericPart.replace(/\\./g, '');
                   } else if (periodCount === 1) {
                     const parts = numericPart.split('.');
                     if (parts[1] && parts[1].length === 3) {
+                      // European thousands: 1.234 -> 1234
                       numericPart = numericPart.replace(/\\./, '');
                     }
                   }
                 }
                 
                 const parsed = parseFloat(numericPart);
-                return isNaN(parsed) ? null : parsed;
+                if (isNaN(parsed)) return null;
+                
+                // Convert to USD
+                const usdPrice = parsed * conversionRate;
+                if (currency !== 'USD') {
+                  console.log('Currency conversion:', parsed, currency, '->', usdPrice.toFixed(2), 'USD');
+                }
+                
+                return usdPrice;
               }
               
               const price = normalizePriceText(priceText);
