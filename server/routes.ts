@@ -382,17 +382,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { normalizeSearchTerm } = await import('./services/apify-service');
       brand = normalizeSearchTerm(brand);
       model = normalizeSearchTerm(model);
+      
+      // Normalize category - try exact match first, then lowercase
+      const normalizedCategory = category ? (category as string).toLowerCase() : null;
 
       // Check for cached data (AI or marketplace) that's not expired
-      const cached = await db.select()
+      // Try with provided category first, then without category filter as fallback
+      let cached = await db.select()
         .from(priceContextCache)
         .where(and(
           eq(priceContextCache.brand, brand),
           eq(priceContextCache.model, model),
-          eq(priceContextCache.category, (category as string) || 'Unknown'),
+          normalizedCategory 
+            ? sql`LOWER(${priceContextCache.category}) = ${normalizedCategory}`
+            : sql`true`, // If no category provided, match any
           sql`${priceContextCache.expiresAt} > NOW()`
         ))
         .limit(1);
+      
+      // If no match and category was provided, try without category filter
+      if (cached.length === 0 && normalizedCategory) {
+        cached = await db.select()
+          .from(priceContextCache)
+          .where(and(
+            eq(priceContextCache.brand, brand),
+            eq(priceContextCache.model, model),
+            sql`${priceContextCache.expiresAt} > NOW()`
+          ))
+          .limit(1);
+      }
 
       const hasMarketplaceData = cached.length > 0 && cached[0].hasMarketplaceData === 'true';
       const hasAnyCache = cached.length > 0;

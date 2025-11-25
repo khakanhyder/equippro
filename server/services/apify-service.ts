@@ -168,8 +168,9 @@ export async function searchMarketplaceListings(brand: string, model: string): P
   const normalizedBrand = normalizeSearchTerm(brand);
   const normalizedModel = normalizeSearchTerm(model);
 
-  // Run parallel searches across ALL major global markets
+  // Run parallel searches across ALL major global markets with condition-specific queries
   const globalQueries = [
+    // General marketplace searches
     { query: `"${normalizedBrand}" "${normalizedModel}" buy price "for sale"`, lang: 'en', country: 'us', name: 'US' },
     { query: `"${normalizedBrand}" "${normalizedModel}" buy price shop`, lang: 'en', country: 'gb', name: 'UK' },
     { query: `"${normalizedBrand}" "${normalizedModel}" kaufen preis`, lang: 'de', country: 'de', name: 'DE' },
@@ -178,6 +179,12 @@ export async function searchMarketplaceListings(brand: string, model: string): P
     { query: `"${normalizedBrand}" "${normalizedModel}" buy price`, lang: 'en', country: 'ca', name: 'CA' },
     { query: `"${normalizedBrand}" "${normalizedModel}" 購入 価格`, lang: 'ja', country: 'jp', name: 'JP' },
     { query: `"${normalizedBrand}" "${normalizedModel}" comprare prezzo`, lang: 'it', country: 'it', name: 'IT' },
+    // NEW equipment - target official distributors
+    { query: `"${normalizedBrand}" "${normalizedModel}" site:fishersci.com OR site:thermofisher.com OR site:vwr.com price`, lang: 'en', country: 'us', name: 'US-Official' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" "brand new" OR "factory new" buy price`, lang: 'en', country: 'us', name: 'US-New' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" new "add to cart" OR "in stock" price`, lang: 'en', country: 'us', name: 'US-NewStock' },
+    // Refurbished specific search
+    { query: `"${normalizedBrand}" "${normalizedModel}" refurbished certified price`, lang: 'en', country: 'us', name: 'US-Refurb' },
   ];
   
   console.log('[Apify] Searching', globalQueries.length, 'global markets for:', normalizedBrand, normalizedModel);
@@ -345,8 +352,28 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       return true;
     });
     
+    // Prioritize official NEW sellers over used marketplaces
+    const officialNewSellers = ['thermofisher', 'fishersci', 'sigmaaldrich', 'vwr', 'agilent', 
+      'bio-rad', 'biorad', 'carlroth', 'merck', 'beckman', 'perkinelmer', 'waters', 'shimadzu',
+      'sartorius', 'mettler-toledo', 'hach', 'illumina', 'roche', 'pipette.com', 'usascientific', 
+      'coleparmer', 'grainger', 'millipore', 'eppendorf', 'tecan'];
+    
+    const officialUrls = deduped.filter((r: any) => 
+      officialNewSellers.some(seller => r.url.toLowerCase().includes(seller))
+    );
+    const otherUrls = deduped.filter((r: any) => 
+      !officialNewSellers.some(seller => r.url.toLowerCase().includes(seller))
+    );
+    
+    // Take up to 5 from official sellers first, then fill rest from others
+    const prioritized = [...officialUrls.slice(0, 5), ...otherUrls].slice(0, 15);
+    
+    if (officialUrls.length > 0) {
+      console.log('[Apify] Found', officialUrls.length, 'official seller URLs, prioritizing', Math.min(5, officialUrls.length));
+    }
+    
     // Limit to 15 URLs for more data while staying within timeout
-    const limited = deduped.slice(0, 15);
+    const limited = prioritized;
     if (deduped.length > 15) {
       console.log('[Apify] Limited to 15 URLs for price data (from', deduped.length, 'unique found)');
     }
@@ -477,12 +504,58 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
               }
               
               const price = normalizePriceText(priceText);
-              const bodyText = $('body').text().toLowerCase();
+              const titleLower = title.toLowerCase();
+              const hostname = new URL(url).hostname.toLowerCase();
               
-              let condition = 'used';
-              if (/refurbished|refurb|certified refurbished/i.test(bodyText)) {
+              // Get product-specific text (title + meta description + product area only)
+              const productText = (title + ' ' + ($('meta[name="description"]').attr('content') || '') + ' ' + 
+                ($('.product-condition, .item-condition, [class*="condition"]').text() || '')).toLowerCase();
+              
+              // Official manufacturers/distributors sell NEW by default
+              const officialSellers = ['thermofisher', 'fishersci', 'sigmaaldrich', 'vwr', 'agilent', 'eppendorf', 
+                'bio-rad', 'biorad', 'carlroth', 'merck', 'tecan', 'beckman', 'perkinelmer', 'waters', 'shimadzu',
+                'sartorius', 'mettler-toledo', 'mettlertoledo', 'hach', 'illumina', 'roche', 'pipette.com',
+                'usascientific', 'usscientific', 'coleparmer', 'thomassci', 'grainger', 'wwgroupinc', 'millipore'];
+              const isOfficialSeller = officialSellers.some(seller => hostname.includes(seller));
+              
+              // Condition indicators - check TITLE ONLY first (most reliable)
+              const refurbTitleMatch = /refurbished|refurb|certified pre-owned|reconditioned|renewed/i.test(titleLower);
+              const usedTitleMatch = /\bused\b|pre-owned|preowned|second.?hand|previously owned/i.test(titleLower);
+              const newTitleMatch = /\bbrand new\b|new in box|factory new|factory sealed|\bunused\b|\bnib\b/i.test(titleLower);
+              
+              // Marketplace-specific condition detection
+              const isEbay = hostname.includes('ebay');
+              const isLabx = hostname.includes('labx');
+              const isDotmed = hostname.includes('dotmed');
+              const isBimedis = hostname.includes('bimedis');
+              const isUsedEquipmentMarketplace = isEbay || isLabx || isDotmed || isBimedis || 
+                hostname.includes('biosurplus') || hostname.includes('machinio') || hostname.includes('used-line');
+              
+              let condition = 'used'; // Default for unknown
+              
+              // Priority 1: Check title for explicit condition (most reliable)
+              if (refurbTitleMatch) {
                 condition = 'refurbished';
-              } else if (/brand new|new in box|factory new|unused|nib/i.test(bodyText)) {
+              } else if (usedTitleMatch) {
+                condition = 'used';
+              } else if (newTitleMatch) {
+                condition = 'new';
+              } 
+              // Priority 2: Official sellers default to NEW
+              else if (isOfficialSeller) {
+                condition = 'new';
+              }
+              // Priority 3: Used equipment marketplaces default to refurbished/used
+              else if (isUsedEquipmentMarketplace) {
+                // Check product-specific text for refurbished
+                if (/refurbished|certified/i.test(productText)) {
+                  condition = 'refurbished';
+                } else {
+                  condition = 'used';
+                }
+              }
+              // Priority 4: Other sellers - check for new indicators
+              else if (/\bnew\b|in stock|\badd to cart\b|\bbuy now\b/i.test(productText)) {
                 condition = 'new';
               }
               
