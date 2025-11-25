@@ -24,7 +24,7 @@ import {
 import { useWishlistMutations } from "@/hooks/use-wishlist";
 import { usePriceContext } from "@/hooks/use-ai-analysis";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink, X, BookmarkPlus } from "lucide-react";
+import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink, X, BookmarkPlus, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { PriceEstimate } from "@/hooks/use-ai-analysis";
 import { analyzeEquipmentImages, searchExternalSources } from "@/lib/ai-service";
@@ -900,9 +900,35 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
               {isFetchingPrices ? 'Scraping marketplace...' : 'Get Market Prices'}
             </Button>
           </div>
+          
+          {/* Live Scraping Progress Indicator */}
+          {(priceData?.scraping_in_background || isPollingScrape) && !priceData?.has_marketplace_data && (
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-2" data-testid="scraping-progress">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  Searching Global Marketplaces...
+                </span>
+              </div>
+              <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
+                <p>Scanning eBay, LabX, Fisher Scientific, BioSurplus and more</p>
+                <p className="opacity-75">This may take up to 90 seconds for comprehensive results</p>
+              </div>
+              <div className="w-full bg-blue-200 dark:bg-blue-900 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-blue-600 h-1.5 rounded-full animate-pulse" style={{ width: '60%' }} />
+              </div>
+            </div>
+          )}
 
           {priceData && (
             <div className="p-4 border rounded-lg space-y-4 bg-muted/30" data-testid="price-context">
+              {/* Data Source Badge */}
+              {priceData.has_marketplace_data ? (
+                <Badge variant="default" className="bg-green-600 hover:bg-green-700">Real Marketplace Data</Badge>
+              ) : (
+                <Badge variant="secondary">AI Estimate</Badge>
+              )}
+              
               {/* New Condition */}
               {priceData.new_min !== null && priceData.new_max !== null && (
                 <div className="space-y-2" data-testid="price-new">
