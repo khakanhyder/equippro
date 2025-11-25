@@ -259,8 +259,8 @@ export async function searchMarketplaceListings(brand: string, model: string): P
         
         const hasBrand = hasBrandInTitle || hasBrandInUrl || hasBrandInDescription;
         
-        // Check if URL is from any known marketplace
-        const isMarketplace = KNOWN_MARKETPLACES.some(domain => url.includes(domain));
+        // Check if URL is from any known marketplace (prioritized)
+        const isKnownMarketplace = KNOWN_MARKETPLACES.some(domain => url.includes(domain));
         
         const hasPriceIndicator = title.includes('price') || 
                                   title.includes('$') || 
@@ -272,18 +272,31 @@ export async function searchMarketplaceListings(brand: string, model: string): P
                                   title.includes('preis') ||   // German: price
                                   title.includes('bestellen') || // German: order
                                   title.includes('usd') ||
-                                  title.includes('eur');
+                                  title.includes('eur') ||
+                                  description.includes('price') ||
+                                  description.includes('$') ||
+                                  description.includes('€');
         
-        // Prioritize results that have both brand and are from known marketplaces
-        const isRelevant = (isMarketplace || hasPriceIndicator);
+        // Exclude non-commercial pages (manuals, PDFs, forums, Wikipedia, etc.)
+        const isNonCommercial = url.includes('.pdf') ||
+                                 url.includes('manual') ||
+                                 url.includes('datasheet') ||
+                                 url.includes('wikipedia') ||
+                                 url.includes('researchgate') ||
+                                 url.includes('youtube.com') ||
+                                 url.includes('reddit.com') ||
+                                 url.includes('forum');
         
-        // If it's a marketplace, we're more lenient on brand matching
-        // Otherwise, require brand presence for better accuracy
-        if (isMarketplace) {
-          return isRelevant;
-        } else {
-          return isRelevant && hasBrand;
+        if (isNonCommercial) {
+          console.log('[Apify] Skipping non-commercial page:', url);
+          return false;
         }
+        
+        // BROAD SEARCH: Accept ANY page with price indicators or from known marketplaces
+        // This captures all Google results that could have pricing
+        const isRelevant = isKnownMarketplace || hasPriceIndicator || hasBrand;
+        
+        return isRelevant;
       })
       .map((r: any) => ({
         url: r.url,
@@ -302,10 +315,10 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       return true;
     });
     
-    // Increased to 25 URLs for comprehensive marketplace coverage (US + international)
-    const limited = deduped.slice(0, 25);
-    if (deduped.length > 25) {
-      console.log('[Apify] Limited to 25 URLs for price data (from', deduped.length, 'unique found)');
+    // Increased to 40 URLs for maximum marketplace coverage (broad Google search)
+    const limited = deduped.slice(0, 40);
+    if (deduped.length > 40) {
+      console.log('[Apify] Limited to 40 URLs for price data (from', deduped.length, 'unique found)');
     }
     
     return limited;
