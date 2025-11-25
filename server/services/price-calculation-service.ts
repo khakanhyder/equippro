@@ -102,14 +102,39 @@ export async function calculateMarketPrice(brand: string, model: string, categor
     
     console.log('[PriceCalc] Scraped', scrapedListings.length, 'listings with valid prices');
     
-    if (scrapedListings.length === 0) {
-      console.log('[PriceCalc] Marketplace scraping failed, using AI estimation as fallback');
+    // Filter out listings that don't actually match the product
+    const normalizedBrand = brand.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const modelNumber = model.replace(/[^0-9]/g, '');
+    
+    const validatedListings = scrapedListings.filter(listing => {
+      if (!listing.title || listing.title.length < 5) return false;
+      
+      const normalizedTitle = listing.title.toLowerCase();
+      
+      // Must contain brand name
+      const hasBrand = normalizedTitle.includes(normalizedBrand);
+      
+      // Must contain model number (extracted digits like "5810")
+      const hasModel = modelNumber.length >= 3 && normalizedTitle.includes(modelNumber.substring(0, 4));
+      
+      if (!hasBrand && !hasModel) {
+        console.log('[PriceCalc] Filtered out wrong product:', listing.title.substring(0, 50));
+        return false;
+      }
+      
+      return true;
+    });
+    
+    console.log('[PriceCalc] Validated listings:', validatedListings.length, 'of', scrapedListings.length);
+    
+    if (validatedListings.length === 0) {
+      console.log('[PriceCalc] No valid matched listings, using AI estimation as fallback');
       return await useAIFallback(brand, model, category);
     }
 
-    const newListings = scrapedListings.filter(l => l.condition === 'new');
-    const refurbishedListings = scrapedListings.filter(l => l.condition === 'refurbished');
-    const usedListings = scrapedListings.filter(l => l.condition === 'used');
+    const newListings = validatedListings.filter(l => l.condition === 'new');
+    const refurbishedListings = validatedListings.filter(l => l.condition === 'refurbished');
+    const usedListings = validatedListings.filter(l => l.condition === 'used');
 
     const newPricing = calculateConditionPricing(newListings);
     const refurbishedPricing = calculateConditionPricing(refurbishedListings);
@@ -137,7 +162,7 @@ export async function calculateMarketPrice(brand: string, model: string, categor
       new: newPricing,
       refurbished: refurbishedPricing,
       used: usedPricing,
-      totalListingsFound: scrapedListings.length,
+      totalListingsFound: validatedListings.length,
       source: `Market data from ${sourceSummary}`,
       breakdown: breakdownText
     };

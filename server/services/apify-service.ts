@@ -345,10 +345,10 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       return true;
     });
     
-    // Limit to 5 URLs to avoid Apify timeout
-    const limited = deduped.slice(0, 5);
-    if (deduped.length > 5) {
-      console.log('[Apify] Limited to 5 URLs for price data (from', deduped.length, 'unique found)');
+    // Limit to 8 URLs for fast scraping
+    const limited = deduped.slice(0, 8);
+    if (deduped.length > 8) {
+      console.log('[Apify] Limited to 8 URLs for price data (from', deduped.length, 'unique found)');
     }
     
     return limited;
@@ -368,212 +368,134 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
     return [];
   }
 
-  console.log('[Apify] Scraping prices from', urls.length, 'URLs using Playwright with residential proxies');
+  console.log('[Apify] Fast scraping', urls.length, 'URLs using Cheerio');
   
   try {
-    // Timeout increased to 90s for 10 URLs
-    const response = await fetch(`https://api.apify.com/v2/acts/apify~playwright-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=90`, {
+    // Use Cheerio scraper for faster HTML parsing (no JavaScript rendering)
+    const response = await fetch(`https://api.apify.com/v2/acts/apify~cheerio-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=90`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         startUrls: urls.map(url => ({ url })),
         maxRequestsPerCrawl: urls.length,
-        maxConcurrency: 5, // Parallel scraping
-        maxRequestRetries: 1, // Quick retries only
-        navigationTimeoutSecs: 15, // Fast page load timeout
+        maxConcurrency: 20, // Very high concurrency for Cheerio
+        maxRequestRetries: 1,
+        requestTimeoutSecs: 15,
         proxyConfiguration: {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL'],
           apifyProxyCountry: 'US'
         },
         pageFunction: `
-          async function pageFunction({ page, request }) {
+          async function pageFunction(context) {
+            const { $, request } = context;
             const url = request.url;
             const hostname = new URL(url).hostname;
-            
-            // Fast scraping - minimal wait time
-            await page.waitForLoadState('domcontentloaded');
-            await page.waitForTimeout(500);
             
             let priceText = '';
             let title = '';
             
             try {
-              if (hostname.includes('ebay.com')) {
-                const priceSelectors = [
-                  '[data-testid="x-price-primary"] .ux-textspans',
-                  '.x-price-primary .ux-textspans',
-                  '[itemprop="price"]',
-                  '.notranslate.vi-VR-cvipPrice'
-                ];
-                for (const selector of priceSelectors) {
-                  const element = await page.locator(selector).first();
-                  if (await element.count() > 0) {
-                    priceText = await element.textContent() || '';
-                    if (priceText) break;
-                  }
+              // Find price using various selectors
+              const priceSelectors = [
+                '[itemprop="price"]',
+                '.price:first', '.Price:first',
+                '[class*="price"]:first', '[class*="Price"]:first',
+                '[data-price]', '#price',
+                '.sale-price:first', '.current-price:first',
+                '.product-price:first', '.listing-price:first'
+              ];
+              
+              for (const selector of priceSelectors) {
+                const el = $(selector);
+                if (el.length > 0) {
+                  priceText = el.first().text().trim();
+                  if (priceText && /[0-9]/.test(priceText)) break;
                 }
-                title = await page.locator('h1.x-item-title__mainTitle, h1[itemprop="name"]').first().textContent() || '';
-              } else if (hostname.includes('labx.com')) {
-                priceText = await page.locator('.price, [class*="price"]').first().textContent() || '';
-                title = await page.locator('h1, .product-title').first().textContent() || '';
-              } else {
-                const priceSelectors = [
-                  '[itemprop="price"]',
-                  '.price', '.Price',
-                  '[class*="price"]', '[class*="Price"]',
-                  '[data-price]', '#price',
-                  '.sale-price', '.current-price',
-                  '.product-price', '.listing-price'
-                ];
-                
-                for (const selector of priceSelectors) {
-                  const element = await page.locator(selector).first();
-                  if (await element.count() > 0) {
-                    priceText = await element.textContent() || '';
-                    if (priceText) break;
-                  }
-                }
-                
-                title = await page.locator('h1').first().textContent() || '';
               }
               
-              if (!title) {
-                title = await page.title();
-              }
+              // Get title
+              title = $('h1:first').text().trim() || $('title').text().trim();
               
-              // Approximate currency conversion rates (updated periodically)
+              // Currency conversion rates
               const CURRENCY_TO_USD = {
-                'EUR': 1.08,  // Euro to USD
-                'GBP': 1.26,  // British Pound to USD
-                'CAD': 0.74,  // Canadian Dollar to USD
-                'AUD': 0.65,  // Australian Dollar to USD
-                'CHF': 1.12,  // Swiss Franc to USD
-                'JPY': 0.0067, // Japanese Yen to USD
-                'CNY': 0.14,  // Chinese Yuan to USD
+                'EUR': 1.08, 'GBP': 1.26, 'CAD': 0.74,
+                'AUD': 0.65, 'CHF': 1.12, 'JPY': 0.0067, 'CNY': 0.14
               };
               
               function normalizePriceText(text) {
                 if (!text) return null;
-                
                 const trimmed = text.trim();
                 
-                // Detect currency and get conversion rate
                 let conversionRate = 1.0;
                 let currency = 'USD';
                 
                 if (/€|EUR/i.test(trimmed)) {
-                  conversionRate = CURRENCY_TO_USD['EUR'];
-                  currency = 'EUR';
+                  conversionRate = CURRENCY_TO_USD['EUR']; currency = 'EUR';
                 } else if (/£|GBP/i.test(trimmed)) {
-                  conversionRate = CURRENCY_TO_USD['GBP'];
-                  currency = 'GBP';
+                  conversionRate = CURRENCY_TO_USD['GBP']; currency = 'GBP';
                 } else if (/CA\\$|C\\$|CAD/i.test(trimmed)) {
-                  conversionRate = CURRENCY_TO_USD['CAD'];
-                  currency = 'CAD';
+                  conversionRate = CURRENCY_TO_USD['CAD']; currency = 'CAD';
                 } else if (/AU\\$|A\\$|AUD/i.test(trimmed)) {
-                  conversionRate = CURRENCY_TO_USD['AUD'];
-                  currency = 'AUD';
+                  conversionRate = CURRENCY_TO_USD['AUD']; currency = 'AUD';
                 } else if (/CHF/i.test(trimmed)) {
-                  conversionRate = CURRENCY_TO_USD['CHF'];
-                  currency = 'CHF';
+                  conversionRate = CURRENCY_TO_USD['CHF']; currency = 'CHF';
                 } else if (/¥|JPY|円/i.test(trimmed)) {
-                  conversionRate = CURRENCY_TO_USD['JPY'];
-                  currency = 'JPY';
-                } else if (/CNY|RMB|元/i.test(trimmed)) {
-                  conversionRate = CURRENCY_TO_USD['CNY'];
-                  currency = 'CNY';
+                  conversionRate = CURRENCY_TO_USD['JPY']; currency = 'JPY';
                 }
                 
-                // Remove currency symbols
                 const cleanText = trimmed
                   .replace(/US\\s*\\$/gi, '')
                   .replace(/USD|EUR|GBP|CAD|AUD|CHF|JPY|CNY|RMB/gi, '')
                   .replace(/[€£$¥円元]/g, '')
                   .replace(/CA\\$|C\\$|AU\\$|A\\$/gi, '');
                 
-                const numericMatch = cleanText.match(/([0-9]+[0-9.,\\p{Zs}]*)/u);
+                const numericMatch = cleanText.match(/([0-9][0-9,. ]*)/);
                 if (!numericMatch) return null;
                 
-                let numericPart = numericMatch[1].replace(/[\\p{Zs}]/gu, '');
+                let numericPart = numericMatch[1].replace(/\\s/g, '');
                 
                 const lastCommaPos = numericPart.lastIndexOf(',');
                 const lastPeriodPos = numericPart.lastIndexOf('.');
-                const hasComma = lastCommaPos !== -1;
-                const hasPeriod = lastPeriodPos !== -1;
                 
-                // Handle European number format (1.234,56) vs US format (1,234.56)
-                if (hasComma && hasPeriod && lastCommaPos > lastPeriodPos) {
-                  // European format: 1.234,56 -> 1234.56
+                if (lastCommaPos > -1 && lastPeriodPos > -1 && lastCommaPos > lastPeriodPos) {
                   numericPart = numericPart.replace(/\\./g, '').replace(',', '.');
-                } else if (hasComma && hasPeriod) {
-                  // US format: 1,234.56 -> 1234.56
+                } else if (lastCommaPos > -1 && lastPeriodPos > -1) {
                   numericPart = numericPart.replace(/,/g, '');
-                } else if (hasComma && !hasPeriod) {
+                } else if (lastCommaPos > -1) {
                   const parts = numericPart.split(',');
                   if (parts[1] && parts[1].length === 2) {
-                    // European decimal: 1234,56 -> 1234.56
                     numericPart = numericPart.replace(',', '.');
                   } else {
-                    // Thousands separator: 1,234 -> 1234
                     numericPart = numericPart.replace(/,/g, '');
-                  }
-                } else if (!hasComma && hasPeriod) {
-                  const periodCount = (numericPart.match(/\\./g) || []).length;
-                  if (periodCount > 1) {
-                    // European thousands: 1.234.567 -> 1234567
-                    numericPart = numericPart.replace(/\\./g, '');
-                  } else if (periodCount === 1) {
-                    const parts = numericPart.split('.');
-                    if (parts[1] && parts[1].length === 3) {
-                      // European thousands: 1.234 -> 1234
-                      numericPart = numericPart.replace(/\\./, '');
-                    }
                   }
                 }
                 
                 const parsed = parseFloat(numericPart);
                 if (isNaN(parsed)) return null;
-                
-                // Convert to USD
-                const usdPrice = parsed * conversionRate;
-                if (currency !== 'USD') {
-                  console.log('Currency conversion:', parsed, currency, '->', usdPrice.toFixed(2), 'USD');
-                }
-                
-                return usdPrice;
+                return parsed * conversionRate;
               }
               
               const price = normalizePriceText(priceText);
-              
-              const finalUrl = page.url();
-              const finalHostname = new URL(finalUrl).hostname;
-              
-              const bodyText = await page.locator('body').textContent() || '';
-              const pageTitle = await page.title();
-              const combinedText = (pageTitle + ' ' + bodyText).toLowerCase();
+              const bodyText = $('body').text().toLowerCase();
               
               let condition = 'used';
-              
-              if (/\\b(refurbished|refurb|certified\\s+refurbished|factory\\s+refurbished)\\b/i.test(combinedText)) {
+              if (/refurbished|refurb|certified refurbished/i.test(bodyText)) {
                 condition = 'refurbished';
-              } else if (/\\b(brand\\s+new|new\\s+in\\s+box|factory\\s+new|unused|nib)\\b/i.test(combinedText)) {
+              } else if (/brand new|new in box|factory new|unused|nib/i.test(bodyText)) {
                 condition = 'new';
-              } else if (/\\b(used|pre-owned|preowned|second\\s+hand|as-is)\\b/i.test(combinedText)) {
-                condition = 'used';
               }
               
               return {
-                url: finalUrl,
-                title: title.trim(),
+                url: url,
+                title: title,
                 price: price,
                 condition: condition,
-                source: finalHostname
+                source: hostname
               };
             } catch (err) {
-              console.error('Page function error:', err);
               return {
-                url: request.url,
+                url: url,
                 title: '',
                 price: null,
                 condition: 'used',
@@ -587,12 +509,12 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[Apify] Playwright scraping API Error:', response.status, errorText);
-      throw new Error(`Apify API returned ${response.status}: ${errorText.substring(0, 200)}`);
+      console.error('[Apify] Cheerio scraping API Error:', response.status, errorText);
+      throw new Error(`Cheerio scraping failed: ${response.status}: ${errorText.substring(0, 200)}`);
     }
     
     const results = await response.json();
-    console.log('[Apify] Playwright scraping results count:', results?.length || 0);
+    console.log('[Apify] Cheerio scraping results count:', results?.length || 0);
     
     if (!Array.isArray(results)) {
       console.error('[Apify] Unexpected playwright response format:', results);
