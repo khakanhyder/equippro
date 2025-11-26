@@ -926,12 +926,19 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
 
           {priceData && (
             <div className="p-4 border rounded-lg space-y-4 bg-muted/30" data-testid="price-context">
-              {/* Data Source Badge */}
-              {priceData.has_marketplace_data ? (
-                <Badge variant="default" className="bg-green-600 hover:bg-green-700">Real Marketplace Data</Badge>
-              ) : (
-                <Badge variant="secondary">AI Estimate</Badge>
-              )}
+              {/* Data Source Badge and Info */}
+              <div className="flex flex-wrap items-center gap-2">
+                {priceData.has_marketplace_data ? (
+                  <Badge variant="default" className="bg-green-600 hover:bg-green-700">Real Marketplace Data</Badge>
+                ) : (
+                  <Badge variant="secondary">AI Estimate</Badge>
+                )}
+                {priceData.has_marketplace_data && (priceData.new_count ?? 0) === 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    New equipment pricing typically requires distributor quotes
+                  </span>
+                )}
+              </div>
               
               {/* New Condition */}
               {priceData.new_min !== null && priceData.new_max !== null && (
