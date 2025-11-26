@@ -238,7 +238,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
 
     setIsPollingScrape(true);
     let pollCount = 0;
-    const maxPolls = 18; // Poll for up to 90 seconds (18 * 5s) to match scraping timeout
+    const maxPolls = 24; // Poll for up to 120 seconds (24 * 5s) to match extended scraping
 
     const intervalId = setInterval(async () => {
       pollCount++;

@@ -170,21 +170,30 @@ export async function searchMarketplaceListings(brand: string, model: string): P
 
   // Run parallel searches across ALL major global markets with condition-specific queries
   const globalQueries = [
-    // General marketplace searches
+    // General marketplace searches - broad coverage
     { query: `"${normalizedBrand}" "${normalizedModel}" buy price "for sale"`, lang: 'en', country: 'us', name: 'US' },
     { query: `"${normalizedBrand}" "${normalizedModel}" buy price shop`, lang: 'en', country: 'gb', name: 'UK' },
     { query: `"${normalizedBrand}" "${normalizedModel}" kaufen preis`, lang: 'de', country: 'de', name: 'DE' },
-    { query: `"${normalizedBrand}" "${normalizedModel}" acheter prix`, lang: 'fr', country: 'fr', name: 'FR' },
-    { query: `"${normalizedBrand}" "${normalizedModel}" buy price`, lang: 'en', country: 'au', name: 'AU' },
     { query: `"${normalizedBrand}" "${normalizedModel}" buy price`, lang: 'en', country: 'ca', name: 'CA' },
-    { query: `"${normalizedBrand}" "${normalizedModel}" 購入 価格`, lang: 'ja', country: 'jp', name: 'JP' },
-    { query: `"${normalizedBrand}" "${normalizedModel}" comprare prezzo`, lang: 'it', country: 'it', name: 'IT' },
-    // NEW equipment - target official distributors
-    { query: `"${normalizedBrand}" "${normalizedModel}" site:fishersci.com OR site:thermofisher.com OR site:vwr.com price`, lang: 'en', country: 'us', name: 'US-Official' },
-    { query: `"${normalizedBrand}" "${normalizedModel}" "brand new" OR "factory new" buy price`, lang: 'en', country: 'us', name: 'US-New' },
-    { query: `"${normalizedBrand}" "${normalizedModel}" new "add to cart" OR "in stock" price`, lang: 'en', country: 'us', name: 'US-NewStock' },
-    // Refurbished specific search
-    { query: `"${normalizedBrand}" "${normalizedModel}" refurbished certified price`, lang: 'en', country: 'us', name: 'US-Refurb' },
+    
+    // NEW equipment - target official distributors and new sellers
+    { query: `"${normalizedBrand}" "${normalizedModel}" site:fishersci.com OR site:thermofisher.com OR site:vwr.com`, lang: 'en', country: 'us', name: 'US-Official' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" "brand new" OR "factory sealed" price`, lang: 'en', country: 'us', name: 'US-New' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" new "in stock" buy`, lang: 'en', country: 'us', name: 'US-NewStock' },
+    
+    // REFURBISHED equipment - target quality resellers
+    { query: `"${normalizedBrand}" "${normalizedModel}" refurbished OR reconditioned price`, lang: 'en', country: 'us', name: 'US-Refurb1' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" certified pre-owned OR renewed`, lang: 'en', country: 'us', name: 'US-Refurb2' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" site:questpair.com OR site:thelabworldgroup.com OR site:banebio.com`, lang: 'en', country: 'us', name: 'US-RefurbSites' },
+    
+    // USED equipment - target secondary marketplaces
+    { query: `"${normalizedBrand}" "${normalizedModel}" used "for sale" price`, lang: 'en', country: 'us', name: 'US-Used1' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" site:ebay.com price`, lang: 'en', country: 'us', name: 'US-eBay' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" site:labx.com OR site:dotmed.com OR site:biosurplus.com`, lang: 'en', country: 'us', name: 'US-UsedSites' },
+    
+    // Additional eBay coverage (different regions for more listings)
+    { query: `"${normalizedBrand}" "${normalizedModel}" site:ebay.com`, lang: 'en', country: 'gb', name: 'UK-eBay' },
+    { query: `"${normalizedBrand}" "${normalizedModel}" site:ebay.de`, lang: 'de', country: 'de', name: 'DE-eBay' },
   ];
   
   console.log('[Apify] Searching', globalQueries.length, 'global markets for:', normalizedBrand, normalizedModel);
@@ -365,17 +374,17 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       !officialNewSellers.some(seller => r.url.toLowerCase().includes(seller))
     );
     
-    // Take up to 5 from official sellers first, then fill rest from others
-    const prioritized = [...officialUrls.slice(0, 5), ...otherUrls].slice(0, 15);
+    // Take up to 8 from official sellers first, then fill rest from others
+    const prioritized = [...officialUrls.slice(0, 8), ...otherUrls].slice(0, 25);
     
     if (officialUrls.length > 0) {
-      console.log('[Apify] Found', officialUrls.length, 'official seller URLs, prioritizing', Math.min(5, officialUrls.length));
+      console.log('[Apify] Found', officialUrls.length, 'official seller URLs, prioritizing', Math.min(8, officialUrls.length));
     }
     
-    // Limit to 15 URLs for more data while staying within timeout
+    // Limit to 25 URLs for more data per condition while staying within timeout
     const limited = prioritized;
-    if (deduped.length > 15) {
-      console.log('[Apify] Limited to 15 URLs for price data (from', deduped.length, 'unique found)');
+    if (deduped.length > 25) {
+      console.log('[Apify] Limited to 25 URLs for price data (from', deduped.length, 'unique found)');
     }
     
     return limited;
@@ -399,15 +408,15 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
   
   try {
     // Use Cheerio scraper for faster HTML parsing (no JavaScript rendering)
-    const response = await fetch(`https://api.apify.com/v2/acts/apify~cheerio-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=90`, {
+    const response = await fetch(`https://api.apify.com/v2/acts/apify~cheerio-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=120`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         startUrls: urls.map(url => ({ url })),
         maxRequestsPerCrawl: urls.length,
-        maxConcurrency: 20, // Very high concurrency for Cheerio
+        maxConcurrency: 25, // High concurrency for Cheerio (parallel scraping)
         maxRequestRetries: 1,
-        requestTimeoutSecs: 15,
+        requestTimeoutSecs: 12,
         proxyConfiguration: {
           useApifyProxy: true,
           apifyProxyGroups: ['RESIDENTIAL'],
