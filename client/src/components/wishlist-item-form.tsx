@@ -223,10 +223,11 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
 
     setIsPollingScrape(true);
     let pollCount = 0;
-    const maxPolls = 12; // Poll for up to 60 seconds (12 * 5s)
+    const maxPolls = 18; // Poll for up to 90 seconds (18 * 5s) to match scraping timeout
 
     const intervalId = setInterval(async () => {
       pollCount++;
+      console.log(`[WishlistPoll] Poll #${pollCount}/${maxPolls} for ${brand} ${model}`);
 
       try {
         // Use GET endpoint for read-only polling (doesn't trigger new scrapes)
@@ -241,6 +242,7 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
 
         // 404 means no cache yet, keep polling
         if (response.status === 404) {
+          console.log('[WishlistPoll] No cache yet, continuing...');
           return;
         }
 
@@ -249,15 +251,17 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
         }
 
         const result = await response.json();
+        console.log(`[WishlistPoll] Response: has_marketplace_data=${result.has_marketplace_data}`);
 
         // Guard ALL state updates - only active interval can modify state
         if (pollingIntervalRef.current !== intervalId) {
-          console.log('[Polling] Stale callback detected, skipping all updates');
+          console.log('[WishlistPoll] Stale callback detected, skipping all updates');
           return;
         }
 
         // Stop polling if marketplace data is ready or max attempts reached
         if (result.has_marketplace_data || pollCount >= maxPolls) {
+          console.log(`[WishlistPoll] Stopping: has_data=${result.has_marketplace_data}, polls=${pollCount}`);
           clearInterval(intervalId);
           pollingIntervalRef.current = null;
           setIsPollingScrape(false);
