@@ -511,51 +511,90 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
               const productText = (title + ' ' + ($('meta[name="description"]').attr('content') || '') + ' ' + 
                 ($('.product-condition, .item-condition, [class*="condition"]').text() || '')).toLowerCase();
               
+              // eBay-specific condition extraction
+              const ebayCondition = ($('.x-item-condition-text .ux-textspans').text() || 
+                $('.vim-condition-text').text() || 
+                $('[data-testid="x-item-condition"]').text() ||
+                $('.ux-labels-values--condition .ux-textspans--SECONDARY').text() || '').toLowerCase();
+              
               // Official manufacturers/distributors sell NEW by default
               const officialSellers = ['thermofisher', 'fishersci', 'sigmaaldrich', 'vwr', 'agilent', 'eppendorf', 
                 'bio-rad', 'biorad', 'carlroth', 'merck', 'tecan', 'beckman', 'perkinelmer', 'waters', 'shimadzu',
                 'sartorius', 'mettler-toledo', 'mettlertoledo', 'hach', 'illumina', 'roche', 'pipette.com',
-                'usascientific', 'usscientific', 'coleparmer', 'thomassci', 'grainger', 'wwgroupinc', 'millipore'];
+                'usascientific', 'usscientific', 'coleparmer', 'thomassci', 'grainger', 'wwgroupinc', 'millipore',
+                'watson-marlow', 'watsonmarlow', 'newark', 'digikey', 'mouser', 'mcmaster', 'mcmaster-carr'];
               const isOfficialSeller = officialSellers.some(seller => hostname.includes(seller));
               
-              // Condition indicators - check TITLE ONLY first (most reliable)
-              const refurbTitleMatch = /refurbished|refurb|certified pre-owned|reconditioned|renewed/i.test(titleLower);
-              const usedTitleMatch = /\bused\b|pre-owned|preowned|second.?hand|previously owned/i.test(titleLower);
-              const newTitleMatch = /\bbrand new\b|new in box|factory new|factory sealed|\bunused\b|\bnib\b/i.test(titleLower);
+              // NEW equipment resellers (sell primarily new equipment)
+              const newEquipmentSellers = ['questpair', 'thelabworldgroup', 'banebio', 'thermobid', 'genlab', 
+                'biocompare', 'labwrench', 'directindustry', 'medwow', 'promed', 'blockscientific'];
+              const isNewEquipmentReseller = newEquipmentSellers.some(seller => hostname.includes(seller));
+              
+              // Condition indicators - check TITLE and productText
+              const refurbPatterns = /refurbished|refurb|certified pre-owned|reconditioned|renewed|professionally restored|factory refurb/i;
+              const usedPatterns = /\\bused\\b|pre-owned|preowned|second.?hand|previously owned|as-is|for parts/i;
+              const newPatterns = /\\bbrand new\\b|new in box|factory new|factory sealed|\\bunused\\b|\\bnib\\b|\\bnew\\b(?!\\s*listing)|unopened|sealed box/i;
+              
+              const refurbTitleMatch = refurbPatterns.test(titleLower);
+              const usedTitleMatch = usedPatterns.test(titleLower);
+              const newTitleMatch = newPatterns.test(titleLower);
+              
+              // Check eBay condition field specifically
+              const ebayIsNew = /\\bnew\\b|brand new|factory sealed/i.test(ebayCondition);
+              const ebayIsRefurb = /refurbished|certified|seller refurb|manufacturer refurb/i.test(ebayCondition);
+              const ebayIsUsed = /\\bused\\b|pre-owned|open box/i.test(ebayCondition);
               
               // Marketplace-specific condition detection
               const isEbay = hostname.includes('ebay');
               const isLabx = hostname.includes('labx');
               const isDotmed = hostname.includes('dotmed');
               const isBimedis = hostname.includes('bimedis');
-              const isUsedEquipmentMarketplace = isEbay || isLabx || isDotmed || isBimedis || 
+              const isUsedEquipmentMarketplace = isLabx || isDotmed || isBimedis || 
                 hostname.includes('biosurplus') || hostname.includes('machinio') || hostname.includes('used-line');
               
               let condition = 'used'; // Default for unknown
               
-              // Priority 1: Check title for explicit condition (most reliable)
-              if (refurbTitleMatch) {
+              // Priority 1: eBay-specific condition field (most reliable for eBay)
+              if (isEbay) {
+                if (ebayIsNew) condition = 'new';
+                else if (ebayIsRefurb) condition = 'refurbished';
+                else if (ebayIsUsed) condition = 'used';
+                else if (newTitleMatch) condition = 'new';
+                else if (refurbTitleMatch) condition = 'refurbished';
+                else condition = 'used'; // eBay default
+              }
+              // Priority 2: Check title for explicit condition (most reliable)
+              else if (refurbTitleMatch) {
                 condition = 'refurbished';
-              } else if (usedTitleMatch) {
-                condition = 'used';
               } else if (newTitleMatch) {
                 condition = 'new';
+              } else if (usedTitleMatch) {
+                condition = 'used';
               } 
-              // Priority 2: Official sellers default to NEW
+              // Priority 3: Official sellers default to NEW
               else if (isOfficialSeller) {
                 condition = 'new';
               }
-              // Priority 3: Used equipment marketplaces default to refurbished/used
+              // Priority 4: New equipment resellers - check text, default to refurbished
+              else if (isNewEquipmentReseller) {
+                if (newPatterns.test(productText)) {
+                  condition = 'new';
+                } else if (refurbPatterns.test(productText)) {
+                  condition = 'refurbished';
+                } else {
+                  condition = 'refurbished'; // Quality resellers default to refurbished
+                }
+              }
+              // Priority 5: Used equipment marketplaces default to used
               else if (isUsedEquipmentMarketplace) {
-                // Check product-specific text for refurbished
-                if (/refurbished|certified/i.test(productText)) {
+                if (refurbPatterns.test(productText)) {
                   condition = 'refurbished';
                 } else {
                   condition = 'used';
                 }
               }
-              // Priority 4: Other sellers - check for new indicators
-              else if (/\bnew\b|in stock|\badd to cart\b|\bbuy now\b/i.test(productText)) {
+              // Priority 6: Other sellers - check for new indicators
+              else if (newPatterns.test(productText)) {
                 condition = 'new';
               }
               
