@@ -238,7 +238,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
 
     setIsPollingScrape(true);
     let pollCount = 0;
-    const maxPolls = 24; // Poll for up to 120 seconds (24 * 5s) to match extended scraping
+    const maxPolls = 36; // Poll for up to 180 seconds (36 * 5s) - scraping can take 2+ minutes
 
     const intervalId = setInterval(async () => {
       pollCount++;
@@ -796,7 +796,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
                   </div>
                   <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
                     <p>Scanning eBay, LabX, Fisher Scientific, BioSurplus and more</p>
-                    <p className="opacity-75">This may take up to 90 seconds for comprehensive results</p>
+                    <p className="opacity-75">This may take up to 3 minutes for comprehensive results</p>
                   </div>
                   <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5 overflow-hidden">
                     <div className="bg-blue-600 h-1.5 rounded-full animate-pulse" style={{ width: '60%' }}></div>
