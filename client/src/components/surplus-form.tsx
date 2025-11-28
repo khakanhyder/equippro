@@ -17,7 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { useAiAnalysis } from "@/hooks/use-ai-analysis";
-import { X, Plus, Loader2, Upload, Sparkles, ExternalLink, Search } from "lucide-react";
+import { X, Plus, Loader2, Upload, Sparkles, ExternalLink, Search, FileText, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { searchExternalSources } from "@/lib/ai-service";
 
@@ -56,6 +56,8 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
   const [specs, setSpecs] = useState<SpecField[]>([]);
   const [priceData, setPriceData] = useState<any>(null);
   const [externalResults, setExternalResults] = useState<any[]>([]);
+  const [selectedDocUrls, setSelectedDocUrls] = useState<string[]>([]);
+  const [savedDocuments, setSavedDocuments] = useState<string[]>([]);
   const [isSearchingSources, setIsSearchingSources] = useState(false);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [isPollingScrape, setIsPollingScrape] = useState(false);
@@ -87,9 +89,17 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
   useEffect(() => {
     // Clear derived state, but restore price data if available in initialData
     setExternalResults([]);
+    setSelectedDocUrls([]);
     setIsSearchingSources(false);
     setIsFetchingPrices(false);
     imageUpload.clearAll();
+    
+    // Restore saved documents from initial data
+    if (initialData?.documents && Array.isArray(initialData.documents)) {
+      setSavedDocuments(initialData.documents);
+    } else {
+      setSavedDocuments([]);
+    }
     
     if (initialData) {
       // Restore priceData state for UI display if we have saved market prices
@@ -511,18 +521,12 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
       const result = await searchExternalSources(brand, model);
       const matches = result.external_matches || [];
       setExternalResults(matches);
-      
-      // Save document URLs to form so they persist when saved
-      const documentUrls = matches.map((m: any) => m.url).filter(Boolean);
-      if (documentUrls.length > 0) {
-        const existingDocs = form.getValues('documents') || [];
-        const allDocs = Array.from(new Set([...existingDocs, ...documentUrls])); // Deduplicate
-        form.setValue('documents', allDocs);
-      }
+      // Don't auto-save all documents - let user select which ones to keep
+      setSelectedDocUrls([]);
       
       toast({
         title: "Search complete",
-        description: `Found ${matches.length} relevant source${matches.length !== 1 ? 's' : ''}`,
+        description: `Found ${matches.length} source${matches.length !== 1 ? 's' : ''}. Click to select documents to save.`,
       });
     } catch (error: any) {
       toast({
@@ -536,8 +540,27 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
     }
   };
 
+  const toggleDocumentSelection = (url: string) => {
+    setSelectedDocUrls(prev => 
+      prev.includes(url) 
+        ? prev.filter(u => u !== url)
+        : [...prev, url]
+    );
+  };
+
+  const removeSavedDocument = (url: string) => {
+    setSavedDocuments(prev => prev.filter(d => d !== url));
+  };
+
+  // Sync combined documents to form state when either array changes
+  useEffect(() => {
+    form.setValue('documents', [...savedDocuments, ...selectedDocUrls] as any);
+  }, [savedDocuments, selectedDocUrls]);
+
   const handleFormSubmit = (data: EquipmentFormData) => {
-    onSubmit(data);
+    // Merge saved documents with newly selected documents before submitting
+    const allDocs = [...savedDocuments, ...selectedDocUrls];
+    onSubmit({ ...data, documents: allDocs });
   };
 
   const formatPrice = (value: number | null) => {
@@ -996,23 +1019,94 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
             </Button>
           </div>
           
+          {/* Show saved documents */}
+          {savedDocuments.length > 0 && (
+            <div className="border rounded-lg p-3 bg-muted/30 space-y-2" data-testid="saved-documents">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                Saved Documents ({savedDocuments.length})
+              </p>
+              <div className="space-y-1">
+                {savedDocuments.map((url, index) => {
+                  // Extract filename or domain from URL for display
+                  const displayName = url.includes('.pdf') 
+                    ? url.split('/').pop() || url 
+                    : new URL(url).hostname + '...' + url.slice(-20);
+                  return (
+                    <div key={index} className="flex items-center gap-2 text-sm group">
+                      <Check className="w-3 h-3 text-green-600 shrink-0" />
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="truncate flex-1 text-primary hover:underline"
+                        data-testid={`link-saved-doc-${index}`}
+                      >
+                        {displayName}
+                      </a>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removeSavedDocument(url)}
+                        data-testid={`button-remove-doc-${index}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
+          {/* Show search results with selection checkboxes */}
           {externalResults.length > 0 && (
-            <div className="border rounded-lg p-4 space-y-2">
-              <p className="text-sm font-medium">Found {externalResults.length} sources:</p>
-              <div className="space-y-2">
-                {externalResults.map((source: any, index: number) => (
-                  <a
-                    key={index}
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline"
-                    data-testid={`link-external-source-${index}`}
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    <span className="truncate">{source.title || source.url}</span>
-                  </a>
-                ))}
+            <div className="border rounded-lg p-3 space-y-2">
+              <p className="text-sm font-medium">
+                Found {externalResults.length} sources 
+                {selectedDocUrls.length > 0 && (
+                  <span className="text-muted-foreground ml-1">
+                    ({selectedDocUrls.length} selected)
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">Click to select documents to save:</p>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {externalResults.map((source: any, index: number) => {
+                  const isSelected = selectedDocUrls.includes(source.url);
+                  const displayName = source.title || (source.url.includes('.pdf') 
+                    ? source.url.split('/').pop() 
+                    : source.url);
+                  return (
+                    <div
+                      key={index}
+                      className={`flex items-center gap-2 text-sm p-2 rounded cursor-pointer transition-colors ${
+                        isSelected ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted'
+                      }`}
+                      onClick={() => toggleDocumentSelection(source.url)}
+                      data-testid={`select-external-source-${index}`}
+                    >
+                      <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
+                        isSelected ? 'bg-primary border-primary' : 'border-muted-foreground'
+                      }`}>
+                        {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                      </div>
+                      <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground" />
+                      <span className="truncate flex-1">{displayName}</span>
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-muted-foreground hover:text-primary shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Open
+                      </a>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
