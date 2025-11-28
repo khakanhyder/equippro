@@ -85,14 +85,38 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
 
   // Reset form and all state when initialData changes (for editing)
   useEffect(() => {
-    // Clear all derived state first to prevent cross-contamination
-    setPriceData(null);
+    // Clear derived state, but restore price data if available in initialData
     setExternalResults([]);
     setIsSearchingSources(false);
     setIsFetchingPrices(false);
     imageUpload.clearAll();
     
     if (initialData) {
+      // Restore priceData state for UI display if we have saved market prices
+      if (initialData.marketPriceRange) {
+        const savedPriceRange = initialData.marketPriceRange as any;
+        setPriceData({
+          new_min: savedPriceRange.new_min,
+          new_max: savedPriceRange.new_max,
+          new_avg: savedPriceRange.new_avg,
+          new_count: savedPriceRange.new_count,
+          refurbished_min: savedPriceRange.refurbished_min,
+          refurbished_max: savedPriceRange.refurbished_max,
+          refurbished_avg: savedPriceRange.refurbished_avg,
+          refurbished_count: savedPriceRange.refurbished_count,
+          used_min: savedPriceRange.used_min,
+          used_max: savedPriceRange.used_max,
+          used_avg: savedPriceRange.used_avg,
+          used_count: savedPriceRange.used_count,
+          source: initialData.priceSource,
+          breakdown: initialData.priceBreakdown,
+          has_marketplace_data: savedPriceRange.has_marketplace_data ?? true,
+          totalListingsFound: savedPriceRange.totalListingsFound,
+        });
+      } else {
+        setPriceData(null);
+      }
+      
       // Sync specs state with initial data
       const initialSpecs = initialData.specifications 
         ? Object.entries(initialData.specifications).map(([key, value]) => ({ key, value }))
@@ -116,6 +140,8 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
         priceBreakdown: initialData.priceBreakdown || null,
       });
     } else {
+      // Clear price data when creating new equipment
+      setPriceData(null);
       // Reset to empty form when no initial data (creating new equipment)
       setSpecs([]);
       form.reset({
@@ -280,13 +306,22 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
           if (result.has_marketplace_data) {
             // Update prices with real marketplace data
             setPriceData(result);
+            // Store complete price context for persistence (excluding large raw listings)
             const priceRange = {
               new_min: result.new_min,
               new_max: result.new_max,
+              new_avg: result.new_avg,
+              new_count: result.new_count,
               refurbished_min: result.refurbished_min,
               refurbished_max: result.refurbished_max,
+              refurbished_avg: result.refurbished_avg,
+              refurbished_count: result.refurbished_count,
               used_min: result.used_min,
               used_max: result.used_max,
+              used_avg: result.used_avg,
+              used_count: result.used_count,
+              has_marketplace_data: result.has_marketplace_data,
+              totalListingsFound: result.totalListingsFound,
             };
             form.setValue('marketPriceRange', priceRange as any);
             form.setValue('priceSource', result.source || 'Market data');
@@ -353,13 +388,22 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
       const result = await response.json();
       setPriceData(result);
 
+      // Store complete price context for persistence (excluding large raw listings)
       const priceRange = {
         new_min: result.new_min,
         new_max: result.new_max,
+        new_avg: result.new_avg,
+        new_count: result.new_count,
         refurbished_min: result.refurbished_min,
         refurbished_max: result.refurbished_max,
+        refurbished_avg: result.refurbished_avg,
+        refurbished_count: result.refurbished_count,
         used_min: result.used_min,
         used_max: result.used_max,
+        used_avg: result.used_avg,
+        used_count: result.used_count,
+        has_marketplace_data: result.has_marketplace_data,
+        totalListingsFound: result.totalListingsFound,
       };
 
       form.setValue('marketPriceRange', priceRange as any);
@@ -467,6 +511,14 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
       const result = await searchExternalSources(brand, model);
       const matches = result.external_matches || [];
       setExternalResults(matches);
+      
+      // Save document URLs to form so they persist when saved
+      const documentUrls = matches.map((m: any) => m.url).filter(Boolean);
+      if (documentUrls.length > 0) {
+        const existingDocs = form.getValues('documents') || [];
+        const allDocs = Array.from(new Set([...existingDocs, ...documentUrls])); // Deduplicate
+        form.setValue('documents', allDocs);
+      }
       
       toast({
         title: "Search complete",
