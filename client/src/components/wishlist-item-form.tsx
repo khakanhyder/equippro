@@ -641,7 +641,7 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-x-hidden">
         <p className="text-sm text-muted-foreground">
           Fill in the details for your equipment specification. This helps us find the best matches and pricing.
         </p>
@@ -727,31 +727,31 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
         </Button>
 
         {internalMatches.length > 0 && (
-          <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800" data-testid="internal-matches-wishlist">
+          <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 overflow-hidden" data-testid="internal-matches-wishlist">
             <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center">
-              <FileText className="w-4 h-4 mr-2" />
+              <FileText className="w-4 h-4 mr-2 shrink-0" />
               Found {internalMatches.length} Internal Marketplace Match{internalMatches.length !== 1 ? 'es' : ''}
             </h4>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
+            <div className="space-y-2 max-h-64 overflow-y-auto overflow-x-hidden">
               {internalMatches.map((match, idx) => (
                 <div
                   key={match.id}
                   onClick={() => toggleInternalSelection(match)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                  className={`p-3 rounded-lg border cursor-pointer transition-all overflow-hidden ${
                     selectedInternalIds.includes(match.id)
                       ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-400 ring-2 ring-blue-400'
                       : 'bg-background border-muted hover-elevate'
                   }`}
                   data-testid={`select-internal-match-wishlist-${idx}`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-foreground">{match.brand} {match.model}</div>
-                      <div className="text-sm text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-foreground truncate">{match.brand} {match.model}</div>
+                      <div className="text-sm text-muted-foreground truncate">
                         ${parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
                       </div>
                     </div>
-                    <Badge variant={selectedInternalIds.includes(match.id) ? 'default' : 'outline'}>
+                    <Badge variant={selectedInternalIds.includes(match.id) ? 'default' : 'outline'} className="shrink-0">
                       {selectedInternalIds.includes(match.id) ? 'Selected' : 'Select'}
                     </Badge>
                   </div>
@@ -762,20 +762,20 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
         )}
 
         {externalResults.length > 0 && (
-          <div className="p-4 border rounded-lg bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
+          <div className="p-4 border rounded-lg bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 overflow-hidden">
             <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center">
-              <BookOpen className="w-4 h-4 mr-2" />
+              <BookOpen className="w-4 h-4 mr-2 shrink-0" />
               Found {externalResults.length} External Source{externalResults.length !== 1 ? 's' : ''}
             </h4>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="space-y-3 max-h-96 overflow-y-auto overflow-x-hidden">
               {externalResults.map((result, idx) => (
                 <div
                   key={idx}
-                  className="p-4 bg-background rounded-lg border hover-elevate"
+                  className="p-4 bg-background rounded-lg border hover-elevate overflow-hidden"
                   data-testid={`card-external-result-${idx}`}
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="font-medium text-foreground">{result.title}</div>
+                  <div className="mb-2">
+                    <div className="font-medium text-foreground truncate">{result.title}</div>
                   </div>
                   
                   {result.description && (
@@ -786,7 +786,7 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
                     href={result.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block mb-3"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block mb-3 max-w-full"
                     data-testid={`link-external-url-${idx}`}
                   >
                     {result.url}
