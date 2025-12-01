@@ -4,6 +4,15 @@
 Equipment Pro is a professional B2B marketplace platform for buying and selling research and industrial equipment. It features AI-powered equipment matching, real-time price discovery, and intelligent automation for trading workflows. The platform aims to connect scientific and industrial organizations for surplus equipment transactions, offering a comprehensive solution for managing equipment lifecycles from listing to sale.
 
 ## Recent Updates (December 1, 2025)
+- **Wishlist Edit & Find Matches**: Fully functional wishlist item lifecycle:
+  - Edit button opens dialog with pre-populated form data, updates via PATCH
+  - Find Matches triggers combined internal/external search via `searchAllSources()`
+  - Card displays saved internal matches (blue), external sources (purple), and price info (green)
+- **Robust Price Formatting**: Added `formatMatchPrice()` helper that handles:
+  - Pre-formatted currency strings (e.g., "$45,000") returned as-is
+  - Raw numbers formatted with locale string
+  - Invalid values fallback to "N/A"
+  - Applied to both match prices and max budget display
 - **Internal Marketplace Search (Surplus & Wishlist)**: Both forms now use `searchAllSources()` which searches:
   - Equipment Pro internal marketplace for matching active listings
   - External sources (PDFs, web pages) via Apify
