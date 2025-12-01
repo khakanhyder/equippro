@@ -1158,55 +1158,6 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
             </div>
           )}
 
-          {/* Show internal marketplace matches */}
-          {internalMatches.length > 0 && (
-            <div className="border rounded-lg p-3 bg-blue-50/50 dark:bg-blue-950/20 space-y-2" data-testid="internal-matches">
-              <p className="text-sm font-medium flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-blue-600" />
-                Internal Marketplace Matches ({internalMatches.length})
-                {selectedInternalIds.length > 0 && (
-                  <span className="text-muted-foreground">
-                    ({selectedInternalIds.length} selected)
-                  </span>
-                )}
-              </p>
-              <p className="text-xs text-muted-foreground">Similar equipment available on our marketplace - select to save as price references:</p>
-              <div className="space-y-1 max-h-40 overflow-y-auto">
-                {internalMatches.map((match: any, index: number) => {
-                  const isSelected = selectedInternalIds.includes(match.id);
-                  return (
-                    <div
-                      key={match.id}
-                      className={`flex items-center gap-2 text-sm p-2 rounded cursor-pointer transition-colors ${
-                        isSelected ? 'bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-700' : 'hover:bg-muted'
-                      }`}
-                      onClick={() => toggleInternalSelection(match)}
-                      data-testid={`select-internal-match-${index}`}
-                    >
-                      <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
-                        isSelected ? 'bg-blue-600 border-blue-600' : 'border-muted-foreground'
-                      }`}>
-                        {isSelected && <Check className="w-3 h-3 text-white" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium">{match.brand} {match.model}</span>
-                        <span className="text-muted-foreground ml-2">
-                          ${parseFloat(match.askingPrice).toLocaleString()}
-                        </span>
-                      </div>
-                      <Badge variant={match.condition === 'new' ? 'default' : match.condition === 'refurbished' ? 'secondary' : 'outline'}>
-                        {match.condition}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-                        {match.location}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          
           {/* Show saved documents */}
           {savedDocuments.length > 0 && (
             <div className="border rounded-lg p-3 bg-muted/30 space-y-2" data-testid="saved-documents">
@@ -1216,7 +1167,6 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
               </p>
               <div className="space-y-1">
                 {savedDocuments.map((url, index) => {
-                  // Extract filename or domain from URL for display
                   const displayName = url.includes('.pdf') 
                     ? url.split('/').pop() || url 
                     : new URL(url).hostname + '...' + url.slice(-20);
@@ -1248,54 +1198,104 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
               </div>
             </div>
           )}
-          
-          {/* Show external search results with selection checkboxes */}
-          {externalResults.length > 0 && (
-            <div className="border rounded-lg p-3 space-y-2">
-              <p className="text-sm font-medium flex items-center gap-2">
-                <Globe className="w-4 h-4 text-muted-foreground" />
-                External Sources ({externalResults.length}) 
-                {selectedDocUrls.length > 0 && (
-                  <span className="text-muted-foreground ml-1">
-                    ({selectedDocUrls.length} selected)
-                  </span>
+
+          {/* Parallel layout for internal matches and external sources */}
+          {(internalMatches.length > 0 || externalResults.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Internal Matches Column */}
+              <div className="border rounded-lg p-3 bg-blue-50/50 dark:bg-blue-950/20 space-y-2 overflow-hidden" data-testid="internal-matches">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span className="truncate">Internal Matches ({internalMatches.length})</span>
+                  {selectedInternalIds.length > 0 && (
+                    <Badge variant="secondary" className="shrink-0 text-xs">
+                      {selectedInternalIds.length} selected
+                    </Badge>
+                  )}
+                </p>
+                {internalMatches.length > 0 ? (
+                  <div className="space-y-1 max-h-72 overflow-y-auto overflow-x-hidden">
+                    {internalMatches.map((match: any, index: number) => {
+                      const isSelected = selectedInternalIds.includes(match.id);
+                      return (
+                        <div
+                          key={match.id}
+                          className={`flex items-center gap-2 text-sm p-2 rounded cursor-pointer transition-colors overflow-hidden ${
+                            isSelected ? 'bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-700' : 'hover:bg-muted'
+                          }`}
+                          onClick={() => toggleInternalSelection(match)}
+                          data-testid={`select-internal-match-${index}`}
+                        >
+                          <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
+                            isSelected ? 'bg-blue-600 border-blue-600' : 'border-muted-foreground'
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate text-xs">{match.brand} {match.model}</div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              ${parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No internal matches found</p>
                 )}
-              </p>
-              <p className="text-xs text-muted-foreground">Click to select documents to save:</p>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {externalResults.map((source: any, index: number) => {
-                  const isSelected = selectedDocUrls.includes(source.url);
-                  const displayName = source.title || (source.url.includes('.pdf') 
-                    ? source.url.split('/').pop() 
-                    : source.url);
-                  return (
-                    <div
-                      key={index}
-                      className={`flex items-center gap-2 text-sm p-2 rounded cursor-pointer transition-colors ${
-                        isSelected ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted'
-                      }`}
-                      onClick={() => toggleDocumentSelection(source.url)}
-                      data-testid={`select-external-source-${index}`}
-                    >
-                      <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
-                        isSelected ? 'bg-primary border-primary' : 'border-muted-foreground'
-                      }`}>
-                        {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
-                      </div>
-                      <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground" />
-                      <span className="truncate flex-1">{displayName}</span>
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-muted-foreground hover:text-primary shrink-0"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Open
-                      </a>
-                    </div>
-                  );
-                })}
+              </div>
+
+              {/* External Sources Column */}
+              <div className="border rounded-lg p-3 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-2 overflow-hidden">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="truncate">External Sources ({externalResults.length})</span>
+                  {selectedDocUrls.length > 0 && (
+                    <Badge variant="secondary" className="shrink-0 text-xs">
+                      {selectedDocUrls.length} selected
+                    </Badge>
+                  )}
+                </p>
+                {externalResults.length > 0 ? (
+                  <div className="space-y-1 max-h-72 overflow-y-auto overflow-x-hidden">
+                    {externalResults.map((source: any, index: number) => {
+                      const isSelected = selectedDocUrls.includes(source.url);
+                      const displayName = source.title || (source.url.includes('.pdf') 
+                        ? source.url.split('/').pop() 
+                        : source.url);
+                      return (
+                        <div
+                          key={index}
+                          className={`flex items-center gap-2 text-sm p-2 rounded cursor-pointer transition-colors overflow-hidden ${
+                            isSelected ? 'bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-300 dark:border-emerald-700' : 'hover:bg-muted'
+                          }`}
+                          onClick={() => toggleDocumentSelection(source.url)}
+                          data-testid={`select-external-source-${index}`}
+                        >
+                          <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
+                            isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-muted-foreground'
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground" />
+                          <span className="truncate flex-1 text-xs">{displayName}</span>
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-muted-foreground hover:text-primary shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Open
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No external sources found</p>
+                )}
               </div>
             </div>
           )}

@@ -327,7 +327,7 @@ export default function Surplus() {
         </Tabs>
 
         <Dialog open={addEquipmentDialogOpen} onOpenChange={setAddEquipmentDialogOpen}>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col" data-testid="dialog-add-surplus">
+          <DialogContent className="w-full sm:w-[900px] sm:max-w-[900px] max-w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col overflow-x-hidden" data-testid="dialog-add-surplus">
             <DialogHeader>
               <DialogTitle>Add Surplus Equipment</DialogTitle>
               <DialogDescription>
@@ -348,7 +348,7 @@ export default function Surplus() {
           setEditEquipmentDialogOpen(open);
           if (!open) setEditingEquipment(null);
         }}>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col" data-testid="dialog-edit-surplus">
+          <DialogContent className="w-full sm:w-[900px] sm:max-w-[900px] max-w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col overflow-x-hidden" data-testid="dialog-edit-surplus">
             <DialogHeader>
               <DialogTitle>Edit Equipment</DialogTitle>
               <DialogDescription>
