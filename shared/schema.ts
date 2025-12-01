@@ -40,6 +40,11 @@ export const equipment = pgTable("equipment", {
   priceSource: text("price_source"), // real_data, ai_estimate
   priceBreakdown: jsonb("price_breakdown"), // detailed price data
   aiAnalysisData: jsonb("ai_analysis_data"), // AI suggestions from image analysis
+  // Data enrichment fields - save all search results and marketplace listings
+  savedMarketplaceListings: jsonb("saved_marketplace_listings"), // Array of { url, title, price, condition, source, savedAt }
+  savedInternalMatches: jsonb("saved_internal_matches"), // Array of internal equipment IDs and details
+  savedSearchResults: jsonb("saved_search_results"), // Full search results including PDF sources
+  auctionReferences: jsonb("auction_references"), // Auction price data { url, title, soldPrice, condition, auctionDate }
   viewsCount: integer("views_count").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

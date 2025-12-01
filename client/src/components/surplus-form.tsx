@@ -17,9 +17,19 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { useAiAnalysis } from "@/hooks/use-ai-analysis";
-import { X, Plus, Loader2, Upload, Sparkles, ExternalLink, Search, FileText, Check } from "lucide-react";
+import { X, Plus, Loader2, Upload, Sparkles, ExternalLink, Search, FileText, Check, Building2, Globe } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { searchExternalSources } from "@/lib/ai-service";
+import { searchExternalSources, searchAllSources } from "@/lib/ai-service";
+
+const internalMatchSchema = z.object({
+  id: z.number(),
+  brand: z.string(),
+  model: z.string(),
+  condition: z.string(),
+  askingPrice: z.string(),
+  location: z.string(),
+  savedAt: z.string().optional()
+});
 
 const equipmentFormSchema = z.object({
   brand: z.string().min(1, "Brand is required"),
@@ -35,6 +45,9 @@ const equipmentFormSchema = z.object({
   marketPriceRange: z.any().optional(),
   priceSource: z.string().nullable().optional(),
   priceBreakdown: z.any().optional(),
+  savedInternalMatches: z.array(internalMatchSchema).optional(),
+  savedMarketplaceListings: z.any().optional(),
+  savedSearchResults: z.any().optional(),
 });
 
 type EquipmentFormData = z.infer<typeof equipmentFormSchema>;
@@ -56,8 +69,11 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
   const [specs, setSpecs] = useState<SpecField[]>([]);
   const [priceData, setPriceData] = useState<any>(null);
   const [externalResults, setExternalResults] = useState<any[]>([]);
+  const [internalMatches, setInternalMatches] = useState<any[]>([]);
   const [selectedDocUrls, setSelectedDocUrls] = useState<string[]>([]);
+  const [selectedInternalIds, setSelectedInternalIds] = useState<number[]>([]);
   const [savedDocuments, setSavedDocuments] = useState<string[]>([]);
+  const [savedInternalMatches, setSavedInternalMatches] = useState<any[]>([]);
   const [isSearchingSources, setIsSearchingSources] = useState(false);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [isPollingScrape, setIsPollingScrape] = useState(false);
@@ -79,6 +95,9 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
       marketPriceRange: null,
       priceSource: null,
       priceBreakdown: null,
+      savedInternalMatches: [],
+      savedMarketplaceListings: [],
+      savedSearchResults: null,
     },
   });
 
@@ -89,7 +108,9 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
   useEffect(() => {
     // Clear derived state, but restore price data if available in initialData
     setExternalResults([]);
+    setInternalMatches([]);
     setSelectedDocUrls([]);
+    setSelectedInternalIds([]);
     setIsSearchingSources(false);
     setIsFetchingPrices(false);
     imageUpload.clearAll();
@@ -99,6 +120,14 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
       setSavedDocuments(initialData.documents);
     } else {
       setSavedDocuments([]);
+    }
+    
+    // Restore saved internal matches from initial data
+    const savedInternal = (initialData as any)?.savedInternalMatches;
+    if (savedInternal && Array.isArray(savedInternal)) {
+      setSavedInternalMatches(savedInternal);
+    } else {
+      setSavedInternalMatches([]);
     }
     
     if (initialData) {
@@ -505,6 +534,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
   const handleSearchExternalSources = async () => {
     const brand = form.getValues('brand');
     const model = form.getValues('model');
+    const category = form.getValues('category');
     
     if (!brand || !model) {
       toast({
@@ -518,23 +548,34 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
     setIsSearchingSources(true);
     
     try {
-      const result = await searchExternalSources(brand, model);
-      const matches = result.external_matches || [];
-      setExternalResults(matches);
-      // Don't auto-save all documents - let user select which ones to keep
+      // Search both internal marketplace and external sources
+      const result = await searchAllSources(brand, model, category, (initialData as any)?.id);
+      const internalFound = result.internal_matches || [];
+      const externalFound = result.external_matches || [];
+      
+      setInternalMatches(internalFound);
+      setExternalResults(externalFound);
+      // Reset selections for new search
       setSelectedDocUrls([]);
+      setSelectedInternalIds([]);
+      
+      const totalFound = internalFound.length + externalFound.length;
+      const internalMsg = internalFound.length > 0 ? `${internalFound.length} in marketplace` : '';
+      const externalMsg = externalFound.length > 0 ? `${externalFound.length} external` : '';
+      const parts = [internalMsg, externalMsg].filter(Boolean);
       
       toast({
         title: "Search complete",
-        description: `Found ${matches.length} source${matches.length !== 1 ? 's' : ''}. Click to select documents to save.`,
+        description: `Found ${totalFound} result${totalFound !== 1 ? 's' : ''}: ${parts.join(', ')}. Select items to save as references.`,
       });
     } catch (error: any) {
       toast({
         title: "Search failed",
-        description: error.message || "Could not search external sources",
+        description: error.message || "Could not search sources",
         variant: "destructive",
       });
       setExternalResults([]);
+      setInternalMatches([]);
     } finally {
       setIsSearchingSources(false);
     }
@@ -548,8 +589,22 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
     );
   };
 
+  const toggleInternalSelection = (item: any) => {
+    setSelectedInternalIds(prev => {
+      if (prev.includes(item.id)) {
+        return prev.filter(id => id !== item.id);
+      } else {
+        return [...prev, item.id];
+      }
+    });
+  };
+
   const removeSavedDocument = (url: string) => {
     setSavedDocuments(prev => prev.filter(d => d !== url));
+  };
+
+  const removeSavedInternalMatch = (id: number) => {
+    setSavedInternalMatches(prev => prev.filter(m => m.id !== id));
   };
 
   // Sync combined documents to form state when either array changes
@@ -560,7 +615,58 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
   const handleFormSubmit = (data: EquipmentFormData) => {
     // Merge saved documents with newly selected documents before submitting
     const allDocs = [...savedDocuments, ...selectedDocUrls];
-    onSubmit({ ...data, documents: allDocs });
+    
+    // Build selected internal matches data to save
+    const selectedInternalData = internalMatches
+      .filter(m => selectedInternalIds.includes(m.id))
+      .map(m => ({
+        id: m.id,
+        brand: m.brand,
+        model: m.model,
+        condition: m.condition,
+        askingPrice: m.askingPrice,
+        location: m.location,
+        savedAt: new Date().toISOString()
+      }));
+    
+    // Combine saved and newly selected internal matches
+    const allInternalMatches = [...savedInternalMatches, ...selectedInternalData];
+    
+    // Build marketplace listings from external results (PDF and web sources with prices)
+    const marketplaceListings = externalResults
+      .filter(r => r.price || r.condition)
+      .map(r => ({
+        url: r.url,
+        title: r.title,
+        price: r.price,
+        condition: r.condition,
+        source: r.source,
+        savedAt: new Date().toISOString()
+      }));
+    
+    // Save all search results for data enrichment
+    const searchResults = {
+      query: { brand: data.brand, model: data.model, category: data.category },
+      searchedAt: new Date().toISOString(),
+      internalCount: internalMatches.length,
+      externalCount: externalResults.length,
+      externalResults: externalResults.map(r => ({
+        url: r.url,
+        title: r.title,
+        price: r.price,
+        condition: r.condition,
+        source: r.source,
+        isPdf: r.isPdf
+      }))
+    };
+    
+    onSubmit({ 
+      ...data, 
+      documents: allDocs,
+      savedInternalMatches: allInternalMatches as any,
+      savedMarketplaceListings: marketplaceListings.length > 0 ? marketplaceListings : undefined,
+      savedSearchResults: externalResults.length > 0 ? searchResults : undefined
+    });
   };
 
   const formatPrice = (value: number | null) => {
@@ -1001,7 +1107,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label>External Sources (Manuals, Datasheets)</Label>
+            <Label>Search Marketplace & Sources</Label>
             <Button
               type="button"
               size="sm"
@@ -1015,9 +1121,91 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
               ) : (
                 <Search className="w-4 h-4 mr-2" />
               )}
-              Search PDFs & Web
+              Search All Sources
             </Button>
           </div>
+          
+          {/* Show saved internal matches */}
+          {savedInternalMatches.length > 0 && (
+            <div className="border rounded-lg p-3 bg-blue-50 dark:bg-blue-950/30 space-y-2" data-testid="saved-internal-matches">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                Saved Marketplace References ({savedInternalMatches.length})
+              </p>
+              <div className="space-y-1">
+                {savedInternalMatches.map((match: any, index: number) => (
+                  <div key={match.id || index} className="flex items-center gap-2 text-sm group">
+                    <Check className="w-3 h-3 text-blue-600 shrink-0" />
+                    <span className="truncate flex-1">
+                      {match.brand} {match.model} - ${parseFloat(match.askingPrice).toLocaleString()} ({match.condition})
+                    </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {match.location}
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeSavedInternalMatch(match.id)}
+                      data-testid={`button-remove-internal-${index}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Show internal marketplace matches */}
+          {internalMatches.length > 0 && (
+            <div className="border rounded-lg p-3 bg-blue-50/50 dark:bg-blue-950/20 space-y-2" data-testid="internal-matches">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                Internal Marketplace Matches ({internalMatches.length})
+                {selectedInternalIds.length > 0 && (
+                  <span className="text-muted-foreground">
+                    ({selectedInternalIds.length} selected)
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">Similar equipment available on our marketplace - select to save as price references:</p>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {internalMatches.map((match: any, index: number) => {
+                  const isSelected = selectedInternalIds.includes(match.id);
+                  return (
+                    <div
+                      key={match.id}
+                      className={`flex items-center gap-2 text-sm p-2 rounded cursor-pointer transition-colors ${
+                        isSelected ? 'bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-700' : 'hover:bg-muted'
+                      }`}
+                      onClick={() => toggleInternalSelection(match)}
+                      data-testid={`select-internal-match-${index}`}
+                    >
+                      <div className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
+                        isSelected ? 'bg-blue-600 border-blue-600' : 'border-muted-foreground'
+                      }`}>
+                        {isSelected && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium">{match.brand} {match.model}</span>
+                        <span className="text-muted-foreground ml-2">
+                          ${parseFloat(match.askingPrice).toLocaleString()}
+                        </span>
+                      </div>
+                      <Badge variant={match.condition === 'new' ? 'default' : match.condition === 'refurbished' ? 'secondary' : 'outline'}>
+                        {match.condition}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground truncate max-w-[100px]">
+                        {match.location}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           
           {/* Show saved documents */}
           {savedDocuments.length > 0 && (
@@ -1061,11 +1249,12 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
             </div>
           )}
           
-          {/* Show search results with selection checkboxes */}
+          {/* Show external search results with selection checkboxes */}
           {externalResults.length > 0 && (
             <div className="border rounded-lg p-3 space-y-2">
-              <p className="text-sm font-medium">
-                Found {externalResults.length} sources 
+              <p className="text-sm font-medium flex items-center gap-2">
+                <Globe className="w-4 h-4 text-muted-foreground" />
+                External Sources ({externalResults.length}) 
                 {selectedDocUrls.length > 0 && (
                   <span className="text-muted-foreground ml-1">
                     ({selectedDocUrls.length} selected)

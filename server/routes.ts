@@ -1072,6 +1072,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== Internal Marketplace Search Endpoint =====
+  // Rate limiting: track requests per user session
+  const searchRateLimits = new Map<string, { count: number; resetAt: number }>();
+  const SEARCH_RATE_LIMIT = 10; // max requests
+  const SEARCH_RATE_WINDOW = 60000; // per minute
+  
+  app.post("/api/equipment/search-internal", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      
+      // Rate limiting check
+      const now = Date.now();
+      const userLimit = searchRateLimits.get(userId);
+      if (userLimit) {
+        if (now < userLimit.resetAt) {
+          if (userLimit.count >= SEARCH_RATE_LIMIT) {
+            return res.status(429).json({ message: "Too many search requests. Please wait a moment." });
+          }
+          userLimit.count++;
+        } else {
+          searchRateLimits.set(userId, { count: 1, resetAt: now + SEARCH_RATE_WINDOW });
+        }
+      } else {
+        searchRateLimits.set(userId, { count: 1, resetAt: now + SEARCH_RATE_WINDOW });
+      }
+      
+      const { brand, model, category, excludeId } = req.body;
+      
+      if (!brand && !model) {
+        return res.status(400).json({ message: "Brand or model is required for search" });
+      }
+
+      // Sanitize and validate inputs - minimum 2 characters, max 100
+      const sanitizedBrand = (brand || '').trim().slice(0, 100).toLowerCase();
+      const sanitizedModel = (model || '').trim().slice(0, 100).toLowerCase();
+      
+      if (sanitizedBrand.length < 2 && sanitizedModel.length < 2) {
+        return res.status(400).json({ message: "Search term must be at least 2 characters" });
+      }
+
+      // Build search query using LOWER() + LIKE to leverage functional indexes (equipment_brand_lower_idx, equipment_model_lower_idx)
+      // Prefix-only matching (no leading wildcards) allows PostgreSQL to use text_pattern_ops indexes
+      const results = await db.select()
+        .from(equipment)
+        .where(
+          and(
+            eq(equipment.listingStatus, 'active'),
+            sql`(
+              ${sanitizedBrand.length >= 2 ? sql`LOWER(${equipment.brand}) LIKE ${sanitizedBrand + '%'}` : sql`FALSE`}
+              OR ${sanitizedModel.length >= 2 ? sql`LOWER(${equipment.model}) LIKE ${sanitizedModel + '%'}` : sql`FALSE`}
+            )`
+          )
+        )
+        .orderBy(desc(equipment.createdAt))
+        .limit(20);
+
+      // Filter out excluded ID and format response
+      const filteredResults = results
+        .filter(item => excludeId ? item.id !== excludeId : true)
+        .map(item => ({
+          id: item.id,
+          brand: item.brand,
+          model: item.model,
+          category: item.category,
+          condition: item.condition,
+          askingPrice: item.askingPrice,
+          location: item.location,
+          description: item.description,
+          images: item.images,
+          marketPriceRange: item.marketPriceRange,
+          priceSource: item.priceSource,
+          source: 'internal',
+          matchType: (sanitizedBrand && item.brand.toLowerCase().includes(sanitizedBrand) && 
+                      sanitizedModel && item.model.toLowerCase().includes(sanitizedModel)) 
+            ? 'exact' : 'partial'
+        }));
+
+      res.json({
+        internal_matches: filteredResults,
+        total_count: filteredResults.length,
+        search_query: { brand, model, category }
+      });
+    } catch (error: any) {
+      console.error('Internal search error:', error);
+      res.status(500).json({ message: error.message || "Internal search failed" });
+    }
+  });
+
   // ===== Dashboard Stats Endpoint =====
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
