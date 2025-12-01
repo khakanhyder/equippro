@@ -549,15 +549,15 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
           savedAt: new Date().toISOString()
         }));
       
-      // Build marketplace listings from external results
+      // Build marketplace listings from external results (save all sources)
       const marketplaceListings = externalResults
-        .filter(r => r.price || r.condition)
         .map(r => ({
           url: r.url,
           title: r.title,
-          price: r.price,
-          condition: r.condition,
-          source: r.source,
+          price: r.price || null,
+          condition: r.condition || null,
+          source: r.source || 'External',
+          isPdf: r.isPdf || false,
           savedAt: new Date().toISOString()
         }));
       

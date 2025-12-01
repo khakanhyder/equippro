@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, Search, ExternalLink, Edit, Trash2, DollarSign, Building2, Globe, FileText } from "lucide-react";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Search, ExternalLink, Edit, Trash2, DollarSign, Building2, Globe, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react";
 import type { WishlistItem } from "@shared/schema";
 
 interface WishlistItemCardProps {
@@ -33,29 +32,26 @@ interface MarketplaceListing {
 }
 
 export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: WishlistItemCardProps) {
-  const [showDetails, setShowDetails] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const getPriorityColor = (priority: string) => {
     switch (priority?.toLowerCase()) {
       case 'high':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800';
       case 'low':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
     }
   };
 
   const parseMarketPrices = () => {
-    if (!item.marketPriceRange) {
-      return null;
-    }
-
+    if (!item.marketPriceRange) return null;
     try {
       let priceData: any;
-      
       if (typeof item.marketPriceRange === 'string') {
         priceData = JSON.parse(item.marketPriceRange);
       } else if (typeof item.marketPriceRange === 'object') {
@@ -63,7 +59,6 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
       } else {
         return null;
       }
-
       return {
         used_min: priceData.used_min ?? null,
         used_max: priceData.used_max ?? null,
@@ -104,9 +99,6 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
   const prices = parseMarketPrices();
   const internalMatches = parseSavedInternalMatches();
   const marketplaceListings = parseSavedMarketplaceListings();
-  
-  const hasEnrichedData = prices || internalMatches.length > 0 || marketplaceListings.length > 0 || 
-    (item.requiredSpecs && typeof item.requiredSpecs === 'object' && item.requiredSpecs !== null);
 
   const formatPrice = (value: number | null) => {
     if (value === null || value === undefined) return null;
@@ -124,259 +116,237 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
 
   const formatMatchPrice = (price: string | number | null | undefined): string => {
     if (price === null || price === undefined) return 'N/A';
-    
-    // If already formatted with $ symbol, return as-is
     if (typeof price === 'string') {
       if (price.startsWith('$')) return price;
-      // Try to parse as number
       const numericValue = parseFloat(price.replace(/[^0-9.-]/g, ''));
       if (!isNaN(numericValue)) {
         return `$${numericValue.toLocaleString()}`;
       }
       return price;
     }
-    
-    // If number, format it
     if (typeof price === 'number' && !isNaN(price)) {
       return `$${price.toLocaleString()}`;
     }
-    
     return 'N/A';
   };
 
+  const hasImage = item.imageUrls && Array.isArray(item.imageUrls) && item.imageUrls.length > 0;
+  const hasEnrichedData = prices || internalMatches.length > 0 || marketplaceListings.length > 0;
+
   return (
-    <Card className="hover-elevate" data-testid={`card-wishlist-${item.id}`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
+    <Card className="hover-elevate flex flex-col h-full" data-testid={`card-wishlist-${item.id}`}>
+      <CardHeader className="pb-2 space-y-2">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h3 className="font-semibold text-lg">
-                {item.brand} {item.model}
-              </h3>
-              {item.priority && (
-                <Badge className={getPriorityColor(item.priority)} variant="outline">
-                  {item.priority} priority
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">{item.category}</p>
+            <h3 className="font-semibold text-base leading-tight truncate" title={`${item.brand} ${item.model}`}>
+              {item.brand} {item.model}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{item.category}</p>
           </div>
-          
-          <div className="text-right">
-            <p className="text-2xl font-bold">{formatMatchPrice(item.maxBudget)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Max Budget</p>
-          </div>
+          {item.priority && (
+            <Badge className={`${getPriorityColor(item.priority)} text-xs shrink-0`} variant="outline">
+              {item.priority}
+            </Badge>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Budget:</span>
+          <span className="font-semibold">{formatMatchPrice(item.maxBudget)}</span>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {item.imageUrls && Array.isArray(item.imageUrls) && item.imageUrls.length > 0 && (
-          <div>
-            {item.imageUrls.length === 1 ? (
-              <img 
-                src={item.imageUrls[0]} 
-                alt={`${item.brand} ${item.model}`}
-                className="w-full h-48 object-cover rounded-lg border"
-              />
-            ) : (
-              <Carousel className="w-full">
-                <CarouselContent>
-                  {item.imageUrls.map((imageUrl, idx) => (
-                    <CarouselItem key={idx}>
-                      <img 
-                        src={imageUrl} 
-                        alt={`${item.brand} ${item.model} - Image ${idx + 1}`}
-                        className="w-full h-48 object-cover rounded-lg border"
-                      />
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="left-2" />
-                <CarouselNext className="right-2" />
-              </Carousel>
+      <CardContent className="flex-1 space-y-2 pt-0">
+        {hasImage && (
+          <div className="relative">
+            <img 
+              src={item.imageUrls![currentImageIndex]} 
+              alt={`${item.brand} ${item.model}`}
+              className="w-full h-32 object-cover rounded-md border"
+            />
+            {item.imageUrls!.length > 1 && (
+              <>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="absolute left-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-80"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentImageIndex((prev) => (prev - 1 + item.imageUrls!.length) % item.imageUrls!.length);
+                  }}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 opacity-80"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentImageIndex((prev) => (prev + 1) % item.imageUrls!.length);
+                  }}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+                <Badge variant="secondary" className="absolute bottom-1 right-1 text-xs">
+                  {currentImageIndex + 1}/{item.imageUrls!.length}
+                </Badge>
+              </>
             )}
           </div>
         )}
 
         {item.notes && (
-          <div>
-            <p className="text-sm text-muted-foreground">{item.notes}</p>
-          </div>
+          <p className="text-xs text-muted-foreground line-clamp-2">{item.notes}</p>
         )}
 
-        {/* Always-visible Price Summary */}
-        {prices && (
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Market Price Range</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {(prices.used_min !== null || prices.used_max !== null) && (
-                <div className="p-2 bg-background rounded border">
-                  <p className="text-xs text-muted-foreground mb-1">Used</p>
-                  <p className="text-sm font-semibold">{formatPriceRange(prices.used_min, prices.used_max)}</p>
-                </div>
-              )}
-              {(prices.refurbished_min !== null || prices.refurbished_max !== null) && (
-                <div className="p-2 bg-background rounded border">
-                  <p className="text-xs text-muted-foreground mb-1">Refurbished</p>
-                  <p className="text-sm font-semibold">{formatPriceRange(prices.refurbished_min, prices.refurbished_max)}</p>
-                </div>
-              )}
-              {(prices.new_min !== null || prices.new_max !== null) && (
-                <div className="p-2 bg-background rounded border">
-                  <p className="text-xs text-muted-foreground mb-1">New</p>
-                  <p className="text-sm font-semibold">{formatPriceRange(prices.new_min, prices.new_max)}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Compact summary chips */}
+        <div className="flex flex-wrap gap-1.5">
+          {prices && (
+            <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
+              <DollarSign className="w-3 h-3 mr-1" />
+              {formatPriceRange(prices.used_min, prices.used_max) || 'Prices'}
+            </Badge>
+          )}
+          {internalMatches.length > 0 && (
+            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+              <Building2 className="w-3 h-3 mr-1" />
+              {internalMatches.length} match{internalMatches.length !== 1 ? 'es' : ''}
+            </Badge>
+          )}
+          {marketplaceListings.length > 0 && (
+            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800">
+              <Globe className="w-3 h-3 mr-1" />
+              {marketplaceListings.length} source{marketplaceListings.length !== 1 ? 's' : ''}
+            </Badge>
+          )}
+        </div>
 
-        {/* Always-visible Internal Matches */}
-        {internalMatches.length > 0 && (
-          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Building2 className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
-                {internalMatches.length} Internal Match{internalMatches.length !== 1 ? 'es' : ''} Saved
-              </span>
-            </div>
-            <div className="space-y-2">
-              {internalMatches.slice(0, 3).map((match, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 bg-background rounded border text-sm">
-                  <div>
-                    <span className="font-medium">{match.brand} {match.model}</span>
-                    <span className="text-muted-foreground ml-2">· {match.condition}</span>
-                  </div>
-                  <Badge variant="outline" className="text-blue-600">
-                    {formatMatchPrice(match.askingPrice)}
-                  </Badge>
-                </div>
-              ))}
-              {internalMatches.length > 3 && (
-                <p className="text-xs text-muted-foreground text-center">
-                  +{internalMatches.length - 3} more matches
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Always-visible External Sources */}
-        {marketplaceListings.length > 0 && (
-          <div className="p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Globe className="w-4 h-4 text-purple-600" />
-              <span className="text-sm font-medium text-purple-700 dark:text-purple-400">
-                {marketplaceListings.length} External Source{marketplaceListings.length !== 1 ? 's' : ''} Saved
-              </span>
-            </div>
-            <div className="space-y-2">
-              {marketplaceListings.slice(0, 3).map((listing, idx) => (
-                <a 
-                  key={idx} 
-                  href={listing.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-2 bg-background rounded border text-sm hover-elevate"
-                >
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium truncate block">{listing.title}</span>
-                    {listing.source && (
-                      <span className="text-xs text-muted-foreground">{listing.source}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {listing.price && (
-                      <Badge variant="outline" className="text-purple-600">{listing.price}</Badge>
-                    )}
-                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                  </div>
-                </a>
-              ))}
-              {marketplaceListings.length > 3 && (
-                <p className="text-xs text-muted-foreground text-center">
-                  +{marketplaceListings.length - 3} more sources
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Show More Toggle for Specs */}
-        {item.requiredSpecs && typeof item.requiredSpecs === 'object' && item.requiredSpecs !== null && (
+        {/* Expandable details */}
+        {hasEnrichedData && (
           <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDetails(!showDetails)}
-              className="w-full"
-              data-testid={`button-toggle-details-${item.id}`}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full h-7 text-xs"
+              onClick={() => setExpanded(!expanded)}
             >
-              {showDetails ? (
-                <>
-                  <ChevronUp className="w-4 h-4 mr-2" />
-                  Show less
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-4 h-4 mr-2" />
-                  Show specifications
-                </>
-              )}
+              {expanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+              {expanded ? 'Hide details' : 'View details'}
             </Button>
 
-            {showDetails && (
-              <div className="space-y-4 pt-2 border-t">
-                <div>
-                  <p className="text-sm font-medium mb-2">Required Specifications</p>
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    {Object.entries(item.requiredSpecs as Record<string, string>).map(([key, value]) => (
-                      <div key={key} className="flex gap-2">
-                        <span className="font-medium">{key}:</span>
-                        <span>{value}</span>
-                      </div>
-                    ))}
+            {expanded && (
+              <div className="space-y-2 pt-1">
+                {/* Price breakdown */}
+                {prices && (
+                  <div className="p-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded text-xs">
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <DollarSign className="w-3 h-3 text-emerald-600" />
+                      <span className="font-medium text-emerald-700 dark:text-emerald-400">Market Prices</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {(prices.used_min !== null || prices.used_max !== null) && (
+                        <div>
+                          <span className="text-muted-foreground">Used: </span>
+                          <span className="font-medium">{formatPriceRange(prices.used_min, prices.used_max)}</span>
+                        </div>
+                      )}
+                      {(prices.refurbished_min !== null || prices.refurbished_max !== null) && (
+                        <div>
+                          <span className="text-muted-foreground">Refurb: </span>
+                          <span className="font-medium">{formatPriceRange(prices.refurbished_min, prices.refurbished_max)}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Internal matches */}
+                {internalMatches.length > 0 && (
+                  <div className="p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded text-xs">
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <Building2 className="w-3 h-3 text-blue-600" />
+                      <span className="font-medium text-blue-700 dark:text-blue-400">Internal Matches</span>
+                    </div>
+                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                      {internalMatches.slice(0, 3).map((match, idx) => (
+                        <div key={idx} className="flex items-center justify-between py-0.5">
+                          <span className="truncate">{match.brand} {match.model}</span>
+                          <span className="font-medium text-blue-600 shrink-0 ml-2">{formatMatchPrice(match.askingPrice)}</span>
+                        </div>
+                      ))}
+                      {internalMatches.length > 3 && (
+                        <p className="text-muted-foreground">+{internalMatches.length - 3} more</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* External sources */}
+                {marketplaceListings.length > 0 && (
+                  <div className="p-2 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded text-xs">
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <Globe className="w-3 h-3 text-purple-600" />
+                      <span className="font-medium text-purple-700 dark:text-purple-400">External Sources</span>
+                    </div>
+                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                      {marketplaceListings.slice(0, 3).map((listing, idx) => (
+                        <a 
+                          key={idx}
+                          href={listing.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 py-0.5 hover:text-purple-600"
+                        >
+                          <span className="truncate flex-1">{listing.title}</span>
+                          <ExternalLink className="w-3 h-3 shrink-0" />
+                        </a>
+                      ))}
+                      {marketplaceListings.length > 3 && (
+                        <p className="text-muted-foreground">+{marketplaceListings.length - 3} more</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>
         )}
       </CardContent>
 
-      <CardFooter className="flex gap-2 pt-4 border-t">
+      <CardFooter className="pt-2 border-t gap-1">
         {onFindMatches && (
           <Button
             variant="outline"
-            className="flex-1"
+            size="sm"
+            className="flex-1 h-8 text-xs"
             onClick={() => onFindMatches(item.id)}
             data-testid={`button-find-matches-${item.id}`}
           >
-            <Search className="w-4 h-4 mr-2" />
-            Find Matches
+            <Search className="w-3 h-3 mr-1" />
+            Find
           </Button>
         )}
         {onEdit && (
           <Button
             size="icon"
             variant="ghost"
+            className="h-8 w-8"
             onClick={() => onEdit(item.id)}
             data-testid={`button-edit-${item.id}`}
           >
-            <Edit className="w-4 h-4" />
+            <Edit className="w-3.5 h-3.5" />
           </Button>
         )}
         {onDelete && (
           <Button
             size="icon"
             variant="ghost"
+            className="h-8 w-8"
             onClick={() => onDelete(item.id)}
             data-testid={`button-delete-${item.id}`}
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
           </Button>
         )}
       </CardFooter>

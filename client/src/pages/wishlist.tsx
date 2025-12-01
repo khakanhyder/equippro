@@ -120,13 +120,13 @@ export default function Wishlist() {
       }));
 
       const savedMarketplaceListings = externalResults
-        .filter((r: any) => r.price || r.condition)
         .map((r: any) => ({
           url: r.url,
           title: r.title,
-          price: r.price,
-          condition: r.condition,
-          source: r.source,
+          price: r.price || null,
+          condition: r.condition || null,
+          source: r.source || 'External',
+          isPdf: r.isPdf || false,
           savedAt: new Date().toISOString()
         }));
 
@@ -175,8 +175,8 @@ export default function Wishlist() {
 
   // Render project detail view OR project list view
   const renderProjectDetailView = () => (
-    <div className="flex-1 overflow-auto">
-      <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="p-4 md:p-6 space-y-6 max-w-6xl mx-auto w-full">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={handleBackToProjects} data-testid="button-back">
@@ -205,7 +205,7 @@ export default function Wishlist() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {projectItems.map((item) => (
               <WishlistItemCard 
                 key={item.id} 
@@ -290,7 +290,7 @@ export default function Wishlist() {
 
       {/* Add Item Dialog - rendered outside conditional to work on both views */}
       <Dialog open={addItemDialogOpen} onOpenChange={setAddItemDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-add-equipment">
+        <DialogContent className="sm:max-w-2xl max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden" data-testid="dialog-add-equipment">
           <DialogHeader>
             <DialogTitle>Add Equipment Specification</DialogTitle>
             <DialogDescription>
@@ -314,7 +314,7 @@ export default function Wishlist() {
         setEditItemDialogOpen(open);
         if (!open) setEditingItem(null);
       }}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-equipment">
+        <DialogContent className="sm:max-w-2xl max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden" data-testid="dialog-edit-equipment">
           <DialogHeader>
             <DialogTitle>Edit Equipment Specification</DialogTitle>
             <DialogDescription>
