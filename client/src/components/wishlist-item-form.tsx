@@ -33,6 +33,7 @@ import { useImageUpload } from "@/hooks/use-image-upload";
 
 interface WishlistItemFormProps {
   projectId: number;
+  existingItem?: any;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -49,13 +50,48 @@ interface AiSuggestions {
   specifications: Array<{ name: string; value: string; unit?: string }>;
 }
 
-export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistItemFormProps) {
+export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel }: WishlistItemFormProps) {
   const { toast } = useToast();
-  const { createWishlistItem } = useWishlistMutations();
+  const { createWishlistItem, updateWishlistItem } = useWishlistMutations();
   const { fetchPriceContext } = usePriceContext();
   const imageUpload = useImageUpload();
+  const isEditMode = !!existingItem;
 
-  const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>([]);
+  // Parse existing saved data
+  const parseExistingInternalMatches = () => {
+    if (!existingItem?.savedInternalMatches) return [];
+    try {
+      return typeof existingItem.savedInternalMatches === 'string' 
+        ? JSON.parse(existingItem.savedInternalMatches) 
+        : existingItem.savedInternalMatches;
+    } catch { return []; }
+  };
+
+  const parseExistingMarketplaceListings = () => {
+    if (!existingItem?.savedMarketplaceListings) return [];
+    try {
+      return typeof existingItem.savedMarketplaceListings === 'string'
+        ? JSON.parse(existingItem.savedMarketplaceListings)
+        : existingItem.savedMarketplaceListings;
+    } catch { return []; }
+  };
+
+  const parseExistingSearchResults = () => {
+    if (!existingItem?.savedSearchResults) return [];
+    try {
+      const data = typeof existingItem.savedSearchResults === 'string'
+        ? JSON.parse(existingItem.savedSearchResults)
+        : existingItem.savedSearchResults;
+      return data?.externalResults || [];
+    } catch { return []; }
+  };
+
+  const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>(() => {
+    if (existingItem?.requiredSpecs && typeof existingItem.requiredSpecs === 'object') {
+      return Object.entries(existingItem.requiredSpecs).map(([key, value]) => ({ key, value: String(value) }));
+    }
+    return [];
+  });
   const [priceData, setPriceData] = useState<PriceEstimate | null>(null);
   const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestions>({
@@ -68,31 +104,31 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
   const [isSearchingExternal, setIsSearchingExternal] = useState(false);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
-  const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string; price?: string; condition?: string; source?: string; isPdf?: boolean }>>([]);
-  const [internalMatches, setInternalMatches] = useState<any[]>([]);
-  const [selectedInternalIds, setSelectedInternalIds] = useState<number[]>([]);
+  const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string; price?: string; condition?: string; source?: string; isPdf?: boolean }>>(() => parseExistingSearchResults());
+  const [internalMatches, setInternalMatches] = useState<any[]>(() => parseExistingInternalMatches());
+  const [selectedInternalIds, setSelectedInternalIds] = useState<number[]>(() => parseExistingInternalMatches().map((m: any) => m.id));
   const [isPollingScrape, setIsPollingScrape] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const form = useForm<InsertWishlistItem>({
     resolver: zodResolver(insertWishlistItemSchema),
     defaultValues: {
-      projectId,
-      brand: "",
-      model: "",
-      category: "analytical",
-      preferredCondition: "any",
-      location: "",
-      maxBudget: "0",
-      priority: "high",
-      requiredSpecs: null,
-      notes: "",
-      imageUrls: [],
-      documentUrls: [],
-      status: "active",
-      marketPriceRange: null,
-      priceSource: null,
-      priceBreakdown: null,
+      projectId: existingItem?.projectId || projectId,
+      brand: existingItem?.brand || "",
+      model: existingItem?.model || "",
+      category: existingItem?.category || "analytical",
+      preferredCondition: existingItem?.preferredCondition || "any",
+      location: existingItem?.location || "",
+      maxBudget: existingItem?.maxBudget || "0",
+      priority: existingItem?.priority || "high",
+      requiredSpecs: existingItem?.requiredSpecs || null,
+      notes: existingItem?.notes || "",
+      imageUrls: existingItem?.imageUrls || [],
+      documentUrls: existingItem?.documentUrls || [],
+      status: existingItem?.status || "active",
+      marketPriceRange: existingItem?.marketPriceRange || null,
+      priceSource: existingItem?.priceSource || null,
+      priceBreakdown: existingItem?.priceBreakdown || null,
     },
   });
 
@@ -549,43 +585,54 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
         savedSearchResults: searchResults,
       };
       
-      await createWishlistItem.mutateAsync(enrichedData as any);
+      if (isEditMode && existingItem?.id) {
+        // Update existing item
+        await updateWishlistItem.mutateAsync({ id: existingItem.id, data: enrichedData as any });
+        toast({
+          title: "Wishlist item updated",
+          description: "Your equipment specification has been updated",
+        });
+      } else {
+        // Create new item
+        await createWishlistItem.mutateAsync(enrichedData as any);
+        toast({
+          title: "Wishlist item created",
+          description: "Your equipment specification has been added",
+        });
+      }
 
-      toast({
-        title: "Wishlist item created",
-        description: "Your equipment specification has been added",
-      });
-
-      form.reset({
-        projectId,
-        brand: "",
-        model: "",
-        category: "analytical",
-        preferredCondition: "any",
-        location: "",
-        maxBudget: "0",
-        priority: "high",
-        requiredSpecs: null,
-        notes: "",
-        imageUrls: [],
-        documentUrls: [],
-        status: "active",
-        marketPriceRange: null,
-        priceSource: null,
-        priceBreakdown: null,
-      });
-      setSpecs([]);
-      setPriceData(null);
-      setInternalMatches([]);
-      setSelectedInternalIds([]);
-      setExternalResults([]);
-      imageUpload.clearAll();
-      setDocumentFiles([]);
+      if (!isEditMode) {
+        form.reset({
+          projectId,
+          brand: "",
+          model: "",
+          category: "analytical",
+          preferredCondition: "any",
+          location: "",
+          maxBudget: "0",
+          priority: "high",
+          requiredSpecs: null,
+          notes: "",
+          imageUrls: [],
+          documentUrls: [],
+          status: "active",
+          marketPriceRange: null,
+          priceSource: null,
+          priceBreakdown: null,
+        });
+        setSpecs([]);
+        setPriceData(null);
+        setInternalMatches([]);
+        setSelectedInternalIds([]);
+        setExternalResults([]);
+        imageUpload.clearAll();
+        setDocumentFiles([]);
+      }
 
       onSuccess?.();
     } catch (error: any) {
       toast({
-        title: "Failed to create wishlist item",
+        title: isEditMode ? "Failed to update wishlist item" : "Failed to create wishlist item",
         description: error.message || "An error occurred",
         variant: "destructive",
       });
@@ -1330,10 +1377,12 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
           <Button
             type="submit"
             className="flex-1"
-            disabled={createWishlistItem.isPending}
+            disabled={createWishlistItem.isPending || updateWishlistItem.isPending}
             data-testid="button-submit-wishlist"
           >
-            {createWishlistItem.isPending ? "Adding..." : "Add to Project"}
+            {createWishlistItem.isPending || updateWishlistItem.isPending 
+              ? (isEditMode ? "Updating..." : "Adding...") 
+              : (isEditMode ? "Update Item" : "Add to Project")}
           </Button>
         </div>
       </form>

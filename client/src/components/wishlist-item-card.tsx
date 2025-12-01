@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, Search, ExternalLink, Edit, Trash2, DollarSign } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, ExternalLink, Edit, Trash2, DollarSign, Building2, Globe, FileText } from "lucide-react";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import type { WishlistItem } from "@shared/schema";
 
@@ -11,6 +11,25 @@ interface WishlistItemCardProps {
   onFindMatches?: (itemId: number) => void;
   onEdit?: (itemId: number) => void;
   onDelete?: (itemId: number) => void;
+}
+
+interface InternalMatch {
+  id: number;
+  brand: string;
+  model: string;
+  condition: string;
+  askingPrice: string;
+  location: string;
+  savedAt?: string;
+}
+
+interface MarketplaceListing {
+  url: string;
+  title: string;
+  price?: string;
+  condition?: string;
+  source?: string;
+  savedAt?: string;
 }
 
 export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: WishlistItemCardProps) {
@@ -46,16 +65,84 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
       }
 
       return {
-        used: priceData.used || priceData.Used || null,
-        refurbished: priceData.refurbished || priceData.Refurbished || null,
-        new: priceData.new || priceData.New || null,
+        used_min: priceData.used_min ?? null,
+        used_max: priceData.used_max ?? null,
+        refurbished_min: priceData.refurbished_min ?? null,
+        refurbished_max: priceData.refurbished_max ?? null,
+        new_min: priceData.new_min ?? null,
+        new_max: priceData.new_max ?? null,
       };
     } catch {
       return null;
     }
   };
 
+  const parseSavedInternalMatches = (): InternalMatch[] => {
+    if (!item.savedInternalMatches) return [];
+    try {
+      if (typeof item.savedInternalMatches === 'string') {
+        return JSON.parse(item.savedInternalMatches);
+      }
+      return Array.isArray(item.savedInternalMatches) ? item.savedInternalMatches : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const parseSavedMarketplaceListings = (): MarketplaceListing[] => {
+    if (!item.savedMarketplaceListings) return [];
+    try {
+      if (typeof item.savedMarketplaceListings === 'string') {
+        return JSON.parse(item.savedMarketplaceListings);
+      }
+      return Array.isArray(item.savedMarketplaceListings) ? item.savedMarketplaceListings : [];
+    } catch {
+      return [];
+    }
+  };
+
   const prices = parseMarketPrices();
+  const internalMatches = parseSavedInternalMatches();
+  const marketplaceListings = parseSavedMarketplaceListings();
+  
+  const hasEnrichedData = prices || internalMatches.length > 0 || marketplaceListings.length > 0 || 
+    (item.requiredSpecs && typeof item.requiredSpecs === 'object' && item.requiredSpecs !== null);
+
+  const formatPrice = (value: number | null) => {
+    if (value === null || value === undefined) return null;
+    return `$${value.toLocaleString()}`;
+  };
+
+  const formatPriceRange = (min: number | null, max: number | null) => {
+    const minStr = formatPrice(min);
+    const maxStr = formatPrice(max);
+    if (minStr && maxStr && minStr !== maxStr) {
+      return `${minStr} - ${maxStr}`;
+    }
+    return minStr || maxStr || null;
+  };
+
+  const formatMatchPrice = (price: string | number | null | undefined): string => {
+    if (price === null || price === undefined) return 'N/A';
+    
+    // If already formatted with $ symbol, return as-is
+    if (typeof price === 'string') {
+      if (price.startsWith('$')) return price;
+      // Try to parse as number
+      const numericValue = parseFloat(price.replace(/[^0-9.-]/g, ''));
+      if (!isNaN(numericValue)) {
+        return `$${numericValue.toLocaleString()}`;
+      }
+      return price;
+    }
+    
+    // If number, format it
+    if (typeof price === 'number' && !isNaN(price)) {
+      return `$${price.toLocaleString()}`;
+    }
+    
+    return 'N/A';
+  };
 
   return (
     <Card className="hover-elevate" data-testid={`card-wishlist-${item.id}`}>
@@ -76,14 +163,13 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
           </div>
           
           <div className="text-right">
-            <p className="text-2xl font-bold">${parseFloat(item.maxBudget).toLocaleString()}</p>
+            <p className="text-2xl font-bold">{formatMatchPrice(item.maxBudget)}</p>
             <p className="text-xs text-muted-foreground mt-1">Max Budget</p>
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Image Carousel */}
         {item.imageUrls && Array.isArray(item.imageUrls) && item.imageUrls.length > 0 && (
           <div>
             {item.imageUrls.length === 1 ? (
@@ -112,79 +198,152 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
           </div>
         )}
 
-        {/* Description */}
         {item.notes && (
           <div>
             <p className="text-sm text-muted-foreground">{item.notes}</p>
           </div>
         )}
 
-        {/* Show More Toggle */}
-        {(prices || (item.requiredSpecs && typeof item.requiredSpecs === 'object' && item.requiredSpecs !== null)) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDetails(!showDetails)}
-            className="w-full"
-            data-testid={`button-toggle-details-${item.id}`}
-          >
-            {showDetails ? (
-              <>
-                <ChevronUp className="w-4 h-4 mr-2" />
-                Show less
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-4 h-4 mr-2" />
-                Show more details
-              </>
-            )}
-          </Button>
+        {/* Always-visible Price Summary */}
+        {prices && (
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign className="w-4 h-4 text-emerald-600" />
+              <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Market Price Range</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {(prices.used_min !== null || prices.used_max !== null) && (
+                <div className="p-2 bg-background rounded border">
+                  <p className="text-xs text-muted-foreground mb-1">Used</p>
+                  <p className="text-sm font-semibold">{formatPriceRange(prices.used_min, prices.used_max)}</p>
+                </div>
+              )}
+              {(prices.refurbished_min !== null || prices.refurbished_max !== null) && (
+                <div className="p-2 bg-background rounded border">
+                  <p className="text-xs text-muted-foreground mb-1">Refurbished</p>
+                  <p className="text-sm font-semibold">{formatPriceRange(prices.refurbished_min, prices.refurbished_max)}</p>
+                </div>
+              )}
+              {(prices.new_min !== null || prices.new_max !== null) && (
+                <div className="p-2 bg-background rounded border">
+                  <p className="text-xs text-muted-foreground mb-1">New</p>
+                  <p className="text-sm font-semibold">{formatPriceRange(prices.new_min, prices.new_max)}</p>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
-        {/* Expandable Details */}
-        {showDetails && (
-          <div className="space-y-4 pt-2 border-t">
-            {prices && (
-              <div>
-                <p className="text-sm font-medium mb-3">Market Price Range</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {prices.used && (
-                    <div className="text-center p-3 border rounded-lg">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Used</p>
-                      <p className="text-sm font-semibold">${prices.used.toLocaleString()}</p>
-                    </div>
-                  )}
-                  {prices.refurbished && (
-                    <div className="text-center p-3 border rounded-lg">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Refurbished</p>
-                      <p className="text-sm font-semibold">${prices.refurbished.toLocaleString()}</p>
-                    </div>
-                  )}
-                  {prices.new && (
-                    <div className="text-center p-3 border rounded-lg">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">New</p>
-                      <p className="text-sm font-semibold">${prices.new.toLocaleString()}</p>
-                    </div>
-                  )}
+        {/* Always-visible Internal Matches */}
+        {internalMatches.length > 0 && (
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
+                {internalMatches.length} Internal Match{internalMatches.length !== 1 ? 'es' : ''} Saved
+              </span>
+            </div>
+            <div className="space-y-2">
+              {internalMatches.slice(0, 3).map((match, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2 bg-background rounded border text-sm">
+                  <div>
+                    <span className="font-medium">{match.brand} {match.model}</span>
+                    <span className="text-muted-foreground ml-2">· {match.condition}</span>
+                  </div>
+                  <Badge variant="outline" className="text-blue-600">
+                    {formatMatchPrice(match.askingPrice)}
+                  </Badge>
                 </div>
-              </div>
-            )}
-
-            {item.requiredSpecs && typeof item.requiredSpecs === 'object' && item.requiredSpecs !== null && (
-              <div>
-                <p className="text-sm font-medium mb-2">Required Specifications</p>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  {Object.entries(item.requiredSpecs as Record<string, string>).map(([key, value]) => (
-                    <div key={key} className="flex gap-2">
-                      <span className="font-medium">{key}:</span>
-                      <span>{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+              ))}
+              {internalMatches.length > 3 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  +{internalMatches.length - 3} more matches
+                </p>
+              )}
+            </div>
           </div>
+        )}
+
+        {/* Always-visible External Sources */}
+        {marketplaceListings.length > 0 && (
+          <div className="p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Globe className="w-4 h-4 text-purple-600" />
+              <span className="text-sm font-medium text-purple-700 dark:text-purple-400">
+                {marketplaceListings.length} External Source{marketplaceListings.length !== 1 ? 's' : ''} Saved
+              </span>
+            </div>
+            <div className="space-y-2">
+              {marketplaceListings.slice(0, 3).map((listing, idx) => (
+                <a 
+                  key={idx} 
+                  href={listing.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-2 bg-background rounded border text-sm hover-elevate"
+                >
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium truncate block">{listing.title}</span>
+                    {listing.source && (
+                      <span className="text-xs text-muted-foreground">{listing.source}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {listing.price && (
+                      <Badge variant="outline" className="text-purple-600">{listing.price}</Badge>
+                    )}
+                    <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                  </div>
+                </a>
+              ))}
+              {marketplaceListings.length > 3 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  +{marketplaceListings.length - 3} more sources
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Show More Toggle for Specs */}
+        {item.requiredSpecs && typeof item.requiredSpecs === 'object' && item.requiredSpecs !== null && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDetails(!showDetails)}
+              className="w-full"
+              data-testid={`button-toggle-details-${item.id}`}
+            >
+              {showDetails ? (
+                <>
+                  <ChevronUp className="w-4 h-4 mr-2" />
+                  Show less
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4 mr-2" />
+                  Show specifications
+                </>
+              )}
+            </Button>
+
+            {showDetails && (
+              <div className="space-y-4 pt-2 border-t">
+                <div>
+                  <p className="text-sm font-medium mb-2">Required Specifications</p>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    {Object.entries(item.requiredSpecs as Record<string, string>).map(([key, value]) => (
+                      <div key={key} className="flex gap-2">
+                        <span className="font-medium">{key}:</span>
+                        <span>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
 

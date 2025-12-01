@@ -4,7 +4,7 @@ import { ProjectCardWrapper } from "@/components/project-card-wrapper";
 import { WishlistItemForm } from "@/components/wishlist-item-form";
 import { WishlistItemCard } from "@/components/wishlist-item-card";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft, Package } from "lucide-react";
+import { Plus, ArrowLeft, Package, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,19 +17,24 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertWishlistProjectSchema, type InsertWishlistProject } from "@shared/schema";
+import { insertWishlistProjectSchema, type InsertWishlistProject, type WishlistItem } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
+import { searchAllSources } from "@/lib/ai-service";
 
 export default function Wishlist() {
   const { toast } = useToast();
   const { data: projects, isLoading: projectsLoading } = useProjects();
   const { createProject, deleteProject } = useProjectMutations();
-  const { deleteWishlistItem } = useWishlistMutations();
+  const { deleteWishlistItem, updateWishlistItem } = useWishlistMutations();
 
   const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
+  const [editItemDialogOpen, setEditItemDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<WishlistItem | null>(null);
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [viewingProjectId, setViewingProjectId] = useState<number | null>(null);
+  const [findingMatchesId, setFindingMatchesId] = useState<number | null>(null);
   
   const { data: projectItems } = useWishlistItems(viewingProjectId || 0);
   const viewingProject = projects?.find(p => p.id === viewingProjectId);
@@ -82,6 +87,92 @@ export default function Wishlist() {
     setViewingProjectId(null);
   };
 
+  const handleEditItem = (itemId: number) => {
+    const item = projectItems?.find(i => i.id === itemId);
+    if (item) {
+      setEditingItem(item);
+      setEditItemDialogOpen(true);
+    }
+  };
+
+  const handleFindMatches = async (itemId: number) => {
+    const item = projectItems?.find(i => i.id === itemId);
+    if (!item) return;
+
+    setFindingMatchesId(itemId);
+    
+    try {
+      // Use the combined search function from ai-service
+      const searchData = await searchAllSources(item.brand, item.model, item.category);
+      
+      // Build the saved data
+      const internalMatches = searchData.internal_matches || [];
+      const externalResults = searchData.external_matches || [];
+      
+      const savedInternalMatches = internalMatches.map((m: any) => ({
+        id: m.id,
+        brand: m.brand,
+        model: m.model,
+        condition: m.condition,
+        askingPrice: m.askingPrice,
+        location: m.location,
+        savedAt: new Date().toISOString()
+      }));
+
+      const savedMarketplaceListings = externalResults
+        .filter((r: any) => r.price || r.condition)
+        .map((r: any) => ({
+          url: r.url,
+          title: r.title,
+          price: r.price,
+          condition: r.condition,
+          source: r.source,
+          savedAt: new Date().toISOString()
+        }));
+
+      const savedSearchResults = {
+        query: { brand: item.brand, model: item.model, category: item.category },
+        searchedAt: new Date().toISOString(),
+        internalCount: internalMatches.length,
+        externalCount: externalResults.length,
+        externalResults: externalResults.map((r: any) => ({
+          url: r.url,
+          title: r.title,
+          price: r.price,
+          condition: r.condition,
+          source: r.source,
+          isPdf: r.isPdf
+        }))
+      };
+
+      // Update the item with search results
+      await updateWishlistItem.mutateAsync({
+        id: itemId,
+        data: {
+          savedInternalMatches: savedInternalMatches.length > 0 ? savedInternalMatches : null,
+          savedMarketplaceListings: savedMarketplaceListings.length > 0 ? savedMarketplaceListings : null,
+          savedSearchResults
+        } as any
+      });
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+
+      toast({
+        title: "Matches found",
+        description: `Found ${internalMatches.length} internal matches and ${externalResults.length} external sources`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Search failed",
+        description: error.message || "Failed to find matches",
+        variant: "destructive",
+      });
+    } finally {
+      setFindingMatchesId(null);
+    }
+  };
+
   // Render project detail view OR project list view
   const renderProjectDetailView = () => (
     <div className="flex-1 overflow-auto">
@@ -120,11 +211,11 @@ export default function Wishlist() {
                 key={item.id} 
                 item={item}
                 onFindMatches={(itemId) => {
-                  console.log('Find matches for item:', itemId);
+                  if (findingMatchesId === null) {
+                    handleFindMatches(itemId);
+                  }
                 }}
-                onEdit={(itemId) => {
-                  console.log('Edit item:', itemId);
-                }}
+                onEdit={handleEditItem}
                 onDelete={async (itemId) => {
                   try {
                     await deleteWishlistItem.mutateAsync(itemId);
@@ -212,6 +303,38 @@ export default function Wishlist() {
               <WishlistItemForm
                 projectId={selectedProjectId}
                 onSuccess={() => setAddItemDialogOpen(false)}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Item Dialog */}
+      <Dialog open={editItemDialogOpen} onOpenChange={(open) => {
+        setEditItemDialogOpen(open);
+        if (!open) setEditingItem(null);
+      }}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-equipment">
+          <DialogHeader>
+            <DialogTitle>Edit Equipment Specification</DialogTitle>
+            <DialogDescription>
+              Update the details for your equipment specification.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            {editingItem && (
+              <WishlistItemForm
+                projectId={editingItem.projectId}
+                existingItem={editingItem}
+                onSuccess={() => {
+                  setEditItemDialogOpen(false);
+                  setEditingItem(null);
+                }}
+                onCancel={() => {
+                  setEditItemDialogOpen(false);
+                  setEditingItem(null);
+                }}
               />
             )}
           </div>
@@ -306,6 +429,16 @@ export default function Wishlist() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Loading overlay for Find Matches */}
+      {findingMatchesId !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background p-6 rounded-lg shadow-lg flex items-center gap-4">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Searching for matches...</span>
+          </div>
+        </div>
+      )}
     </>
   );
 }
