@@ -726,114 +726,118 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
           {isSearchingExternal ? 'Searching all sources...' : 'Search All Sources (Internal + External)'}
         </Button>
 
-        {internalMatches.length > 0 && (
-          <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 overflow-hidden" data-testid="internal-matches-wishlist">
-            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center">
-              <FileText className="w-4 h-4 mr-2 shrink-0" />
-              Found {internalMatches.length} Internal Marketplace Match{internalMatches.length !== 1 ? 'es' : ''}
-            </h4>
-            <div className="space-y-2 max-h-64 overflow-y-auto overflow-x-hidden">
-              {internalMatches.map((match, idx) => (
-                <div
-                  key={match.id}
-                  onClick={() => toggleInternalSelection(match)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all overflow-hidden ${
-                    selectedInternalIds.includes(match.id)
-                      ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-400 ring-2 ring-blue-400'
-                      : 'bg-background border-muted hover-elevate'
-                  }`}
-                  data-testid={`select-internal-match-wishlist-${idx}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-foreground truncate">{match.brand} {match.model}</div>
-                      <div className="text-sm text-muted-foreground truncate">
-                        ${parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
+        {(internalMatches.length > 0 || externalResults.length > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Internal Matches Column */}
+            <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 overflow-hidden" data-testid="internal-matches-wishlist">
+              <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center">
+                <FileText className="w-4 h-4 mr-2 shrink-0" />
+                Found {internalMatches.length} Internal Match{internalMatches.length !== 1 ? 'es' : ''}
+              </h4>
+              {internalMatches.length > 0 ? (
+                <div className="space-y-2 max-h-72 overflow-y-auto overflow-x-hidden">
+                  {internalMatches.map((match, idx) => (
+                    <div
+                      key={match.id}
+                      onClick={() => toggleInternalSelection(match)}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all overflow-hidden ${
+                        selectedInternalIds.includes(match.id)
+                          ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-400 ring-2 ring-blue-400'
+                          : 'bg-background border-muted hover-elevate'
+                      }`}
+                      data-testid={`select-internal-match-wishlist-${idx}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-foreground truncate text-sm">{match.brand} {match.model}</div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            ${parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
+                          </div>
+                        </div>
+                        <Badge variant={selectedInternalIds.includes(match.id) ? 'default' : 'outline'} className="shrink-0 text-xs">
+                          {selectedInternalIds.includes(match.id) ? 'Selected' : 'Select'}
+                        </Badge>
                       </div>
                     </div>
-                    <Badge variant={selectedInternalIds.includes(match.id) ? 'default' : 'outline'} className="shrink-0">
-                      {selectedInternalIds.includes(match.id) ? 'Selected' : 'Select'}
-                    </Badge>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p className="text-sm text-muted-foreground">No internal matches found</p>
+              )}
             </div>
-          </div>
-        )}
 
-        {externalResults.length > 0 && (
-          <div className="p-4 border rounded-lg bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 overflow-hidden">
-            <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center">
-              <BookOpen className="w-4 h-4 mr-2 shrink-0" />
-              Found {externalResults.length} External Source{externalResults.length !== 1 ? 's' : ''}
-            </h4>
-            <div className="space-y-3 max-h-96 overflow-y-auto overflow-x-hidden">
-              {externalResults.map((result, idx) => (
-                <div
-                  key={idx}
-                  className="p-4 bg-background rounded-lg border hover-elevate overflow-hidden"
-                  data-testid={`card-external-result-${idx}`}
-                >
-                  <div className="mb-2">
-                    <div className="font-medium text-foreground truncate">{result.title}</div>
-                  </div>
-                  
-                  {result.description && (
-                    <div className="text-sm text-muted-foreground mb-2 line-clamp-2">{result.description}</div>
-                  )}
-                  
-                  <a
-                    href={result.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block mb-3 max-w-full"
-                    data-testid={`link-external-url-${idx}`}
-                  >
-                    {result.url}
-                  </a>
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toast({
-                          title: "Analyzing source",
-                          description: `Analyzing details from ${result.title}...`,
-                          duration: 3000,
-                        });
-                      }}
-                      className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950 dark:border-purple-800 dark:text-purple-400"
-                      data-testid={`button-analyze-${idx}`}
+            {/* External Sources Column */}
+            <div className="p-4 border rounded-lg bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 overflow-hidden">
+              <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center">
+                <BookOpen className="w-4 h-4 mr-2 shrink-0" />
+                Found {externalResults.length} External Source{externalResults.length !== 1 ? 's' : ''}
+              </h4>
+              {externalResults.length > 0 ? (
+                <div className="space-y-2 max-h-72 overflow-y-auto overflow-x-hidden">
+                  {externalResults.map((result, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 bg-background rounded-lg border hover-elevate overflow-hidden"
+                      data-testid={`card-external-result-${idx}`}
                     >
-                      <Sparkles className="w-3 h-3 mr-1" />
-                      Analyze
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toast({
-                          title: "Source saved",
-                          description: `Saved ${result.title} for reference`,
-                          duration: 3000,
-                        });
-                      }}
-                      className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400"
-                      data-testid={`button-save-${idx}`}
-                    >
-                      <BookmarkPlus className="w-3 h-3 mr-1" />
-                      Save
-                    </Button>
-                  </div>
+                      <div className="font-medium text-foreground truncate text-sm mb-1">{result.title}</div>
+                      
+                      <a
+                        href={result.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block mb-2 max-w-full"
+                        data-testid={`link-external-url-${idx}`}
+                      >
+                        {result.url}
+                      </a>
+                      
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toast({
+                              title: "Analyzing source",
+                              description: `Analyzing details from ${result.title}...`,
+                              duration: 3000,
+                            });
+                          }}
+                          className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950 dark:border-purple-800 dark:text-purple-400 h-7 text-xs px-2"
+                          data-testid={`button-analyze-${idx}`}
+                        >
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          Analyze
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toast({
+                              title: "Source saved",
+                              description: `Saved ${result.title} for reference`,
+                              duration: 3000,
+                            });
+                          }}
+                          className="text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-400 h-7 text-xs px-2"
+                          data-testid={`button-save-${idx}`}
+                        >
+                          <BookmarkPlus className="w-3 h-3 mr-1" />
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p className="text-sm text-muted-foreground">No external sources found</p>
+              )}
             </div>
           </div>
         )}
