@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink, X, BookmarkPlus, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { PriceEstimate } from "@/hooks/use-ai-analysis";
-import { analyzeEquipmentImages, searchExternalSources } from "@/lib/ai-service";
+import { analyzeEquipmentImages, searchAllSources } from "@/lib/ai-service";
 import { uploadFiles, validateImageFiles, validateDocumentFiles } from "@/lib/file-upload";
 import { useImageUpload } from "@/hooks/use-image-upload";
 
@@ -68,7 +68,9 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
   const [isSearchingExternal, setIsSearchingExternal] = useState(false);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
-  const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string }>>([]);
+  const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string; price?: string; condition?: string; source?: string; isPdf?: boolean }>>([]);
+  const [internalMatches, setInternalMatches] = useState<any[]>([]);
+  const [selectedInternalIds, setSelectedInternalIds] = useState<number[]>([]);
   const [isPollingScrape, setIsPollingScrape] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -190,6 +192,7 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
   const handleSearchExternal = async () => {
     const brand = form.getValues('brand');
     const model = form.getValues('model');
+    const category = form.getValues('category');
 
     if (!brand || !model) {
       toast({ title: "Missing information", description: "Please provide brand and model first", variant: "destructive" });
@@ -198,19 +201,38 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
 
     setIsSearchingExternal(true);
     try {
-      const result = await searchExternalSources(brand, model);
-      const matches = result.external_matches || [];
-      setExternalResults(matches);
+      const result = await searchAllSources(brand, model, category);
+      
+      // Set internal matches
+      const internal = result.internal_matches || [];
+      setInternalMatches(internal);
+      
+      // Set external results
+      const external = result.external_matches || [];
+      setExternalResults(external);
+      
+      const totalCount = internal.length + external.length;
       toast({
         title: "Search complete",
-        description: `Found ${matches.length} relevant source${matches.length !== 1 ? 's' : ''}`,
+        description: `Found ${internal.length} internal match${internal.length !== 1 ? 'es' : ''} and ${external.length} external source${external.length !== 1 ? 's' : ''}`,
       });
     } catch (error: any) {
       toast({ title: "Search failed", description: error.message, variant: "destructive" });
       setExternalResults([]);
+      setInternalMatches([]);
     } finally {
       setIsSearchingExternal(false);
     }
+  };
+  
+  const toggleInternalSelection = (item: any) => {
+    setSelectedInternalIds(prev => {
+      if (prev.includes(item.id)) {
+        return prev.filter(id => id !== item.id);
+      } else {
+        return [...prev, item.id];
+      }
+    });
   };
 
   const startPollingForMarketplaceData = (brand: string, model: string, category: string) => {
@@ -478,7 +500,56 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
 
   const onSubmit = async (data: InsertWishlistItem) => {
     try {
-      await createWishlistItem.mutateAsync(data);
+      // Build selected internal matches data to save
+      const selectedInternalData = internalMatches
+        .filter(m => selectedInternalIds.includes(m.id))
+        .map(m => ({
+          id: m.id,
+          brand: m.brand,
+          model: m.model,
+          condition: m.condition,
+          askingPrice: m.askingPrice,
+          location: m.location,
+          savedAt: new Date().toISOString()
+        }));
+      
+      // Build marketplace listings from external results
+      const marketplaceListings = externalResults
+        .filter(r => r.price || r.condition)
+        .map(r => ({
+          url: r.url,
+          title: r.title,
+          price: r.price,
+          condition: r.condition,
+          source: r.source,
+          savedAt: new Date().toISOString()
+        }));
+      
+      // Save all search results for data enrichment
+      const searchResults = externalResults.length > 0 ? {
+        query: { brand: data.brand, model: data.model, category: data.category },
+        searchedAt: new Date().toISOString(),
+        internalCount: internalMatches.length,
+        externalCount: externalResults.length,
+        externalResults: externalResults.map(r => ({
+          url: r.url,
+          title: r.title,
+          price: r.price,
+          condition: r.condition,
+          source: r.source,
+          isPdf: r.isPdf
+        }))
+      } : null;
+      
+      // Include saved data in the mutation
+      const enrichedData = {
+        ...data,
+        savedInternalMatches: selectedInternalData.length > 0 ? selectedInternalData : null,
+        savedMarketplaceListings: marketplaceListings.length > 0 ? marketplaceListings : null,
+        savedSearchResults: searchResults,
+      };
+      
+      await createWishlistItem.mutateAsync(enrichedData as any);
 
       toast({
         title: "Wishlist item created",
@@ -505,6 +576,9 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
       });
       setSpecs([]);
       setPriceData(null);
+      setInternalMatches([]);
+      setSelectedInternalIds([]);
+      setExternalResults([]);
       imageUpload.clearAll();
       setDocumentFiles([]);
 
@@ -602,8 +676,43 @@ export function WishlistItemForm({ projectId, onSuccess, onCancel }: WishlistIte
           data-testid="button-search-external"
         >
           <BookOpen className={`w-4 h-4 mr-2 ${isSearchingExternal ? 'animate-pulse' : ''}`} />
-          {isSearchingExternal ? 'Searching external sources...' : 'Search External Sources (PDFs + Google)'}
+          {isSearchingExternal ? 'Searching all sources...' : 'Search All Sources (Internal + External)'}
         </Button>
+
+        {internalMatches.length > 0 && (
+          <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800" data-testid="internal-matches-wishlist">
+            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center">
+              <FileText className="w-4 h-4 mr-2" />
+              Found {internalMatches.length} Internal Marketplace Match{internalMatches.length !== 1 ? 'es' : ''}
+            </h4>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {internalMatches.map((match, idx) => (
+                <div
+                  key={match.id}
+                  onClick={() => toggleInternalSelection(match)}
+                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                    selectedInternalIds.includes(match.id)
+                      ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-400 ring-2 ring-blue-400'
+                      : 'bg-background border-muted hover-elevate'
+                  }`}
+                  data-testid={`select-internal-match-wishlist-${idx}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-foreground">{match.brand} {match.model}</div>
+                      <div className="text-sm text-muted-foreground">
+                        ${parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
+                      </div>
+                    </div>
+                    <Badge variant={selectedInternalIds.includes(match.id) ? 'default' : 'outline'}>
+                      {selectedInternalIds.includes(match.id) ? 'Selected' : 'Select'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {externalResults.length > 0 && (
           <div className="p-4 border rounded-lg bg-emerald-50/50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">

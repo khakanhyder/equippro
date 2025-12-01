@@ -4,14 +4,17 @@
 Equipment Pro is a professional B2B marketplace platform for buying and selling research and industrial equipment. It features AI-powered equipment matching, real-time price discovery, and intelligent automation for trading workflows. The platform aims to connect scientific and industrial organizations for surplus equipment transactions, offering a comprehensive solution for managing equipment lifecycles from listing to sale.
 
 ## Recent Updates (December 1, 2025)
-- **Internal Marketplace Search**: New endpoint (`POST /api/equipment/search-internal`) searches active listings within Equipment Pro by brand/model, displaying internal matches before external sources
-- **Data Enrichment Fields**: Added JSONB fields to equipment schema:
+- **Internal Marketplace Search (Surplus & Wishlist)**: Both forms now use `searchAllSources()` which searches:
+  - Equipment Pro internal marketplace for matching active listings
+  - External sources (PDFs, web pages) via Apify
+  - Internal matches display in blue section before external sources
+- **Data Enrichment Fields**: Added JSONB fields to both equipment and wishlist_items schemas:
   - `savedInternalMatches`: Stores selected internal marketplace matches with price references
   - `savedMarketplaceListings`: Stores external marketplace listings with prices
   - `savedSearchResults`: Stores full search results including query metadata and all external sources
-  - `auctionReferences`: Reserved for auction price data
+  - `auctionReferences`: Reserved for auction price data (equipment only)
 - **Search Performance**: Rate limiting (10 req/min per user), input validation (2-100 chars), functional indexes on LOWER(brand/model), LIMIT 20 results
-- **Full Persistence**: All search results and internal matches now persist through save/edit cycle
+- **Full Persistence**: All search results and internal matches now persist through save/edit cycle for both surplus equipment and wishlist items
 
 ## Previous Updates (November 28, 2025)
 - **PDF Document Selection Fix**: Fixed infinite loop ("Maximum update depth exceeded") when selecting PDF search results by replacing Shadcn Checkbox with custom styled div and using array state with useEffect sync to form state

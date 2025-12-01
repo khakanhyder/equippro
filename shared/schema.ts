@@ -139,6 +139,10 @@ export const wishlistItems = pgTable("wishlist_items", {
   marketPriceRange: jsonb("market_price_range"), // price context for budget validation
   priceSource: text("price_source"),
   priceBreakdown: text("price_breakdown"),
+  // Data enrichment fields - save all search results and marketplace listings
+  savedMarketplaceListings: jsonb("saved_marketplace_listings"), // Array of { url, title, price, condition, source, savedAt }
+  savedInternalMatches: jsonb("saved_internal_matches"), // Array of internal equipment IDs and details
+  savedSearchResults: jsonb("saved_search_results"), // Full search results including PDF sources
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
