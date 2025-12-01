@@ -290,7 +290,7 @@ export default function Wishlist() {
 
       {/* Add Item Dialog - rendered outside conditional to work on both views */}
       <Dialog open={addItemDialogOpen} onOpenChange={setAddItemDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden" data-testid="dialog-add-equipment">
+        <DialogContent className="w-full sm:w-[672px] sm:max-w-[672px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden" data-testid="dialog-add-equipment">
           <DialogHeader>
             <DialogTitle>Add Equipment Specification</DialogTitle>
             <DialogDescription>
@@ -298,7 +298,7 @@ export default function Wishlist() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-4">
+          <div className="py-4 w-full overflow-hidden">
             {selectedProjectId && (
               <WishlistItemForm
                 projectId={selectedProjectId}
@@ -314,7 +314,7 @@ export default function Wishlist() {
         setEditItemDialogOpen(open);
         if (!open) setEditingItem(null);
       }}>
-        <DialogContent className="sm:max-w-2xl max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden" data-testid="dialog-edit-equipment">
+        <DialogContent className="w-full sm:w-[672px] sm:max-w-[672px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden" data-testid="dialog-edit-equipment">
           <DialogHeader>
             <DialogTitle>Edit Equipment Specification</DialogTitle>
             <DialogDescription>
@@ -322,7 +322,7 @@ export default function Wishlist() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-4">
+          <div className="py-4 w-full overflow-hidden">
             {editingItem && (
               <WishlistItemForm
                 projectId={editingItem.projectId}
