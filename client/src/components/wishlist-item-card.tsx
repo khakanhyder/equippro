@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, ExternalLink, Edit, Trash2, DollarSign, Building2, Globe, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ExternalLink, Edit, Trash2, DollarSign, Building2, Globe, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ShoppingCart, BookOpen, FileSpreadsheet, FileText, Wrench, FileCheck } from "lucide-react";
 import type { WishlistItem } from "@shared/schema";
 
 interface WishlistItemCardProps {
@@ -28,6 +28,8 @@ interface MarketplaceListing {
   price?: string;
   condition?: string;
   source?: string;
+  isPdf?: boolean;
+  resultType?: string;
   savedAt?: string;
 }
 
@@ -128,6 +130,62 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
       return `€${price.toLocaleString()}`;
     }
     return 'N/A';
+  };
+
+  const getResultTypeBadge = (listing: MarketplaceListing) => {
+    const type = listing.resultType || (listing.isPdf ? 'pdf_document' : 'web_page');
+    
+    switch (type) {
+      case 'offer':
+        return (
+          <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700 text-[9px] px-1 py-0 shrink-0">
+            <ShoppingCart className="w-2.5 h-2.5 mr-0.5" />
+            Offer
+          </Badge>
+        );
+      case 'manual':
+        return (
+          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-700 text-[9px] px-1 py-0 shrink-0">
+            <BookOpen className="w-2.5 h-2.5 mr-0.5" />
+            Manual
+          </Badge>
+        );
+      case 'datasheet':
+        return (
+          <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700 text-[9px] px-1 py-0 shrink-0">
+            <FileSpreadsheet className="w-2.5 h-2.5 mr-0.5" />
+            Data
+          </Badge>
+        );
+      case 'brochure':
+        return (
+          <Badge variant="outline" className="bg-orange-50 dark:bg-orange-950 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700 text-[9px] px-1 py-0 shrink-0">
+            <FileCheck className="w-2.5 h-2.5 mr-0.5" />
+            Brochure
+          </Badge>
+        );
+      case 'service_doc':
+        return (
+          <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700 text-[9px] px-1 py-0 shrink-0">
+            <Wrench className="w-2.5 h-2.5 mr-0.5" />
+            Service
+          </Badge>
+        );
+      case 'pdf_document':
+        return (
+          <Badge variant="outline" className="bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700 text-[9px] px-1 py-0 shrink-0">
+            <FileText className="w-2.5 h-2.5 mr-0.5" />
+            PDF
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="bg-muted text-muted-foreground border-muted-foreground/30 text-[9px] px-1 py-0 shrink-0">
+            <Globe className="w-2.5 h-2.5 mr-0.5" />
+            Web
+          </Badge>
+        );
+    }
   };
 
   const hasImage = item.imageUrls && Array.isArray(item.imageUrls) && item.imageUrls.length > 0;
@@ -289,15 +347,16 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
                       <Globe className="w-3 h-3 text-purple-600" />
                       <span className="font-medium text-purple-700 dark:text-purple-400">External Sources</span>
                     </div>
-                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
                       {marketplaceListings.slice(0, 3).map((listing, idx) => (
                         <a 
                           key={idx}
                           href={listing.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 py-0.5 hover:text-purple-600"
+                          className="flex items-center gap-1.5 py-0.5 hover:text-purple-600"
                         >
+                          {getResultTypeBadge(listing)}
                           <span className="truncate flex-1">{listing.title}</span>
                           <ExternalLink className="w-3 h-3 shrink-0" />
                         </a>

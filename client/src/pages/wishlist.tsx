@@ -127,6 +127,7 @@ export default function Wishlist() {
           condition: r.condition || null,
           source: r.source || 'External',
           isPdf: r.isPdf || false,
+          resultType: r.resultType || (r.isPdf ? 'pdf_document' : 'web_page'),
           savedAt: new Date().toISOString()
         }));
 
@@ -141,7 +142,8 @@ export default function Wishlist() {
           price: r.price,
           condition: r.condition,
           source: r.source,
-          isPdf: r.isPdf
+          isPdf: r.isPdf,
+          resultType: r.resultType || (r.isPdf ? 'pdf_document' : 'web_page')
         }))
       };
 
