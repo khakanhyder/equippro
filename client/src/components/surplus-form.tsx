@@ -17,7 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { useAiAnalysis } from "@/hooks/use-ai-analysis";
-import { X, Plus, Loader2, Upload, Sparkles, ExternalLink, Search, FileText, Check, Building2, Globe } from "lucide-react";
+import { X, Plus, Loader2, Upload, Sparkles, ExternalLink, Search, FileText, Check, Building2, Globe, ShoppingCart, BookOpen, FileSpreadsheet, FileCheck, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { searchExternalSources, searchAllSources } from "@/lib/ai-service";
 
@@ -108,6 +108,63 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [isPollingScrape, setIsPollingScrape] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Helper to display result type badge with icon - accessible colors with high contrast
+  const getResultTypeBadge = (result: { resultType?: string; isPdf?: boolean; url?: string; title?: string }) => {
+    const type = result.resultType || (result.isPdf ? 'pdf_document' : 'web_page');
+    
+    switch (type) {
+      case 'offer':
+        return (
+          <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700 text-[10px] px-1.5 py-0 shrink-0">
+            <ShoppingCart className="w-2.5 h-2.5 mr-0.5" />
+            Offer
+          </Badge>
+        );
+      case 'manual':
+        return (
+          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-700 text-[10px] px-1.5 py-0 shrink-0">
+            <BookOpen className="w-2.5 h-2.5 mr-0.5" />
+            Manual
+          </Badge>
+        );
+      case 'datasheet':
+        return (
+          <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700 text-[10px] px-1.5 py-0 shrink-0">
+            <FileSpreadsheet className="w-2.5 h-2.5 mr-0.5" />
+            Datasheet
+          </Badge>
+        );
+      case 'brochure':
+        return (
+          <Badge variant="outline" className="bg-orange-50 dark:bg-orange-950 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700 text-[10px] px-1.5 py-0 shrink-0">
+            <FileCheck className="w-2.5 h-2.5 mr-0.5" />
+            Brochure
+          </Badge>
+        );
+      case 'service_doc':
+        return (
+          <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700 text-[10px] px-1.5 py-0 shrink-0">
+            <Wrench className="w-2.5 h-2.5 mr-0.5" />
+            Service
+          </Badge>
+        );
+      case 'pdf_document':
+        return (
+          <Badge variant="outline" className="bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700 text-[10px] px-1.5 py-0 shrink-0">
+            <FileText className="w-2.5 h-2.5 mr-0.5" />
+            PDF
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="bg-muted text-muted-foreground border-muted-foreground/30 text-[10px] px-1.5 py-0 shrink-0">
+            <Globe className="w-2.5 h-2.5 mr-0.5" />
+            Web
+          </Badge>
+        );
+    }
+  };
   
   const form = useForm<EquipmentFormData>({
     resolver: zodResolver(equipmentFormSchema),
@@ -1386,15 +1443,16 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
                           }`}>
                             {isSelected && <Check className="w-3 h-3 text-white" />}
                           </div>
-                          <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground" />
+                          {getResultTypeBadge(source)}
                           <span className="truncate flex-1 text-xs">{displayName}</span>
                           <a
                             href={source.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-muted-foreground hover:text-primary shrink-0"
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary shrink-0"
                             onClick={(e) => e.stopPropagation()}
                           >
+                            <ExternalLink className="w-3 h-3" />
                             Open
                           </a>
                         </div>

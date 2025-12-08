@@ -317,14 +317,13 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
       <CardFooter className="pt-2 border-t gap-1">
         {onFindMatches && (
           <Button
-            variant="outline"
             size="sm"
-            className="flex-1 h-8 text-xs"
+            className="flex-1 h-8 text-xs bg-primary hover:bg-primary/90"
             onClick={() => onFindMatches(item.id)}
             data-testid={`button-find-matches-${item.id}`}
           >
             <Search className="w-3 h-3 mr-1" />
-            Find
+            Find Matches
           </Button>
         )}
         {onEdit && (

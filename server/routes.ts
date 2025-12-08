@@ -9,6 +9,7 @@ import multer from "multer";
 import { uploadFile, uploadMultipleFiles, validateFileType, validateFileSize, downloadFile } from "./services/upload-service";
 import { analyzeEquipmentFromImages, estimatePrice, calculateMatchScore, sanitizePriceContext } from "./services/ai-service";
 import { searchPDFsAndWeb } from "./services/apify-service";
+import { classifySearchResult } from "./utils/result-classifier";
 import { createUser, authenticateUser, updatePassword, sanitizeUser } from "./services/auth-service";
 import { db } from "./db";
 import { 
@@ -757,14 +758,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const results = await searchPDFsAndWeb(brand, model);
-      const matches = results.map((r: any) => ({
-        url: r.url,
-        title: r.title,
-        brand,
-        model,
-        confidence: 0.85,
-        provenance: r.url?.includes('.pdf') ? 'pdf_search' : 'web_search',
-      }));
+      
+      // Classify results using shared utility
+      const classifyResult = (r: any) => {
+        const classification = classifySearchResult({
+          url: r.url || '',
+          title: r.title || '',
+          description: r.description || '',
+        });
+        
+        return {
+          url: r.url, title: r.title, description: r.description || '',
+          brand, model, confidence: 0.85,
+          provenance: classification.isPdf ? 'pdf_search' : 'web_search',
+          resultType: classification.resultType,
+          isPdf: classification.isPdf,
+        };
+      };
+      
+      const matches = results.map(classifyResult);
 
       res.json({ success: true, external_matches: matches });
     } catch (error: any) {

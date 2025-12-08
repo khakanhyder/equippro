@@ -24,7 +24,7 @@ import {
 import { useWishlistMutations } from "@/hooks/use-wishlist";
 import { usePriceContext } from "@/hooks/use-ai-analysis";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink, X, BookmarkPlus, Loader2, DollarSign, Building2 } from "lucide-react";
+import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink, X, BookmarkPlus, Loader2, DollarSign, Building2, ShoppingCart, FileCheck, FileSpreadsheet, Wrench, Globe } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { PriceEstimate } from "@/hooks/use-ai-analysis";
 import { analyzeEquipmentImages, searchAllSources } from "@/lib/ai-service";
@@ -104,7 +104,64 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
   const [isSearchingExternal, setIsSearchingExternal] = useState(false);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
-  const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string; price?: string; condition?: string; source?: string; isPdf?: boolean }>>(() => parseExistingSearchResults());
+  const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string; price?: string; condition?: string; source?: string; isPdf?: boolean; resultType?: string }>>(() => parseExistingSearchResults());
+
+  // Helper to display result type badge with icon - accessible colors with high contrast
+  const getResultTypeBadge = (result: { resultType?: string; isPdf?: boolean; url?: string; title?: string }) => {
+    const type = result.resultType || (result.isPdf ? 'pdf_document' : 'web_page');
+    
+    switch (type) {
+      case 'offer':
+        return (
+          <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700 text-[10px] px-1.5 py-0 shrink-0">
+            <ShoppingCart className="w-3 h-3 mr-1" />
+            Offer
+          </Badge>
+        );
+      case 'manual':
+        return (
+          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-700 text-[10px] px-1.5 py-0 shrink-0">
+            <BookOpen className="w-3 h-3 mr-1" />
+            Manual
+          </Badge>
+        );
+      case 'datasheet':
+        return (
+          <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700 text-[10px] px-1.5 py-0 shrink-0">
+            <FileSpreadsheet className="w-3 h-3 mr-1" />
+            Datasheet
+          </Badge>
+        );
+      case 'brochure':
+        return (
+          <Badge variant="outline" className="bg-orange-50 dark:bg-orange-950 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700 text-[10px] px-1.5 py-0 shrink-0">
+            <FileCheck className="w-3 h-3 mr-1" />
+            Brochure
+          </Badge>
+        );
+      case 'service_doc':
+        return (
+          <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700 text-[10px] px-1.5 py-0 shrink-0">
+            <Wrench className="w-3 h-3 mr-1" />
+            Service
+          </Badge>
+        );
+      case 'pdf_document':
+        return (
+          <Badge variant="outline" className="bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700 text-[10px] px-1.5 py-0 shrink-0">
+            <FileText className="w-3 h-3 mr-1" />
+            PDF
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="bg-muted text-muted-foreground border-muted-foreground/30 text-[10px] px-1.5 py-0 shrink-0">
+            <Globe className="w-3 h-3 mr-1" />
+            Web
+          </Badge>
+        );
+    }
+  };
   const [internalMatches, setInternalMatches] = useState<any[]>(() => parseExistingInternalMatches());
   const [selectedInternalIds, setSelectedInternalIds] = useState<number[]>(() => parseExistingInternalMatches().map((m: any) => m.id));
   const [savedInternalMatches, setSavedInternalMatches] = useState<any[]>(() => parseExistingInternalMatches());
@@ -803,19 +860,23 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
                       className="p-3 bg-background rounded-lg border hover-elevate overflow-hidden"
                       data-testid={`card-external-result-${idx}`}
                     >
-                      <div className="font-medium text-foreground truncate text-sm mb-1">{result.title}</div>
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <div className="font-medium text-foreground truncate text-sm flex-1">{result.title}</div>
+                        {getResultTypeBadge(result)}
+                      </div>
                       
                       <a
                         href={result.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block mb-2 max-w-full"
+                        className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline mb-2 max-w-full"
                         data-testid={`link-external-url-${idx}`}
                       >
-                        {result.url}
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{result.url}</span>
                       </a>
                       
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 flex-wrap">
                         <Button
                           type="button"
                           size="sm"
