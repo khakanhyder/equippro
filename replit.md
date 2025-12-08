@@ -4,6 +4,21 @@
 Equipment Pro is a professional B2B marketplace platform for buying and selling research and industrial equipment. It features AI-powered equipment matching, real-time price discovery, and intelligent automation for trading workflows. The platform aims to connect scientific and industrial organizations for surplus equipment transactions, offering a comprehensive solution for managing equipment lifecycles from listing to sale.
 
 ## Recent Updates (December 8, 2025)
+- **Search Result Classification System**: Nine-rule decision tree for offer vs documentation differentiation:
+  - Shared utility in `server/utils/result-classifier.ts` used by both API and tests
+  - Marketplace domains (eBay, LabX, DotMed, etc.) → always classified as "offer"
+  - Equipment hardware patterns (manual valve, guide rail) → classified as "offer"
+  - Unambiguous documentation patterns (user manual, datasheet, service manual) → proper doc type
+  - Conservative defaults: ambiguous cases default to "offer" to avoid false documentation matches
+  - Unit test suite: 14 test scenarios with 100% pass rate
+- **Enhanced Match Display**: WishlistItemCard now shows result type badges:
+  - Offer (green with ShoppingCart icon)
+  - Manual (blue with BookOpen icon)
+  - Datasheet (purple with FileSpreadsheet icon)
+  - Service (amber with Wrench icon)
+  - PDF (red with FileText icon)
+  - Web (muted with Globe icon)
+- **Result Type Persistence**: `handleFindMatches` saves `resultType` to database for display across sessions
 - **Production Deployment Ready**: Full Coolify/Docker deployment support with:
   - Dual database driver: Neon serverless (Replit) + standard pg (production)
   - Dual storage: Replit Object Storage (dev) + Wasabi S3 (production)
