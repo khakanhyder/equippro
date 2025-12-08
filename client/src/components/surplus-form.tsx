@@ -66,14 +66,44 @@ interface SurplusFormProps {
 export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusFormProps) {
   const { toast } = useToast();
   
+  // Parse existing saved data from initialData (for editing)
+  const parseExistingInternalMatches = () => {
+    if (!initialData?.savedInternalMatches) return [];
+    try {
+      return typeof initialData.savedInternalMatches === 'string' 
+        ? JSON.parse(initialData.savedInternalMatches) 
+        : initialData.savedInternalMatches;
+    } catch { return []; }
+  };
+
+  const parseExistingMarketplaceListings = () => {
+    if (!(initialData as any)?.savedMarketplaceListings) return [];
+    try {
+      return typeof (initialData as any).savedMarketplaceListings === 'string'
+        ? JSON.parse((initialData as any).savedMarketplaceListings)
+        : (initialData as any).savedMarketplaceListings;
+    } catch { return []; }
+  };
+
+  const parseExistingSearchResults = () => {
+    if (!(initialData as any)?.savedSearchResults) return [];
+    try {
+      const data = typeof (initialData as any).savedSearchResults === 'string'
+        ? JSON.parse((initialData as any).savedSearchResults)
+        : (initialData as any).savedSearchResults;
+      return data?.externalResults || [];
+    } catch { return []; }
+  };
+
   const [specs, setSpecs] = useState<SpecField[]>([]);
   const [priceData, setPriceData] = useState<any>(null);
-  const [externalResults, setExternalResults] = useState<any[]>([]);
-  const [internalMatches, setInternalMatches] = useState<any[]>([]);
+  const [externalResults, setExternalResults] = useState<any[]>(() => parseExistingSearchResults());
+  const [internalMatches, setInternalMatches] = useState<any[]>(() => parseExistingInternalMatches());
   const [selectedDocUrls, setSelectedDocUrls] = useState<string[]>([]);
-  const [selectedInternalIds, setSelectedInternalIds] = useState<number[]>([]);
+  const [selectedInternalIds, setSelectedInternalIds] = useState<number[]>(() => parseExistingInternalMatches().map((m: any) => m.id));
   const [savedDocuments, setSavedDocuments] = useState<string[]>([]);
-  const [savedInternalMatches, setSavedInternalMatches] = useState<any[]>([]);
+  const [savedInternalMatches, setSavedInternalMatches] = useState<any[]>(() => parseExistingInternalMatches());
+  const [savedMarketplaceListings, setSavedMarketplaceListings] = useState<any[]>(() => parseExistingMarketplaceListings());
   const [isSearchingSources, setIsSearchingSources] = useState(false);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [isPollingScrape, setIsPollingScrape] = useState(false);
@@ -106,11 +136,8 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
 
   // Reset form and all state when initialData changes (for editing)
   useEffect(() => {
-    // Clear derived state, but restore price data if available in initialData
-    setExternalResults([]);
-    setInternalMatches([]);
+    // Clear new selection state but restore saved data
     setSelectedDocUrls([]);
-    setSelectedInternalIds([]);
     setIsSearchingSources(false);
     setIsFetchingPrices(false);
     imageUpload.clearAll();
@@ -123,11 +150,31 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
     }
     
     // Restore saved internal matches from initial data
-    const savedInternal = (initialData as any)?.savedInternalMatches;
-    if (savedInternal && Array.isArray(savedInternal)) {
+    const savedInternal = parseExistingInternalMatches();
+    if (savedInternal && savedInternal.length > 0) {
       setSavedInternalMatches(savedInternal);
+      setInternalMatches(savedInternal);
+      setSelectedInternalIds(savedInternal.map((m: any) => m.id));
     } else {
       setSavedInternalMatches([]);
+      setInternalMatches([]);
+      setSelectedInternalIds([]);
+    }
+    
+    // Restore saved marketplace listings from initial data
+    const savedMarketplace = parseExistingMarketplaceListings();
+    if (savedMarketplace && savedMarketplace.length > 0) {
+      setSavedMarketplaceListings(savedMarketplace);
+    } else {
+      setSavedMarketplaceListings([]);
+    }
+    
+    // Restore saved search results (external results) from initial data
+    const savedExternal = parseExistingSearchResults();
+    if (savedExternal && savedExternal.length > 0) {
+      setExternalResults(savedExternal);
+    } else {
+      setExternalResults([]);
     }
     
     if (initialData) {
@@ -605,6 +652,15 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
 
   const removeSavedInternalMatch = (id: number) => {
     setSavedInternalMatches(prev => prev.filter(m => m.id !== id));
+    // Also remove from internalMatches and selectedInternalIds so it doesn't get re-added on submit
+    setInternalMatches(prev => prev.filter(m => m.id !== id));
+    setSelectedInternalIds(prev => prev.filter(matchId => matchId !== id));
+  };
+
+  const removeSavedMarketplaceListing = (url: string) => {
+    setSavedMarketplaceListings(prev => prev.filter(l => l.url !== url));
+    // Also remove from externalResults so it doesn't get re-added on submit
+    setExternalResults(prev => prev.filter(r => r.url !== url));
   };
 
   // Sync combined documents to form state when either array changes
@@ -616,9 +672,10 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
     // Merge saved documents with newly selected documents before submitting
     const allDocs = [...savedDocuments, ...selectedDocUrls];
     
-    // Build selected internal matches data to save
+    // Build selected internal matches data to save (only new selections not already saved)
+    const savedInternalIds = new Set(savedInternalMatches.map(m => m.id));
     const selectedInternalData = internalMatches
-      .filter(m => selectedInternalIds.includes(m.id))
+      .filter(m => selectedInternalIds.includes(m.id) && !savedInternalIds.has(m.id))
       .map(m => ({
         id: m.id,
         brand: m.brand,
@@ -629,11 +686,11 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
         savedAt: new Date().toISOString()
       }));
     
-    // Combine saved and newly selected internal matches
+    // Combine saved and newly selected internal matches (no duplicates due to filter above)
     const allInternalMatches = [...savedInternalMatches, ...selectedInternalData];
     
-    // Build marketplace listings from external results (PDF and web sources with prices)
-    const marketplaceListings = externalResults
+    // Build new marketplace listings from external results (sources with prices)
+    const newMarketplaceListings = externalResults
       .filter(r => r.price || r.condition)
       .map(r => ({
         url: r.url,
@@ -643,6 +700,11 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
         source: r.source,
         savedAt: new Date().toISOString()
       }));
+    
+    // Combine saved and new marketplace listings (dedupe by URL)
+    const existingUrls = new Set(savedMarketplaceListings.map(l => l.url));
+    const uniqueNewListings = newMarketplaceListings.filter(l => !existingUrls.has(l.url));
+    const allMarketplaceListings = [...savedMarketplaceListings, ...uniqueNewListings];
     
     // Save all search results for data enrichment
     const searchResults = {
@@ -664,7 +726,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
       ...data, 
       documents: allDocs,
       savedInternalMatches: allInternalMatches as any,
-      savedMarketplaceListings: marketplaceListings.length > 0 ? marketplaceListings : undefined,
+      savedMarketplaceListings: allMarketplaceListings.length > 0 ? allMarketplaceListings : undefined,
       savedSearchResults: externalResults.length > 0 ? searchResults : undefined
     });
   };
@@ -1149,6 +1211,52 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
                       className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => removeSavedInternalMatch(match.id)}
                       data-testid={`button-remove-internal-${index}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Show saved marketplace listings (external price sources) */}
+          {savedMarketplaceListings.length > 0 && (
+            <div className="border rounded-lg p-3 bg-green-50 dark:bg-green-950/30 space-y-2" data-testid="saved-marketplace-listings">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <ExternalLink className="w-4 h-4 text-green-600" />
+                Saved Price References ({savedMarketplaceListings.length})
+              </p>
+              <div className="space-y-1">
+                {savedMarketplaceListings.map((listing: any, index: number) => (
+                  <div key={listing.url || index} className="flex items-center gap-2 text-sm group">
+                    <Check className="w-3 h-3 text-green-600 shrink-0" />
+                    <a
+                      href={listing.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="truncate flex-1 text-primary hover:underline"
+                      data-testid={`link-saved-listing-${index}`}
+                    >
+                      {listing.title || listing.url}
+                    </a>
+                    {listing.price && (
+                      <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">
+                        {listing.price}
+                      </Badge>
+                    )}
+                    {listing.condition && (
+                      <Badge variant="outline" className="text-xs">
+                        {listing.condition}
+                      </Badge>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeSavedMarketplaceListing(listing.url)}
+                      data-testid={`button-remove-listing-${index}`}
                     >
                       <X className="w-3 h-3" />
                     </Button>
