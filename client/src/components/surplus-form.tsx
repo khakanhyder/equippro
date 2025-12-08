@@ -733,7 +733,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
 
   const formatPrice = (value: number | null) => {
     if (value === null) return 'N/A';
-    return `$${value.toLocaleString()}`;
+    return `€${value.toLocaleString()}`;
   };
 
   return (
@@ -766,7 +766,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="askingPrice">Asking Price ($) *</Label>
+          <Label htmlFor="askingPrice">Asking Price (€) *</Label>
           <Input
             id="askingPrice"
             type="number"
@@ -1199,7 +1199,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
                   <div key={match.id || index} className="flex items-center gap-2 text-sm group">
                     <Check className="w-3 h-3 text-blue-600 shrink-0" />
                     <span className="truncate flex-1">
-                      {match.brand} {match.model} - ${parseFloat(match.askingPrice).toLocaleString()} ({match.condition})
+                      {match.brand} {match.model} - €{parseFloat(match.askingPrice).toLocaleString()} ({match.condition})
                     </span>
                     <Badge variant="secondary" className="text-xs">
                       {match.location}
@@ -1342,7 +1342,7 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
                           <div className="flex-1 min-w-0">
                             <div className="font-medium truncate text-xs">{match.brand} {match.model}</div>
                             <div className="text-xs text-muted-foreground truncate">
-                              ${parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
+                              €{parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
                             </div>
                           </div>
                         </div>

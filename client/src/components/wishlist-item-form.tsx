@@ -24,7 +24,7 @@ import {
 import { useWishlistMutations } from "@/hooks/use-wishlist";
 import { usePriceContext } from "@/hooks/use-ai-analysis";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink, X, BookmarkPlus, Loader2 } from "lucide-react";
+import { Plus, Trash2, Sparkles, Upload, FileText, BookOpen, ExternalLink, X, BookmarkPlus, Loader2, DollarSign, Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { PriceEstimate } from "@/hooks/use-ai-analysis";
 import { analyzeEquipmentImages, searchAllSources } from "@/lib/ai-service";
@@ -107,8 +107,22 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
   const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string; price?: string; condition?: string; source?: string; isPdf?: boolean }>>(() => parseExistingSearchResults());
   const [internalMatches, setInternalMatches] = useState<any[]>(() => parseExistingInternalMatches());
   const [selectedInternalIds, setSelectedInternalIds] = useState<number[]>(() => parseExistingInternalMatches().map((m: any) => m.id));
+  const [savedInternalMatches, setSavedInternalMatches] = useState<any[]>(() => parseExistingInternalMatches());
+  const [savedMarketplaceListings, setSavedMarketplaceListings] = useState<any[]>(() => parseExistingMarketplaceListings());
   const [isPollingScrape, setIsPollingScrape] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Removal functions for saved data
+  const removeSavedInternalMatch = (id: number) => {
+    setSavedInternalMatches(prev => prev.filter(m => m.id !== id));
+    setInternalMatches(prev => prev.filter(m => m.id !== id));
+    setSelectedInternalIds(prev => prev.filter(matchId => matchId !== id));
+  };
+
+  const removeSavedMarketplaceListing = (url: string) => {
+    setSavedMarketplaceListings(prev => prev.filter(l => l.url !== url));
+    setExternalResults(prev => prev.filter(r => r.url !== url));
+  };
 
   const form = useForm<InsertWishlistItem>({
     resolver: zodResolver(insertWishlistItemSchema),
@@ -536,9 +550,10 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
 
   const onSubmit = async (data: InsertWishlistItem) => {
     try {
-      // Build selected internal matches data to save
+      // Build selected internal matches data to save (only new selections not already saved)
+      const savedInternalIds = new Set(savedInternalMatches.map(m => m.id));
       const selectedInternalData = internalMatches
-        .filter(m => selectedInternalIds.includes(m.id))
+        .filter(m => selectedInternalIds.includes(m.id) && !savedInternalIds.has(m.id))
         .map(m => ({
           id: m.id,
           brand: m.brand,
@@ -549,8 +564,13 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
           savedAt: new Date().toISOString()
         }));
       
-      // Build marketplace listings from external results (save all sources)
-      const marketplaceListings = externalResults
+      // Combine saved and newly selected internal matches (no duplicates due to filter above)
+      const allInternalMatches = [...savedInternalMatches, ...selectedInternalData];
+      
+      // Build new marketplace listings from external results (only new ones not already saved)
+      const savedUrls = new Set(savedMarketplaceListings.map(l => l.url));
+      const newMarketplaceListings = externalResults
+        .filter(r => !savedUrls.has(r.url))
         .map(r => ({
           url: r.url,
           title: r.title,
@@ -560,6 +580,9 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
           isPdf: r.isPdf || false,
           savedAt: new Date().toISOString()
         }));
+      
+      // Combine saved and new marketplace listings (no duplicates due to filter above)
+      const allMarketplaceListings = [...savedMarketplaceListings, ...newMarketplaceListings];
       
       // Save all search results for data enrichment
       const searchResults = externalResults.length > 0 ? {
@@ -580,8 +603,8 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
       // Include saved data in the mutation
       const enrichedData = {
         ...data,
-        savedInternalMatches: selectedInternalData.length > 0 ? selectedInternalData : null,
-        savedMarketplaceListings: marketplaceListings.length > 0 ? marketplaceListings : null,
+        savedInternalMatches: allInternalMatches.length > 0 ? allInternalMatches : null,
+        savedMarketplaceListings: allMarketplaceListings.length > 0 ? allMarketplaceListings : null,
         savedSearchResults: searchResults,
       };
       
@@ -751,7 +774,7 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-foreground truncate text-sm">{match.brand} {match.model}</div>
                           <div className="text-xs text-muted-foreground truncate">
-                            ${parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
+                            €{parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
                           </div>
                         </div>
                         <Badge variant={selectedInternalIds.includes(match.id) ? 'default' : 'outline'} className="shrink-0 text-xs">
@@ -838,6 +861,85 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
               ) : (
                 <p className="text-sm text-muted-foreground">No external sources found</p>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Saved Price References Section - Shown when editing with saved marketplace listings */}
+        {isEditMode && savedMarketplaceListings.length > 0 && (
+          <div className="p-4 border rounded-lg bg-green-50/50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+            <h4 className="text-sm font-semibold text-green-700 dark:text-green-400 mb-3 flex items-center">
+              <DollarSign className="w-4 h-4 mr-2 shrink-0" />
+              Saved Price References ({savedMarketplaceListings.length})
+            </h4>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {savedMarketplaceListings.map((listing: any, idx: number) => (
+                <div
+                  key={idx}
+                  className="p-3 bg-background rounded-lg border flex items-start justify-between gap-2"
+                  data-testid={`saved-marketplace-listing-${idx}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-foreground truncate text-sm">{listing.title}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      {listing.price && (
+                        <Badge variant="outline" className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs">
+                          {listing.price}
+                        </Badge>
+                      )}
+                      {listing.condition && (
+                        <span className="text-xs text-muted-foreground">{listing.condition}</span>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => removeSavedMarketplaceListing(listing.url)}
+                    className="text-muted-foreground hover:text-destructive shrink-0"
+                    data-testid={`button-remove-saved-listing-${idx}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Saved Internal Matches Section - Shown when editing with saved internal matches */}
+        {isEditMode && savedInternalMatches.length > 0 && (
+          <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center">
+              <Building2 className="w-4 h-4 mr-2 shrink-0" />
+              Saved Internal Matches ({savedInternalMatches.length})
+            </h4>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {savedInternalMatches.map((match: any, idx: number) => (
+                <div
+                  key={idx}
+                  className="p-3 bg-background rounded-lg border flex items-start justify-between gap-2"
+                  data-testid={`saved-internal-match-${idx}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-foreground truncate text-sm">{match.brand} {match.model}</div>
+                    <div className="text-xs text-muted-foreground">
+                      €{parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => removeSavedInternalMatch(match.id)}
+                    className="text-muted-foreground hover:text-destructive shrink-0"
+                    data-testid={`button-remove-saved-match-${idx}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
         )}

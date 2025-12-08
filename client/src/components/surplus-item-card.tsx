@@ -62,10 +62,10 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
     
     if (minNum === null && maxNum === null) return 'N/A';
     if (isNaN(minNum as number) && isNaN(maxNum as number)) return 'N/A';
-    if (minNum === null || isNaN(minNum)) return `Up to $${maxNum?.toLocaleString()}`;
-    if (maxNum === null || isNaN(maxNum)) return `From $${minNum?.toLocaleString()}`;
-    if (minNum === maxNum) return `$${minNum?.toLocaleString()}`;
-    return `$${minNum?.toLocaleString()} - $${maxNum?.toLocaleString()}`;
+    if (minNum === null || isNaN(minNum)) return `Up to €${maxNum?.toLocaleString()}`;
+    if (maxNum === null || isNaN(maxNum)) return `From €${minNum?.toLocaleString()}`;
+    if (minNum === maxNum) return `€${minNum?.toLocaleString()}`;
+    return `€${minNum?.toLocaleString()} - €${maxNum?.toLocaleString()}`;
   };
 
   return (
@@ -93,7 +93,7 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
           </div>
           
           <div className="text-right">
-            <p className="text-2xl font-bold">${parseFloat(item.askingPrice).toLocaleString()}</p>
+            <p className="text-2xl font-bold">€{parseFloat(item.askingPrice).toLocaleString()}</p>
             <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
               <MapPin className="w-3 h-3" />
               <span>{item.location}</span>
@@ -146,19 +146,54 @@ export function SurplusItemCard({ item, isDraft = false, onPublish, onUnpublish,
             <p className="text-sm text-muted-foreground line-clamp-2">
               {item.description}
             </p>
-            {item.description.length > 100 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-auto p-0 text-xs"
-                onClick={() => setShowDetails(!showDetails)}
-                data-testid={`button-toggle-details-${item.id}`}
-              >
-                {showDetails ? 'Show less' : 'Show more'}
-              </Button>
-            )}
           </div>
         )}
+
+        {/* Market Price Ranges - Always Visible */}
+        {prices && (prices.used_min || prices.refurbished_min || prices.new_min) && (
+          <div className="bg-muted/50 rounded-lg p-3 space-y-2" data-testid={`prices-${item.id}`}>
+            <p className="text-xs font-semibold text-muted-foreground">Market Price Ranges</p>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              {(prices.used_min || prices.used_max) && (
+                <div className="text-center">
+                  <Badge variant="outline" className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs px-2 py-0.5 mb-1">
+                    Used
+                  </Badge>
+                  <p className="font-semibold">{formatPriceRange(prices.used_min, prices.used_max)}</p>
+                </div>
+              )}
+              {(prices.refurbished_min || prices.refurbished_max) && (
+                <div className="text-center">
+                  <Badge variant="outline" className="bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 text-xs px-2 py-0.5 mb-1">
+                    Refurb
+                  </Badge>
+                  <p className="font-semibold">{formatPriceRange(prices.refurbished_min, prices.refurbished_max)}</p>
+                </div>
+              )}
+              {(prices.new_min || prices.new_max) && (
+                <div className="text-center">
+                  <Badge variant="outline" className="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs px-2 py-0.5 mb-1">
+                    New
+                  </Badge>
+                  <p className="font-semibold">{formatPriceRange(prices.new_min, prices.new_max)}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Show More Toggle */}
+        {(item.description && item.description.length > 100) || (item.specifications && Object.keys(item.specifications).length > 0) ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto p-0 text-xs"
+            onClick={() => setShowDetails(!showDetails)}
+            data-testid={`button-toggle-details-${item.id}`}
+          >
+            {showDetails ? 'Show less' : 'Show more'}
+          </Button>
+        ) : null}
 
         {/* Expandable Details */}
         {showDetails && (

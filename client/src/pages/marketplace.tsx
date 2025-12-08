@@ -261,7 +261,7 @@ export default function Marketplace() {
                 });
                 toast({
                   title: "Bid submitted successfully",
-                  description: `Your bid of $${amount.toLocaleString()} has been submitted`,
+                  description: `Your bid of €${amount.toLocaleString()} has been submitted`,
                 });
                 setBidDialogOpen(false);
               } catch (error: any) {

@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Gavel, Target, Sparkles, DollarSign, AlertCircle, TrendingUp, Clock, CheckCircle, Package } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
-import { useBidsReceived } from "@/hooks/use-bids";
+import { useBidsReceived, useBidsPlaced } from "@/hooks/use-bids";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Send } from "lucide-react";
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useDashboardStats();
   const { data: bidsReceived, isLoading: bidsLoading } = useBidsReceived();
+  const { data: bidsPlaced, isLoading: bidsPlacedLoading } = useBidsPlaced();
 
   if (isLoading) {
     return (
@@ -70,7 +72,7 @@ export default function Dashboard() {
           />
           <StatCard
             title="Total Bid Value"
-            value={`$${(stats?.totalBidValue || 0).toLocaleString()}`}
+            value={`€${(stats?.totalBidValue || 0).toLocaleString()}`}
             subtitle={`${stats?.activeBidsCount || 0} pending bids`}
             icon={DollarSign}
             data-testid="stat-card-bid-value"
@@ -108,7 +110,7 @@ export default function Dashboard() {
                     {stats.activeBidsCount} active {stats.activeBidsCount === 1 ? 'bid' : 'bids'} on your equipment
                   </span>
                   <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-200">
-                    Total value: ${stats.totalBidValue.toLocaleString()}
+                    Total value: €{stats.totalBidValue.toLocaleString()}
                   </p>
                   <Button size="sm" variant="outline" className="mt-3" data-testid="button-view-active-bids">
                     View All Bids
@@ -168,7 +170,7 @@ export default function Dashboard() {
                           {equipment.brand} {equipment.model}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Bid: ${parseFloat(bid.bidAmount).toLocaleString()}
+                          Bid: €{parseFloat(bid.bidAmount).toLocaleString()}
                         </p>
                         {bid.message && (
                           <p className="text-xs text-muted-foreground mt-1 italic">
@@ -199,6 +201,70 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Send className="w-5 h-5" />
+                My Bids Placed
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {bidsPlacedLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-muted-foreground">Loading your bids...</p>
+                </div>
+              ) : !bidsPlaced || bidsPlaced.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-sm text-muted-foreground">
+                    You haven't placed any bids yet. Browse the Marketplace to find equipment!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {bidsPlaced.slice(0, 5).map(({ bid, equipment }) => (
+                    <div
+                      key={bid.id}
+                      className="flex items-start justify-between p-3 rounded-lg border hover-elevate"
+                      data-testid={`my-bid-${bid.id}`}
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">
+                          {equipment.brand} {equipment.model}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Your Bid: €{parseFloat(bid.bidAmount).toLocaleString()}
+                        </p>
+                        {bid.message && (
+                          <p className="text-xs text-muted-foreground mt-1 italic">
+                            "{bid.message}"
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge 
+                          variant={bid.status === 'pending' ? 'default' : bid.status === 'accepted' ? 'default' : 'secondary'}
+                          className={`text-xs ${bid.status === 'accepted' ? 'bg-green-600' : bid.status === 'rejected' ? 'bg-red-600' : ''}`}
+                        >
+                          {bid.status}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(bid.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {bidsPlaced.length > 5 && (
+                    <Button variant="outline" size="sm" className="w-full mt-2" data-testid="button-view-all-my-bids">
+                      View All {bidsPlaced.length} Bids
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

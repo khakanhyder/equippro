@@ -102,7 +102,7 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
 
   const formatPrice = (value: number | null) => {
     if (value === null || value === undefined) return null;
-    return `$${value.toLocaleString()}`;
+    return `€${value.toLocaleString()}`;
   };
 
   const formatPriceRange = (min: number | null, max: number | null) => {
@@ -117,15 +117,15 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
   const formatMatchPrice = (price: string | number | null | undefined): string => {
     if (price === null || price === undefined) return 'N/A';
     if (typeof price === 'string') {
-      if (price.startsWith('$')) return price;
+      if (price.startsWith('€') || price.startsWith('$')) return price.replace('$', '€');
       const numericValue = parseFloat(price.replace(/[^0-9.-]/g, ''));
       if (!isNaN(numericValue)) {
-        return `$${numericValue.toLocaleString()}`;
+        return `€${numericValue.toLocaleString()}`;
       }
       return price;
     }
     if (typeof price === 'number' && !isNaN(price)) {
-      return `$${price.toLocaleString()}`;
+      return `€${price.toLocaleString()}`;
     }
     return 'N/A';
   };

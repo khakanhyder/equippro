@@ -8,6 +8,12 @@ export function useBidsReceived() {
   });
 }
 
+export function useBidsPlaced() {
+  return useQuery<Array<{ bid: Bid; equipment: any }>>({
+    queryKey: ["/api/bids/placed"],
+  });
+}
+
 export function useBidMutations() {
   const createBid = useMutation({
     mutationFn: async (data: InsertBid) => {
@@ -16,6 +22,7 @@ export function useBidMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/bids/received'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bids/placed'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
     },
   });
@@ -27,6 +34,7 @@ export function useBidMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/bids/received'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/bids/placed'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
     },
   });

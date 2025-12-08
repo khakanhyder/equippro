@@ -1711,6 +1711,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get bids placed by the current user
+  app.get("/api/bids/placed", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      
+      // Get all bids placed by the user with equipment details
+      const bidsPlaced = await db.select({
+        bid: bids,
+        equipment: equipment,
+      })
+        .from(bids)
+        .innerJoin(equipment, eq(bids.equipmentId, equipment.id))
+        .where(eq(bids.bidderUserId, userId))
+        .orderBy(desc(bids.createdAt));
+      
+      res.json(bidsPlaced);
+    } catch (error: any) {
+      console.error('Get bids placed error:', error);
+      res.status(500).json({ message: error.message || "Failed to fetch bids placed" });
+    }
+  });
+
   app.patch("/api/bids/:id/status", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;
