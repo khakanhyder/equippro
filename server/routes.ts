@@ -2,6 +2,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import session from 'express-session';
 import MemoryStore from 'memorystore';
+import connectPgSimple from 'connect-pg-simple';
+import pg from 'pg';
 import { storage } from "./storage";
 import multer from "multer";
 import { uploadFile, uploadMultipleFiles, validateFileType, validateFileSize, downloadFile } from "./services/upload-service";
@@ -57,24 +59,55 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   // Health check endpoint for container orchestration (Coolify, Docker, etc.)
   app.get('/api/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // Setup session management
-  const MemStore = MemoryStore(session);
+  // Setup session management with environment-appropriate store
+  // Development: MemoryStore (simple, works with Replit)
+  // Production: PostgreSQL store (persistent, scalable)
+  let sessionStore: session.Store;
+  
+  if (isProduction) {
+    // Production: Use PostgreSQL session store
+    const PgSession = connectPgSimple(session);
+    const pgPool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: 10,
+    });
+    sessionStore = new PgSession({
+      pool: pgPool,
+      tableName: 'user_sessions',
+      createTableIfMissing: true,
+    });
+    console.log('[Session] Using PostgreSQL session store (production)');
+  } else {
+    // Development: Use in-memory store
+    const MemStore = MemoryStore(session);
+    sessionStore = new MemStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
+    console.log('[Session] Using MemoryStore (development)');
+  }
+
+  // Require SESSION_SECRET in production
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (isProduction && !sessionSecret) {
+    throw new Error('SESSION_SECRET environment variable is required in production');
+  }
+
   app.use(session({
-    secret: process.env.SESSION_SECRET || 'equipment-pro-secret-key-change-in-production',
+    secret: sessionSecret || 'equipment-pro-dev-secret-key',
     resave: false,
     saveUninitialized: false,
-    store: new MemStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
-    }),
+    store: sessionStore,
     cookie: {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction,
       sameSite: 'lax'
     }
   }));

@@ -1,14 +1,58 @@
-import { Client } from "@replit/object-storage";
+/**
+ * File Upload Service
+ * 
+ * Supports dual storage backends:
+ * - Development (Replit): Uses Replit Object Storage
+ * - Production: Uses Wasabi S3-compatible storage
+ * 
+ * Automatically selects the appropriate backend based on NODE_ENV
+ */
+import { Client as ReplitClient } from "@replit/object-storage";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import path from "path";
 
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const isProduction = NODE_ENV === 'production';
+
+// Replit Object Storage client (for development)
+let replitClient: ReplitClient | null = null;
 const BUCKET_ID = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
 
-if (!BUCKET_ID) {
-  throw new Error('DEFAULT_OBJECT_STORAGE_BUCKET_ID environment variable is required');
+if (!isProduction && BUCKET_ID) {
+  replitClient = new ReplitClient({ bucketId: BUCKET_ID });
+  console.log('[Storage] Using Replit Object Storage (development)');
 }
 
-const client = new Client({ bucketId: BUCKET_ID });
+// Wasabi S3 client (for production)
+let s3Client: S3Client | null = null;
+const WASABI_BUCKET = process.env.WASABI_BUCKET_NAME;
+const WASABI_ENDPOINT = process.env.WASABI_ENDPOINT;
+const WASABI_REGION = process.env.WASABI_REGION;
+const WASABI_ACCESS_KEY = process.env.WASABI_ACCESS_KEY_ID;
+const WASABI_SECRET_KEY = process.env.WASABI_SECRET_ACCESS_KEY;
+
+if (isProduction && WASABI_ACCESS_KEY && WASABI_SECRET_KEY && WASABI_BUCKET) {
+  s3Client = new S3Client({
+    endpoint: WASABI_ENDPOINT || `https://s3.${WASABI_REGION || 'us-east-1'}.wasabisys.com`,
+    region: WASABI_REGION || 'us-east-1',
+    credentials: {
+      accessKeyId: WASABI_ACCESS_KEY,
+      secretAccessKey: WASABI_SECRET_KEY,
+    },
+    forcePathStyle: true, // Required for Wasabi and S3-compatible storage
+  });
+  console.log(`[Storage] Using Wasabi S3 Storage (production) - Bucket: ${WASABI_BUCKET}`);
+}
+
+// Validate storage is configured
+if (!isProduction && !replitClient) {
+  console.warn('[Storage] Warning: Replit Object Storage not configured (DEFAULT_OBJECT_STORAGE_BUCKET_ID missing)');
+}
+
+if (isProduction && !s3Client) {
+  console.warn('[Storage] Warning: Wasabi S3 not configured - check WASABI_* environment variables');
+}
 
 export interface UploadResult {
   url: string;
@@ -60,6 +104,39 @@ export function validateFileSize(size: number, type: 'image' | 'document'): bool
   return size <= maxSize;
 }
 
+// Upload to Replit Object Storage
+async function uploadToReplit(filename: string, buffer: Buffer): Promise<void> {
+  if (!replitClient) {
+    throw new Error('Replit Object Storage not configured');
+  }
+  
+  const { ok, error } = await replitClient.uploadFromBytes(filename, buffer);
+  
+  if (!ok) {
+    throw new Error(error?.message || 'Replit upload failed');
+  }
+}
+
+// Upload to Wasabi S3
+async function uploadToWasabi(filename: string, buffer: Buffer, contentType: string): Promise<string> {
+  if (!s3Client || !WASABI_BUCKET) {
+    throw new Error('Wasabi S3 not configured');
+  }
+  
+  const command = new PutObjectCommand({
+    Bucket: WASABI_BUCKET,
+    Key: `uploads/${filename}`,
+    Body: buffer,
+    ContentType: contentType,
+  });
+  
+  await s3Client.send(command);
+  
+  // Return the public URL for the file
+  const endpoint = WASABI_ENDPOINT || `https://s3.${WASABI_REGION || 'us-east-1'}.wasabisys.com`;
+  return `${endpoint}/${WASABI_BUCKET}/uploads/${filename}`;
+}
+
 export async function uploadFile(
   file: Express.Multer.File,
   type: 'image' | 'document',
@@ -80,14 +157,17 @@ export async function uploadFile(
   const ext = path.extname(file.originalname);
   const filename = `equipment_${timestamp}_${randomId}${ext}`;
   
-  const { ok, error } = await client.uploadFromBytes(filename, file.buffer);
+  let url: string;
   
-  if (!ok) {
-    throw new Error(error?.message || 'Upload failed');
+  if (isProduction) {
+    // Production: Upload to Wasabi S3
+    url = await uploadToWasabi(filename, file.buffer, file.mimetype);
+  } else {
+    // Development: Upload to Replit Object Storage
+    await uploadToReplit(filename, file.buffer);
+    const baseUrl = getBaseUrl(protocol, host);
+    url = `${baseUrl}/api/files/${filename}`;
   }
-
-  const baseUrl = getBaseUrl(protocol, host);
-  const url = `${baseUrl}/api/files/${filename}`;
 
   return {
     url,
@@ -106,11 +186,61 @@ export async function uploadMultipleFiles(
   return Promise.all(files.map(file => uploadFile(file, type, protocol, host)));
 }
 
-export async function downloadFile(filename: string): Promise<{ buffer: Buffer; contentType: string } | null> {
-  const { ok, value, error } = await client.downloadAsBytes(filename);
+// Download from Replit Object Storage
+async function downloadFromReplit(filename: string): Promise<Buffer | null> {
+  if (!replitClient) {
+    return null;
+  }
+  
+  const { ok, value, error } = await replitClient.downloadAsBytes(filename);
   
   if (!ok) {
-    console.error('Download failed:', error);
+    console.error('Replit download failed:', error);
+    return null;
+  }
+  
+  return value[0];
+}
+
+// Download from Wasabi S3
+async function downloadFromWasabi(filename: string): Promise<Buffer | null> {
+  if (!s3Client || !WASABI_BUCKET) {
+    return null;
+  }
+  
+  try {
+    const command = new GetObjectCommand({
+      Bucket: WASABI_BUCKET,
+      Key: `uploads/${filename}`,
+    });
+    
+    const response = await s3Client.send(command);
+    
+    if (response.Body) {
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+        chunks.push(chunk);
+      }
+      return Buffer.concat(chunks);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Wasabi download failed:', error);
+    return null;
+  }
+}
+
+export async function downloadFile(filename: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  let buffer: Buffer | null = null;
+  
+  if (isProduction) {
+    buffer = await downloadFromWasabi(filename);
+  } else {
+    buffer = await downloadFromReplit(filename);
+  }
+  
+  if (!buffer) {
     return null;
   }
 
@@ -130,7 +260,7 @@ export async function downloadFile(filename: string): Promise<{ buffer: Buffer; 
   const contentType = contentTypeMap[ext] || 'application/octet-stream';
 
   return {
-    buffer: value[0],
+    buffer,
     contentType,
   };
 }

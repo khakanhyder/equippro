@@ -3,7 +3,17 @@
 ## Overview
 Equipment Pro is a professional B2B marketplace platform for buying and selling research and industrial equipment. It features AI-powered equipment matching, real-time price discovery, and intelligent automation for trading workflows. The platform aims to connect scientific and industrial organizations for surplus equipment transactions, offering a comprehensive solution for managing equipment lifecycles from listing to sale.
 
-## Recent Updates (December 1, 2025)
+## Recent Updates (December 8, 2025)
+- **Production Deployment Ready**: Full Coolify/Docker deployment support with:
+  - Dual database driver: Neon serverless (Replit) + standard pg (production)
+  - Dual storage: Replit Object Storage (dev) + Wasabi S3 (production)
+  - PostgreSQL session store for production (connect-pg-simple)
+  - Health check endpoint at `/api/health`
+  - Dockerfile with multi-stage build for optimized images
+  - Complete deployment guide in `COOLIFY_DEPLOYMENT.md`
+- **Environment Detection**: Application auto-switches between dev/prod services via `NODE_ENV`
+
+## Previous Updates (December 1, 2025)
 - **Wishlist Edit & Find Matches**: Fully functional wishlist item lifecycle:
   - Edit button opens dialog with pre-populated form data, updates via PATCH
   - Find Matches triggers combined internal/external search via `searchAllSources()`
@@ -63,7 +73,9 @@ Preferred communication style: Simple, everyday language.
 - **Current Implementation**: Local username/password authentication.
 - **Authentication System**:
     - **Password Hashing**: bcryptjs (10 salt rounds).
-    - **Session Management**: Express-session with in-memory `MemoryStore` (for development, production recommends `connect-pg-simple`).
+    - **Session Management**: Express-session with environment-based store:
+        - **Development**: In-memory `MemoryStore` for simplicity
+        - **Production**: PostgreSQL via `connect-pg-simple` for persistence and scalability
     - **Auth Service**: `server/services/auth-service.ts` for signup, login, password changes, user management.
     - **API Endpoints**: POST `/api/auth/signup`, POST `/api/auth/login`, POST `/api/auth/logout`, GET `/api/auth/user`, PATCH `/api/auth/password`, PATCH `/api/auth/profile`.
 - **Frontend Auth State**: `useAuth` React Query hook, handles 401 responses by returning `null`.
@@ -101,7 +113,8 @@ Preferred communication style: Simple, everyday language.
 - **Apify Integration**: Used for external data collection:
     - **PDF and Web Search**: Searches for equipment documentation and specifications.
     - Service centralized in `server/services/apify-service.ts`.
-- **File Storage**: Replit Object Storage for image and document uploads (JPEG, PNG, WebP, PDF, Excel, Word).
-    - Files served via backend proxy endpoint (`/api/files/:filename`) for secure access and AI analysis.
-    - `DEFAULT_OBJECT_STORAGE_BUCKET_ID` environment variable for configuration.
-    - `@aws-sdk/client-s3` is included, indicating a future migration path.
+- **File Storage**: Dual-environment file storage for image and document uploads (JPEG, PNG, WebP, PDF, Excel, Word):
+    - **Development (Replit)**: Replit Object Storage, files served via `/api/files/:filename`.
+    - **Production (Coolify)**: Wasabi S3-compatible storage with direct URLs.
+    - Automatic environment detection via `NODE_ENV`.
+    - `@aws-sdk/client-s3` used for Wasabi integration in production.
