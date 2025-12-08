@@ -7,7 +7,7 @@ import pg from 'pg';
 import { storage } from "./storage";
 import multer from "multer";
 import { uploadFile, uploadMultipleFiles, validateFileType, validateFileSize, downloadFile } from "./services/upload-service";
-import { analyzeEquipmentFromImages, estimatePrice, calculateMatchScore, sanitizePriceContext } from "./services/ai-service";
+import { analyzeEquipmentFromImages, estimatePrice, calculateMatchScore, sanitizePriceContext, analyzeSourceUrl } from "./services/ai-service";
 import { searchPDFsAndWeb } from "./services/apify-service";
 import { classifySearchResult } from "./utils/result-classifier";
 import { createUser, authenticateUser, updatePassword, sanitizeUser } from "./services/auth-service";
@@ -327,6 +327,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error: any) {
       console.error('AI analysis error:', error);
+      res.status(500).json({ message: error.message || "Analysis failed" });
+    }
+  });
+
+  // Analyze external source URL for technical specifications
+  app.post("/api/analyze-source", requireAuth, async (req, res) => {
+    try {
+      const { url, brand, model } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ message: "URL is required" });
+      }
+
+      // Fetch page content using Apify Cheerio scraper for reliable extraction
+      const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
+      if (!APIFY_TOKEN) {
+        return res.status(500).json({ message: "Search service not configured" });
+      }
+
+      console.log('[AnalyzeSource] Fetching content from:', url);
+
+      // Use Cheerio scraper to extract page content
+      const response = await fetch(`https://api.apify.com/v2/acts/apify~cheerio-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=60`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startUrls: [{ url }],
+          maxRequestsPerCrawl: 1,
+          requestTimeoutSecs: 30,
+          proxyConfiguration: {
+            useApifyProxy: true,
+            apifyProxyGroups: ['RESIDENTIAL'],
+          },
+          pageFunction: `
+            async function pageFunction(context) {
+              const { $, request } = context;
+              
+              // Extract all text content
+              const textContent = $('body').text().replace(/\\s+/g, ' ').trim();
+              
+              // Extract specific sections that often contain specs
+              const specSections = [];
+              $('table, .specifications, .specs, .features, [class*="spec"], [class*="feature"], dl, ul').each((i, el) => {
+                const text = $(el).text().replace(/\\s+/g, ' ').trim();
+                if (text.length > 20 && text.length < 5000) {
+                  specSections.push(text);
+                }
+              });
+              
+              // Get title and description
+              const title = $('h1').first().text().trim() || $('title').text().trim();
+              const description = $('meta[name="description"]').attr('content') || '';
+              
+              return {
+                url: request.url,
+                title,
+                description,
+                textContent: textContent.substring(0, 15000),
+                specSections: specSections.slice(0, 10).join('\\n\\n')
+              };
+            }
+          `
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch page content');
+      }
+
+      const results = await response.json();
+      if (!results || results.length === 0) {
+        return res.status(400).json({ message: "Could not extract content from URL" });
+      }
+
+      const pageData = results[0];
+      const contentToAnalyze = pageData.specSections || pageData.textContent || '';
+      
+      if (!contentToAnalyze || contentToAnalyze.length < 50) {
+        return res.status(400).json({ message: "Insufficient content found on page" });
+      }
+
+      console.log('[AnalyzeSource] Extracted', contentToAnalyze.length, 'chars, analyzing with AI...');
+
+      // Use AI to extract specifications
+      const analysisResult = await analyzeSourceUrl(url, contentToAnalyze, brand, model);
+      
+      console.log('[AnalyzeSource] Found', Object.keys(analysisResult.specifications).length, 'specifications');
+
+      res.json({
+        ...analysisResult,
+        title: pageData.title,
+        url
+      });
+    } catch (error: any) {
+      console.error('Source analysis error:', error);
       res.status(500).json({ message: error.message || "Analysis failed" });
     }
   });

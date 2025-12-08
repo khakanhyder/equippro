@@ -561,7 +561,9 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
               const isUsedEquipmentMarketplace = isLabx || isDotmed || isBimedis || 
                 hostname.includes('biosurplus') || hostname.includes('machinio') || hostname.includes('used-line');
               
-              let condition = 'used'; // Default for unknown
+              // Default to 'new' for sellers without explicit condition indicators
+              // Only used equipment marketplaces and eBay default to 'used'
+              let condition = 'new';
               
               // Priority 1: eBay-specific condition field (most reliable for eBay)
               if (isEbay) {
@@ -570,42 +572,50 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
                 else if (ebayIsUsed) condition = 'used';
                 else if (newTitleMatch) condition = 'new';
                 else if (refurbTitleMatch) condition = 'refurbished';
-                else condition = 'used'; // eBay default
+                else if (usedTitleMatch) condition = 'used';
+                else condition = 'used'; // eBay is primarily a used marketplace
               }
-              // Priority 2: Check title for explicit condition (most reliable)
+              // Priority 2: Used equipment marketplaces default to used
+              else if (isUsedEquipmentMarketplace) {
+                if (newTitleMatch || newPatterns.test(productText)) {
+                  condition = 'new';
+                } else if (refurbTitleMatch || refurbPatterns.test(productText)) {
+                  condition = 'refurbished';
+                } else if (usedTitleMatch) {
+                  condition = 'used';
+                } else {
+                  condition = 'used'; // Used equipment marketplaces default to used
+                }
+              }
+              // Priority 3: Check title for explicit condition (most reliable)
               else if (refurbTitleMatch) {
                 condition = 'refurbished';
-              } else if (newTitleMatch) {
-                condition = 'new';
               } else if (usedTitleMatch) {
                 condition = 'used';
-              } 
-              // Priority 3: Official sellers default to NEW
+              } else if (newTitleMatch) {
+                condition = 'new';
+              }
+              // Priority 4: Official sellers default to NEW
               else if (isOfficialSeller) {
                 condition = 'new';
               }
-              // Priority 4: New equipment resellers - check text, default to refurbished
+              // Priority 5: New equipment resellers - check text, default to new
               else if (isNewEquipmentReseller) {
-                if (newPatterns.test(productText)) {
-                  condition = 'new';
-                } else if (refurbPatterns.test(productText)) {
-                  condition = 'refurbished';
-                } else {
-                  condition = 'refurbished'; // Quality resellers default to refurbished
-                }
-              }
-              // Priority 5: Used equipment marketplaces default to used
-              else if (isUsedEquipmentMarketplace) {
                 if (refurbPatterns.test(productText)) {
                   condition = 'refurbished';
-                } else {
+                } else if (usedPatterns.test(productText)) {
                   condition = 'used';
+                } else {
+                  condition = 'new'; // Quality resellers default to new unless marked otherwise
                 }
               }
-              // Priority 6: Other sellers - check for new indicators
-              else if (newPatterns.test(productText)) {
-                condition = 'new';
+              // Priority 6: Other sellers - check productText for condition indicators
+              else if (refurbPatterns.test(productText)) {
+                condition = 'refurbished';
+              } else if (usedPatterns.test(productText)) {
+                condition = 'used';
               }
+              // If no indicators found, keeps default 'new' from initialization
               
               return {
                 url: url,
@@ -619,7 +629,7 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
                 url: url,
                 title: '',
                 price: null,
-                condition: 'used',
+                condition: 'new', // Default to new for unknown cases
                 source: hostname
               };
             }

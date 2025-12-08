@@ -279,3 +279,70 @@ Consider:
     };
   }
 }
+
+export interface SourceAnalysisResult {
+  brand?: string;
+  model?: string;
+  description?: string;
+  specifications: Record<string, string>;
+  price?: string;
+  condition?: string;
+  sourceType: 'datasheet' | 'manual' | 'listing' | 'webpage';
+}
+
+export async function analyzeSourceUrl(url: string, pageContent: string, existingBrand?: string, existingModel?: string): Promise<SourceAnalysisResult> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: `Analyze this webpage/document content and extract technical specifications for equipment.
+        
+URL: ${url}
+${existingBrand ? `Known Brand: ${existingBrand}` : ''}
+${existingModel ? `Known Model: ${existingModel}` : ''}
+
+Content:
+${pageContent.substring(0, 8000)}
+
+Extract the following:
+1. Technical specifications (as many as possible - dimensions, weight, power, capacity, voltage, speed, accuracy, materials, etc.)
+2. Brand name (if found and different from known)
+3. Model number (if found and different from known)
+4. Description (1-2 sentence summary)
+5. Price (if visible)
+6. Condition (new/refurbished/used if this is a listing)
+7. Source type (datasheet, manual, listing, or webpage)
+
+Return JSON: {
+  "brand": "...",
+  "model": "...", 
+  "description": "...",
+  "specifications": {"spec_name": "value with unit", ...},
+  "price": "...",
+  "condition": "...",
+  "sourceType": "datasheet|manual|listing|webpage"
+}`
+      }
+    ],
+    max_tokens: 2000,
+    response_format: { type: "json_object" },
+  });
+
+  const content = response.choices[0]?.message?.content || "{}";
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      brand: parsed.brand || undefined,
+      model: parsed.model || undefined,
+      description: parsed.description || undefined,
+      specifications: parsed.specifications || {},
+      price: parsed.price || undefined,
+      condition: parsed.condition || undefined,
+      sourceType: parsed.sourceType || 'webpage',
+    };
+  } catch (error) {
+    console.error('Failed to parse source analysis:', content);
+    return { specifications: {}, sourceType: 'webpage' };
+  }
+}

@@ -20,6 +20,7 @@ import { useAiAnalysis } from "@/hooks/use-ai-analysis";
 import { X, Plus, Loader2, Upload, Sparkles, ExternalLink, Search, FileText, Check, Building2, Globe, ShoppingCart, BookOpen, FileSpreadsheet, FileCheck, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { searchExternalSources, searchAllSources } from "@/lib/ai-service";
+import { PriceContextDisplay } from "@/components/price-context-display";
 
 const internalMatchSchema = z.object({
   id: z.number(),
@@ -1070,157 +1071,11 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
           </div>
           
           {priceData && (
-            <div className="p-4 border rounded-lg space-y-4 bg-muted/30" data-testid="price-context-surplus">
-              {/* Data Source Badge and Info */}
-              <div className="flex flex-wrap items-center gap-2">
-                {priceData.has_marketplace_data ? (
-                  <Badge variant="default" className="bg-green-600 hover:bg-green-700">Real Marketplace Data</Badge>
-                ) : (
-                  <Badge variant="secondary">AI Estimate</Badge>
-                )}
-                {priceData.has_marketplace_data && (priceData.new_count ?? 0) === 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    New equipment pricing typically requires distributor quotes
-                  </span>
-                )}
-              </div>
-              
-              {/* Live Scraping Progress Indicator */}
-              {(priceData.scraping_in_background || isPollingScrape) && !priceData.has_marketplace_data && (
-                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-2" data-testid="scraping-progress">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                      Searching Global Marketplaces...
-                    </span>
-                  </div>
-                  <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
-                    <p>Scanning eBay, LabX, Fisher Scientific, BioSurplus and more</p>
-                    <p className="opacity-75">This may take up to 3 minutes for comprehensive results</p>
-                  </div>
-                  <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-blue-600 h-1.5 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-                  </div>
-                </div>
-              )}
-              
-              {/* New Condition */}
-              {priceData.new_min !== null && priceData.new_max !== null && (
-                <div className="space-y-2" data-testid="price-new">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-green-600 dark:text-green-400">
-                      New {(priceData.new_count ?? 0) > 0 ? `(${priceData.new_count} listings)` : '(AI Estimate)'}:
-                    </span>
-                    <span className="font-medium">
-                      ${priceData.new_min?.toLocaleString()} - ${priceData.new_max?.toLocaleString()}
-                    </span>
-                  </div>
-                  {priceData.new_avg && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Average:</span>
-                      <span className="font-semibold text-foreground">${priceData.new_avg?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {(priceData.marketplace_listings?.filter((l: any) => l.condition === 'new').length ?? 0) > 0 && (
-                    <div className="pl-3 border-l-2 border-green-300 dark:border-green-700 space-y-1">
-                      {priceData.marketplace_listings?.filter((l: any) => l.condition === 'new').map((listing: any, idx: number) => (
-                        <a
-                          key={idx}
-                          href={listing.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
-                          data-testid={`link-new-listing-${idx}`}
-                        >
-                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
-                          <span className="font-medium shrink-0">${listing.price?.toLocaleString()}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Refurbished Condition */}
-              {priceData.refurbished_min !== null && priceData.refurbished_max !== null && (
-                <div className="space-y-2" data-testid="price-refurbished">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-amber-600 dark:text-amber-400">
-                      Refurbished {(priceData.refurbished_count ?? 0) > 0 ? `(${priceData.refurbished_count} listings)` : '(AI Estimate)'}:
-                    </span>
-                    <span className="font-medium">
-                      ${priceData.refurbished_min?.toLocaleString()} - ${priceData.refurbished_max?.toLocaleString()}
-                    </span>
-                  </div>
-                  {priceData.refurbished_avg && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Average:</span>
-                      <span className="font-semibold text-foreground">${priceData.refurbished_avg?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {(priceData.marketplace_listings?.filter((l: any) => l.condition === 'refurbished').length ?? 0) > 0 && (
-                    <div className="pl-3 border-l-2 border-amber-300 dark:border-amber-700 space-y-1">
-                      {priceData.marketplace_listings?.filter((l: any) => l.condition === 'refurbished').map((listing: any, idx: number) => (
-                        <a
-                          key={idx}
-                          href={listing.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
-                          data-testid={`link-refurbished-listing-${idx}`}
-                        >
-                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
-                          <span className="font-medium shrink-0">${listing.price?.toLocaleString()}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Used Condition */}
-              {priceData.used_min !== null && priceData.used_max !== null && (
-                <div className="space-y-2" data-testid="price-used">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-gray-600 dark:text-gray-400">
-                      Used {(priceData.used_count ?? 0) > 0 ? `(${priceData.used_count} listings)` : '(AI Estimate)'}:
-                    </span>
-                    <span className="font-medium">
-                      ${priceData.used_min?.toLocaleString()} - ${priceData.used_max?.toLocaleString()}
-                    </span>
-                  </div>
-                  {priceData.used_avg && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Average:</span>
-                      <span className="font-semibold text-foreground">${priceData.used_avg?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {(priceData.marketplace_listings?.filter((l: any) => l.condition === 'used').length ?? 0) > 0 && (
-                    <div className="pl-3 border-l-2 border-gray-300 dark:border-gray-700 space-y-1">
-                      {priceData.marketplace_listings?.filter((l: any) => l.condition === 'used').map((listing: any, idx: number) => (
-                        <a
-                          key={idx}
-                          href={listing.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
-                          data-testid={`link-used-listing-${idx}`}
-                        >
-                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
-                          <span className="font-medium shrink-0">${listing.price?.toLocaleString()}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {priceData.breakdown && (
-                <p className="text-xs text-muted-foreground pt-2 border-t" data-testid="price-breakdown-surplus">
-                  {priceData.breakdown}
-                </p>
-              )}
-            </div>
+            <PriceContextDisplay 
+              priceData={priceData} 
+              isPollingScrape={isPollingScrape}
+              testIdPrefix="surplus-"
+            />
           )}
         </div>
 

@@ -30,6 +30,7 @@ import type { PriceEstimate } from "@/hooks/use-ai-analysis";
 import { analyzeEquipmentImages, searchAllSources } from "@/lib/ai-service";
 import { uploadFiles, validateImageFiles, validateDocumentFiles } from "@/lib/file-upload";
 import { useImageUpload } from "@/hooks/use-image-upload";
+import { PriceContextDisplay } from "@/components/price-context-display";
 
 interface WishlistItemFormProps {
   projectId: number;
@@ -104,6 +105,7 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
   const [isUploadingDocs, setIsUploadingDocs] = useState(false);
   const [isSearchingExternal, setIsSearchingExternal] = useState(false);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
+  const [analyzingSourceUrl, setAnalyzingSourceUrl] = useState<string | null>(null);
   const [externalResults, setExternalResults] = useState<Array<{ url: string; title: string; description?: string; price?: string; condition?: string; source?: string; isPdf?: boolean; resultType?: string }>>(() => parseExistingSearchResults());
 
   // Helper to display result type badge with icon - accessible colors with high contrast
@@ -281,18 +283,93 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
         form.getValues('model') || undefined
       );
 
-      const confidence = 0.85;
-      if (result.brand) setAiSuggestions(prev => ({ ...prev, brand: { value: result.brand!, confidence } }));
-      if (result.model) setAiSuggestions(prev => ({ ...prev, model: { value: result.model!, confidence } }));
-      if (result.category) setAiSuggestions(prev => ({ ...prev, category: { value: result.category!, confidence } }));
+      // Directly set form values like surplus does
+      if (result.brand) form.setValue('brand', result.brand);
+      if (result.model) form.setValue('model', result.model);
+      if (result.category) form.setValue('category', result.category);
       if (result.description) form.setValue('notes', result.description);
-      if (result.specifications?.length) setAiSuggestions(prev => ({ ...prev, specifications: result.specifications! }));
+      
+      // Directly populate specs like surplus does
+      if (result.specifications && result.specifications.length > 0) {
+        const specFields = result.specifications.map((spec: any) => ({
+          key: spec.name,
+          value: spec.unit ? `${spec.value} ${spec.unit}` : spec.value,
+        }));
+        setSpecs(specFields);
+        updateSpecsInForm(specFields);
+      }
 
-      toast({ title: "Analysis complete", description: `Found ${result.specifications?.length || 0} specifications` });
+      toast({ 
+        title: "AI Analysis Complete", 
+        description: `Extracted equipment data with ${result.specifications?.length || 0} specifications` 
+      });
     } catch (error: any) {
       toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleAnalyzeSource = async (url: string) => {
+    setAnalyzingSourceUrl(url);
+    try {
+      const response = await fetch('/api/analyze-source', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          url,
+          brand: form.getValues('brand'),
+          model: form.getValues('model'),
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to analyze source');
+      }
+
+      const result = await response.json();
+      
+      // Add extracted specs to form
+      if (result.specifications && Object.keys(result.specifications).length > 0) {
+        const newSpecs = Object.entries(result.specifications).map(([key, value]) => ({
+          key,
+          value: String(value),
+        }));
+        
+        // Merge with existing specs (avoid duplicates)
+        const existingKeys = new Set(specs.map(s => s.key.toLowerCase()));
+        const uniqueNewSpecs = newSpecs.filter(s => !existingKeys.has(s.key.toLowerCase()));
+        const mergedSpecs = [...specs, ...uniqueNewSpecs];
+        
+        setSpecs(mergedSpecs);
+        updateSpecsInForm(mergedSpecs);
+        
+        toast({
+          title: "Source analyzed",
+          description: `Extracted ${uniqueNewSpecs.length} new specification${uniqueNewSpecs.length !== 1 ? 's' : ''}`,
+        });
+      } else {
+        toast({
+          title: "No specifications found",
+          description: "Could not extract technical specifications from this source",
+          variant: "destructive",
+        });
+      }
+
+      // Update description if found and empty
+      if (result.description && !form.getValues('notes')) {
+        form.setValue('notes', result.description);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Analysis failed",
+        description: error.message || "Could not analyze source",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzingSourceUrl(null);
     }
   };
 
@@ -881,20 +958,26 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
                           type="button"
                           size="sm"
                           variant="outline"
+                          disabled={analyzingSourceUrl === result.url}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            toast({
-                              title: "Analyzing source",
-                              description: `Analyzing details from ${result.title}...`,
-                              duration: 3000,
-                            });
+                            handleAnalyzeSource(result.url);
                           }}
                           className="text-purple-600 border-purple-200 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950 dark:border-purple-800 dark:text-purple-400 h-7 text-xs px-2"
                           data-testid={`button-analyze-${idx}`}
                         >
-                          <Sparkles className="w-3 h-3 mr-1" />
-                          Analyze
+                          {analyzingSourceUrl === result.url ? (
+                            <>
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              Analyze
+                            </>
+                          )}
                         </Button>
                         <Button
                           type="button"
@@ -1248,132 +1331,11 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
           )}
 
           {priceData && (
-            <div className="p-4 border rounded-lg space-y-4 bg-muted/30" data-testid="price-context">
-              {/* Data Source Badge and Info */}
-              <div className="flex flex-wrap items-center gap-2">
-                {priceData.has_marketplace_data ? (
-                  <Badge variant="default" className="bg-green-600 hover:bg-green-700">Real Marketplace Data</Badge>
-                ) : (
-                  <Badge variant="secondary">AI Estimate</Badge>
-                )}
-                {priceData.has_marketplace_data && (priceData.new_count ?? 0) === 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    New equipment pricing typically requires distributor quotes
-                  </span>
-                )}
-              </div>
-              
-              {/* New Condition */}
-              {priceData.new_min !== null && priceData.new_max !== null && (
-                <div className="space-y-2" data-testid="price-new">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-green-600 dark:text-green-400">New {(priceData.new_count ?? 0) > 0 ? `(${priceData.new_count} listings)` : '(AI Estimate)'}:</span>
-                    <span className="font-medium">
-                      ${priceData.new_min?.toLocaleString()} - ${priceData.new_max?.toLocaleString()}
-                    </span>
-                  </div>
-                  {priceData.new_avg && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Average:</span>
-                      <span className="font-semibold text-foreground">${priceData.new_avg?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {(priceData.marketplace_listings?.filter((l) => l.condition === 'new').length ?? 0) > 0 && (
-                    <div className="pl-3 border-l-2 border-green-300 dark:border-green-700 space-y-1">
-                      {priceData.marketplace_listings?.filter((l) => l.condition === 'new').map((listing, idx) => (
-                        <a
-                          key={idx}
-                          href={listing.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
-                          data-testid={`link-new-listing-${idx}`}
-                        >
-                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
-                          <span className="font-medium shrink-0">${listing.price?.toLocaleString()}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Refurbished Condition */}
-              {priceData.refurbished_min !== null && priceData.refurbished_max !== null && (
-                <div className="space-y-2" data-testid="price-refurbished">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-amber-600 dark:text-amber-400">Refurbished {(priceData.refurbished_count ?? 0) > 0 ? `(${priceData.refurbished_count} listings)` : '(AI Estimate)'}:</span>
-                    <span className="font-medium">
-                      ${priceData.refurbished_min?.toLocaleString()} - ${priceData.refurbished_max?.toLocaleString()}
-                    </span>
-                  </div>
-                  {priceData.refurbished_avg && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Average:</span>
-                      <span className="font-semibold text-foreground">${priceData.refurbished_avg?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {(priceData.marketplace_listings?.filter((l) => l.condition === 'refurbished').length ?? 0) > 0 && (
-                    <div className="pl-3 border-l-2 border-amber-300 dark:border-amber-700 space-y-1">
-                      {priceData.marketplace_listings?.filter((l) => l.condition === 'refurbished').map((listing, idx) => (
-                        <a
-                          key={idx}
-                          href={listing.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
-                          data-testid={`link-refurbished-listing-${idx}`}
-                        >
-                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
-                          <span className="font-medium shrink-0">${listing.price?.toLocaleString()}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Used Condition */}
-              {priceData.used_min !== null && priceData.used_max !== null && (
-                <div className="space-y-2" data-testid="price-used">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium text-gray-600 dark:text-gray-400">Used {(priceData.used_count ?? 0) > 0 ? `(${priceData.used_count} listings)` : '(AI Estimate)'}:</span>
-                    <span className="font-medium">
-                      ${priceData.used_min?.toLocaleString()} - ${priceData.used_max?.toLocaleString()}
-                    </span>
-                  </div>
-                  {priceData.used_avg && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Average:</span>
-                      <span className="font-semibold text-foreground">${priceData.used_avg?.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {(priceData.marketplace_listings?.filter((l) => l.condition === 'used').length ?? 0) > 0 && (
-                    <div className="pl-3 border-l-2 border-gray-300 dark:border-gray-700 space-y-1">
-                      {priceData.marketplace_listings?.filter((l) => l.condition === 'used').map((listing, idx) => (
-                        <a
-                          key={idx}
-                          href={listing.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between text-xs hover:underline text-blue-600 dark:text-blue-400"
-                          data-testid={`link-used-listing-${idx}`}
-                        >
-                          <span className="truncate flex-1 mr-2">{listing.title || listing.source}</span>
-                          <span className="font-medium shrink-0">${listing.price?.toLocaleString()}</span>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {priceData.breakdown && (
-                <p className="text-xs text-muted-foreground pt-2 border-t" data-testid="price-breakdown">
-                  {priceData.breakdown}
-                </p>
-              )}
-            </div>
+            <PriceContextDisplay 
+              priceData={priceData} 
+              isPollingScrape={isPollingScrape}
+              testIdPrefix="wishlist-"
+            />
           )}
         </div>
 
