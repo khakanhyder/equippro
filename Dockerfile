@@ -12,8 +12,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application using node to run binaries directly
-RUN node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+# Build the application
+RUN npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
 
 # Production stage
 FROM node:20-alpine AS production

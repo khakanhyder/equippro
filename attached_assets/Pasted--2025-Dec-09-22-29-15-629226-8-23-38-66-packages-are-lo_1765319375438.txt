@@ -1,0 +1,373 @@
+
+2025-Dec-09 22:29:15.629226
+#8 23.38 66 packages are looking for funding
+2025-Dec-09 22:29:15.629226
+#8 23.38   run `npm fund` for details
+2025-Dec-09 22:29:15.629226
+#8 23.40
+2025-Dec-09 22:29:15.629226
+#8 23.40 5 vulnerabilities (3 low, 2 high)
+2025-Dec-09 22:29:15.629226
+#8 23.40
+2025-Dec-09 22:29:15.629226
+#8 23.40 To address all issues, run:
+2025-Dec-09 22:29:15.629226
+#8 23.40   npm audit fix
+2025-Dec-09 22:29:15.629226
+#8 23.40
+2025-Dec-09 22:29:15.629226
+#8 23.40 Run `npm audit` for details.
+2025-Dec-09 22:29:15.629226
+#8 23.42 npm notice
+2025-Dec-09 22:29:15.629226
+#8 23.42 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2025-Dec-09 22:29:15.629226
+#8 23.42 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2025-Dec-09 22:29:15.629226
+#8 23.42 npm notice To update run: npm install -g npm@11.7.0
+2025-Dec-09 22:29:15.629226
+#8 23.42 npm notice
+2025-Dec-09 22:29:15.950313
+#8 ...
+2025-Dec-09 22:29:15.950313
+2025-Dec-09 22:29:15.950313
+#9 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 22:29:15.950313
+#9 DONE 23.7s
+2025-Dec-09 22:29:16.100516
+#8 [builder 4/6] RUN npm ci
+2025-Dec-09 22:29:16.209217
+#8 DONE 24.0s
+2025-Dec-09 22:29:16.358006
+#10 [builder 5/6] COPY . .
+2025-Dec-09 22:29:16.358006
+#10 DONE 0.1s
+2025-Dec-09 22:29:16.511987
+#11 [builder 6/6] RUN node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 22:29:16.516339
+#11 0.153 node:internal/modules/cjs/loader:1210
+2025-Dec-09 22:29:16.516339
+#11 0.153   throw err;
+2025-Dec-09 22:29:16.516339
+#11 0.153   ^
+2025-Dec-09 22:29:16.516339
+#11 0.153
+2025-Dec-09 22:29:16.516339
+#11 0.153 Error: Cannot find module '/app/node_modules/vite/bin/vite.js'
+2025-Dec-09 22:29:16.516339
+#11 0.153     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+2025-Dec-09 22:29:16.516339
+#11 0.153     at Module._load (node:internal/modules/cjs/loader:1038:27)
+2025-Dec-09 22:29:16.516339
+#11 0.153     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2025-Dec-09 22:29:16.516339
+#11 0.153     at node:internal/main/run_main_module:28:49 {
+2025-Dec-09 22:29:16.516339
+#11 0.153   code: 'MODULE_NOT_FOUND',
+2025-Dec-09 22:29:16.516339
+#11 0.153   requireStack: []
+2025-Dec-09 22:29:16.516339
+#11 0.153 }
+2025-Dec-09 22:29:16.666318
+#11 0.155
+2025-Dec-09 22:29:16.671484
+#11 0.155 Node.js v20.19.6
+2025-Dec-09 22:29:16.671484
+#11 ERROR: process "/bin/sh -c node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist" did not complete successfully: exit code: 1
+2025-Dec-09 22:29:16.703961
+------
+2025-Dec-09 22:29:16.703961
+> [builder 6/6] RUN node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist:
+2025-Dec-09 22:29:16.703961
+0.153 Error: Cannot find module '/app/node_modules/vite/bin/vite.js'
+2025-Dec-09 22:29:16.703961
+0.153     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+2025-Dec-09 22:29:16.703961
+0.153     at Module._load (node:internal/modules/cjs/loader:1038:27)
+2025-Dec-09 22:29:16.703961
+0.153     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2025-Dec-09 22:29:16.703961
+0.153     at node:internal/main/run_main_module:28:49 {
+2025-Dec-09 22:29:16.703961
+0.153   code: 'MODULE_NOT_FOUND',
+2025-Dec-09 22:29:16.703961
+0.153   requireStack: []
+2025-Dec-09 22:29:16.703961
+0.153 }
+2025-Dec-09 22:29:16.703961
+0.155
+2025-Dec-09 22:29:16.703961
+0.155 Node.js v20.19.6
+2025-Dec-09 22:29:16.703961
+------
+2025-Dec-09 22:29:16.711084
+2 warnings found (use docker --debug to expand):
+2025-Dec-09 22:29:16.711084
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 5)
+2025-Dec-09 22:29:16.711084
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 31)
+2025-Dec-09 22:29:16.711084
+Dockerfile:25
+2025-Dec-09 22:29:16.711084
+--------------------
+2025-Dec-09 22:29:16.711084
+23 |
+2025-Dec-09 22:29:16.711084
+24 |     # Build the application using node to run binaries directly
+2025-Dec-09 22:29:16.711084
+25 | >>> RUN node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 22:29:16.724156
+26 |
+2025-Dec-09 22:29:16.724156
+27 |     # Production stage
+2025-Dec-09 22:29:16.724156
+--------------------
+2025-Dec-09 22:29:16.724156
+ERROR: failed to build: failed to solve: process "/bin/sh -c node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist" did not complete successfully: exit code: 1
+2025-Dec-09 22:29:16.724156
+exit status 1
+2025-Dec-09 22:29:16.790283
+Oops something is not okay, are you okay? 😢
+2025-Dec-09 22:29:16.799478
+#0 building with "default" instance using docker driver
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#1 [internal] load build definition from Dockerfile
+2025-Dec-09 22:29:16.799478
+#1 transferring dockerfile: 2.04kB done
+2025-Dec-09 22:29:16.799478
+#1 DONE 0.0s
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#2 [internal] load metadata for docker.io/library/node:20-alpine
+2025-Dec-09 22:29:16.799478
+#2 DONE 0.3s
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#3 [internal] load .dockerignore
+2025-Dec-09 22:29:16.799478
+#3 transferring context: 219B done
+2025-Dec-09 22:29:16.799478
+#3 DONE 0.0s
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#4 [builder 1/6] FROM docker.io/library/node:20-alpine@sha256:643e7036aa985317ebfee460005e322aa550c6b6883000d01daefb58689a58e2
+2025-Dec-09 22:29:16.799478
+#4 DONE 0.0s
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#5 [builder 2/6] WORKDIR /app
+2025-Dec-09 22:29:16.799478
+#5 CACHED
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#6 [internal] load build context
+2025-Dec-09 22:29:16.799478
+#6 transferring context: 1.05MB 0.0s done
+2025-Dec-09 22:29:16.799478
+#6 DONE 0.1s
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#7 [builder 3/6] COPY package*.json ./
+2025-Dec-09 22:29:16.799478
+#7 DONE 0.1s
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#8 [builder 4/6] RUN npm ci
+2025-Dec-09 22:29:16.799478
+#8 ...
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#9 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 22:29:16.799478
+#9 0.280 npm warn config only Use `--omit=dev` to omit dev dependencies from the install.
+2025-Dec-09 22:29:16.799478
+#9 23.29
+2025-Dec-09 22:29:16.799478
+#9 23.29 added 583 packages, and audited 584 packages in 23s
+2025-Dec-09 22:29:16.799478
+#9 23.29
+2025-Dec-09 22:29:16.799478
+#9 23.29 66 packages are looking for funding
+2025-Dec-09 22:29:16.799478
+#9 23.29   run `npm fund` for details
+2025-Dec-09 22:29:16.799478
+#9 23.30
+2025-Dec-09 22:29:16.799478
+#9 23.30 5 vulnerabilities (3 low, 2 high)
+2025-Dec-09 22:29:16.799478
+#9 23.30
+2025-Dec-09 22:29:16.799478
+#9 23.30 To address all issues, run:
+2025-Dec-09 22:29:16.799478
+#9 23.30   npm audit fix
+2025-Dec-09 22:29:16.799478
+#9 23.30
+2025-Dec-09 22:29:16.799478
+#9 23.30 Run `npm audit` for details.
+2025-Dec-09 22:29:16.799478
+#9 23.30 npm notice
+2025-Dec-09 22:29:16.799478
+#9 23.30 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2025-Dec-09 22:29:16.799478
+#9 23.30 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2025-Dec-09 22:29:16.799478
+#9 23.30 npm notice To update run: npm install -g npm@11.7.0
+2025-Dec-09 22:29:16.799478
+#9 23.30 npm notice
+2025-Dec-09 22:29:16.799478
+#9 ...
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#8 [builder 4/6] RUN npm ci
+2025-Dec-09 22:29:16.799478
+#8 23.38
+2025-Dec-09 22:29:16.799478
+#8 23.38 added 583 packages, and audited 584 packages in 23s
+2025-Dec-09 22:29:16.799478
+#8 23.38
+2025-Dec-09 22:29:16.799478
+#8 23.38 66 packages are looking for funding
+2025-Dec-09 22:29:16.799478
+#8 23.38   run `npm fund` for details
+2025-Dec-09 22:29:16.799478
+#8 23.40
+2025-Dec-09 22:29:16.799478
+#8 23.40 5 vulnerabilities (3 low, 2 high)
+2025-Dec-09 22:29:16.799478
+#8 23.40
+2025-Dec-09 22:29:16.799478
+#8 23.40 To address all issues, run:
+2025-Dec-09 22:29:16.799478
+#8 23.40   npm audit fix
+2025-Dec-09 22:29:16.799478
+#8 23.40
+2025-Dec-09 22:29:16.799478
+#8 23.40 Run `npm audit` for details.
+2025-Dec-09 22:29:16.799478
+#8 23.42 npm notice
+2025-Dec-09 22:29:16.799478
+#8 23.42 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2025-Dec-09 22:29:16.799478
+#8 23.42 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2025-Dec-09 22:29:16.799478
+#8 23.42 npm notice To update run: npm install -g npm@11.7.0
+2025-Dec-09 22:29:16.799478
+#8 23.42 npm notice
+2025-Dec-09 22:29:16.799478
+#8 ...
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#9 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 22:29:16.799478
+#9 DONE 23.7s
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#8 [builder 4/6] RUN npm ci
+2025-Dec-09 22:29:16.799478
+#8 DONE 24.0s
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#10 [builder 5/6] COPY . .
+2025-Dec-09 22:29:16.799478
+#10 DONE 0.1s
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+#11 [builder 6/6] RUN node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 22:29:16.799478
+#11 0.153 node:internal/modules/cjs/loader:1210
+2025-Dec-09 22:29:16.799478
+#11 0.153   throw err;
+2025-Dec-09 22:29:16.799478
+#11 0.153   ^
+2025-Dec-09 22:29:16.799478
+#11 0.153
+2025-Dec-09 22:29:16.799478
+#11 0.153 Error: Cannot find module '/app/node_modules/vite/bin/vite.js'
+2025-Dec-09 22:29:16.799478
+#11 0.153     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+2025-Dec-09 22:29:16.799478
+#11 0.153     at Module._load (node:internal/modules/cjs/loader:1038:27)
+2025-Dec-09 22:29:16.799478
+#11 0.153     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2025-Dec-09 22:29:16.799478
+#11 0.153     at node:internal/main/run_main_module:28:49 {
+2025-Dec-09 22:29:16.799478
+#11 0.153   code: 'MODULE_NOT_FOUND',
+2025-Dec-09 22:29:16.799478
+#11 0.153   requireStack: []
+2025-Dec-09 22:29:16.799478
+#11 0.153 }
+2025-Dec-09 22:29:16.799478
+#11 0.155
+2025-Dec-09 22:29:16.799478
+#11 0.155 Node.js v20.19.6
+2025-Dec-09 22:29:16.799478
+#11 ERROR: process "/bin/sh -c node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist" did not complete successfully: exit code: 1
+2025-Dec-09 22:29:16.799478
+------
+2025-Dec-09 22:29:16.799478
+> [builder 6/6] RUN node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist:
+2025-Dec-09 22:29:16.799478
+0.153 Error: Cannot find module '/app/node_modules/vite/bin/vite.js'
+2025-Dec-09 22:29:16.799478
+0.153     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+2025-Dec-09 22:29:16.799478
+0.153     at Module._load (node:internal/modules/cjs/loader:1038:27)
+2025-Dec-09 22:29:16.799478
+0.153     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2025-Dec-09 22:29:16.799478
+0.153     at node:internal/main/run_main_module:28:49 {
+2025-Dec-09 22:29:16.799478
+0.153   code: 'MODULE_NOT_FOUND',
+2025-Dec-09 22:29:16.799478
+0.153   requireStack: []
+2025-Dec-09 22:29:16.799478
+0.153 }
+2025-Dec-09 22:29:16.799478
+0.155
+2025-Dec-09 22:29:16.799478
+0.155 Node.js v20.19.6
+2025-Dec-09 22:29:16.799478
+------
+2025-Dec-09 22:29:16.799478
+2025-Dec-09 22:29:16.799478
+2 warnings found (use docker --debug to expand):
+2025-Dec-09 22:29:16.799478
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 5)
+2025-Dec-09 22:29:16.799478
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 31)
+2025-Dec-09 22:29:16.799478
+Dockerfile:25
+2025-Dec-09 22:29:16.799478
+--------------------
+2025-Dec-09 22:29:16.799478
+23 |
+2025-Dec-09 22:29:16.799478
+24 |     # Build the application using node to run binaries directly
+2025-Dec-09 22:29:16.799478
+25 | >>> RUN node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 22:29:16.799478
+26 |
+2025-Dec-09 22:29:16.799478
+27 |     # Production stage
+2025-Dec-09 22:29:16.799478
+--------------------
+2025-Dec-09 22:29:16.799478
+ERROR: failed to build: failed to solve: process "/bin/sh -c node node_modules/vite/bin/vite.js build && node node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist" did not complete successfully: exit code: 1
+2025-Dec-09 22:29:16.799478
+exit status 1
+2025-Dec-09 22:29:16.811097
+Deployment failed. Removing the new version of your application.
+2025-Dec-09 22:29:18.578115
+Gracefully shutting down build container: ycs0c8gso8c4s4wog0w088c8
+2025-Dec-09 22:29:18.998536
+[CMD]: docker stop --time=30 ycs0c8gso8c4s4wog0w088c8
+2025-Dec-09 22:29:18.998536
+Flag --time has been deprecated, use --timeout instead
+2025-Dec-09 22:29:19.588857
+ycs0c8gso8c4s4wog0w088c8
+2025-Dec-09 22:29:20.058185
+[CMD]: docker rm -f ycs0c8gso8c4s4wog0w088c8
+2025-Dec-09 22:29:20.058185
+Error response from daemon:
