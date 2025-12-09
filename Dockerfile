@@ -6,14 +6,17 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including devDependencies for build)
+# Install ALL dependencies including devDependencies (required for vite build)
+# Explicitly unset NODE_ENV to ensure devDependencies are installed
+ENV NODE_ENV=development
 RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build the application (pin versions to match package.json)
-RUN npm exec --package=vite@5.4.20 -- vite build && npm exec --package=esbuild@0.25.0 -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+# Build the application
+ENV NODE_ENV=production
+RUN npm run build
 
 # Production stage
 FROM node:20-alpine AS production
@@ -24,7 +27,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
