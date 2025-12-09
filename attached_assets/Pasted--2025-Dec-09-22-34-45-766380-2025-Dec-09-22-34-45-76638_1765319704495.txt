@@ -1,0 +1,337 @@
+
+2025-Dec-09 22:34:45.766380
+2025-Dec-09 22:34:45.766380
+#9 [builder 4/6] RUN npm ci
+2025-Dec-09 22:34:45.766380
+#9 DONE 22.1s
+2025-Dec-09 22:34:45.968326
+#8 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 22:34:45.968326
+#8 DONE 22.2s
+2025-Dec-09 22:34:45.968326
+2025-Dec-09 22:34:45.968326
+#10 [builder 5/6] COPY . .
+2025-Dec-09 22:34:46.099828
+#10 DONE 0.3s
+2025-Dec-09 22:34:46.253843
+#11 [builder 6/6] RUN npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 22:34:47.714584
+#11 1.611 npm warn exec The following package was not found and will be installed: vite@7.2.7
+2025-Dec-09 22:34:53.176922
+#11 7.073 failed to load config from /app/vite.config.ts
+2025-Dec-09 22:34:53.180306
+2025-Dec-09 22:34:53.327575
+#11 7.074 error during build:
+2025-Dec-09 22:34:53.327575
+#11 7.074 Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /app/node_modules/.vite-temp/vite.config.ts.timestamp-1765319693168-a5a34427b56.mjs
+2025-Dec-09 22:34:53.327575
+#11 7.074     at packageResolve (node:internal/modules/esm/resolve:873:9)
+2025-Dec-09 22:34:53.327575
+#11 7.074     at moduleResolve (node:internal/modules/esm/resolve:946:18)
+2025-Dec-09 22:34:53.327575
+#11 7.074     at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+2025-Dec-09 22:34:53.327575
+#11 7.074     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+2025-Dec-09 22:34:53.327575
+#11 7.074     at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+2025-Dec-09 22:34:53.327575
+#11 7.074     at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+2025-Dec-09 22:34:53.327575
+#11 7.074     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+2025-Dec-09 22:34:53.327575
+#11 7.074     at ModuleJob._link (node:internal/modules/esm/module_job:168:49)
+2025-Dec-09 22:34:53.430605
+#11 ERROR: process "/bin/sh -c npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist" did not complete successfully: exit code: 1
+2025-Dec-09 22:34:53.464318
+------
+2025-Dec-09 22:34:53.464318
+> [builder 6/6] RUN npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist:
+2025-Dec-09 22:34:53.464318
+7.074 error during build:
+2025-Dec-09 22:34:53.464318
+7.074 Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /app/node_modules/.vite-temp/vite.config.ts.timestamp-1765319693168-a5a34427b56.mjs
+2025-Dec-09 22:34:53.464318
+7.074     at packageResolve (node:internal/modules/esm/resolve:873:9)
+2025-Dec-09 22:34:53.464318
+7.074     at moduleResolve (node:internal/modules/esm/resolve:946:18)
+2025-Dec-09 22:34:53.464318
+7.074     at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+2025-Dec-09 22:34:53.464318
+7.074     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+2025-Dec-09 22:34:53.464318
+7.074     at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+2025-Dec-09 22:34:53.464318
+7.074     at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+2025-Dec-09 22:34:53.464318
+7.074     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+2025-Dec-09 22:34:53.464318
+7.074     at ModuleJob._link (node:internal/modules/esm/module_job:168:49)
+2025-Dec-09 22:34:53.464318
+------
+2025-Dec-09 22:34:53.468736
+2 warnings found (use docker --debug to expand):
+2025-Dec-09 22:34:53.468736
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 5)
+2025-Dec-09 22:34:53.468736
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 31)
+2025-Dec-09 22:34:53.473342
+Dockerfile:25
+2025-Dec-09 22:34:53.473342
+--------------------
+2025-Dec-09 22:34:53.473342
+23 |
+2025-Dec-09 22:34:53.473342
+24 |     # Build the application
+2025-Dec-09 22:34:53.473342
+25 | >>> RUN npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 22:34:53.473342
+26 |
+2025-Dec-09 22:34:53.473342
+27 |     # Production stage
+2025-Dec-09 22:34:53.473342
+--------------------
+2025-Dec-09 22:34:53.473342
+ERROR: failed to build: failed to solve: process "/bin/sh -c npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist" did not complete successfully: exit code: 1
+2025-Dec-09 22:34:53.481926
+exit status 1
+2025-Dec-09 22:34:53.537086
+Oops something is not okay, are you okay? 😢
+2025-Dec-09 22:34:53.546533
+#0 building with "default" instance using docker driver
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#1 [internal] load build definition from Dockerfile
+2025-Dec-09 22:34:53.546533
+#1 transferring dockerfile: 1.97kB done
+2025-Dec-09 22:34:53.546533
+#1 DONE 0.0s
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#2 [internal] load metadata for docker.io/library/node:20-alpine
+2025-Dec-09 22:34:53.546533
+#2 DONE 0.2s
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#3 [internal] load .dockerignore
+2025-Dec-09 22:34:53.546533
+#3 transferring context: 219B done
+2025-Dec-09 22:34:53.546533
+#3 DONE 0.0s
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#4 [builder 1/6] FROM docker.io/library/node:20-alpine@sha256:643e7036aa985317ebfee460005e322aa550c6b6883000d01daefb58689a58e2
+2025-Dec-09 22:34:53.546533
+#4 DONE 0.0s
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#5 [builder 2/6] WORKDIR /app
+2025-Dec-09 22:34:53.546533
+#5 CACHED
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#6 [internal] load build context
+2025-Dec-09 22:34:53.546533
+#6 transferring context: 1.05MB 0.0s done
+2025-Dec-09 22:34:53.546533
+#6 DONE 0.1s
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#7 [builder 3/6] COPY package*.json ./
+2025-Dec-09 22:34:53.546533
+#7 DONE 0.1s
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#8 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 22:34:53.546533
+#8 0.304 npm warn config only Use `--omit=dev` to omit dev dependencies from the install.
+2025-Dec-09 22:34:53.546533
+#8 ...
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#9 [builder 4/6] RUN npm ci
+2025-Dec-09 22:34:53.546533
+#9 21.69
+2025-Dec-09 22:34:53.546533
+#9 21.69 added 583 packages, and audited 584 packages in 21s
+2025-Dec-09 22:34:53.546533
+#9 21.70
+2025-Dec-09 22:34:53.546533
+#9 21.70 66 packages are looking for funding
+2025-Dec-09 22:34:53.546533
+#9 21.70   run `npm fund` for details
+2025-Dec-09 22:34:53.546533
+#9 21.71
+2025-Dec-09 22:34:53.546533
+#9 21.71 5 vulnerabilities (3 low, 2 high)
+2025-Dec-09 22:34:53.546533
+#9 21.71
+2025-Dec-09 22:34:53.546533
+#9 21.71 To address all issues, run:
+2025-Dec-09 22:34:53.546533
+#9 21.71   npm audit fix
+2025-Dec-09 22:34:53.546533
+#9 21.71
+2025-Dec-09 22:34:53.546533
+#9 21.71 Run `npm audit` for details.
+2025-Dec-09 22:34:53.546533
+#9 21.71 npm notice
+2025-Dec-09 22:34:53.546533
+#9 21.71 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2025-Dec-09 22:34:53.546533
+#9 21.71 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2025-Dec-09 22:34:53.546533
+#9 21.71 npm notice To update run: npm install -g npm@11.7.0
+2025-Dec-09 22:34:53.546533
+#9 21.71 npm notice
+2025-Dec-09 22:34:53.546533
+#9 ...
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#8 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 22:34:53.546533
+#8 21.73
+2025-Dec-09 22:34:53.546533
+#8 21.73 added 583 packages, and audited 584 packages in 21s
+2025-Dec-09 22:34:53.546533
+#8 21.73
+2025-Dec-09 22:34:53.546533
+#8 21.73 66 packages are looking for funding
+2025-Dec-09 22:34:53.546533
+#8 21.73   run `npm fund` for details
+2025-Dec-09 22:34:53.546533
+#8 21.74
+2025-Dec-09 22:34:53.546533
+#8 21.74 5 vulnerabilities (3 low, 2 high)
+2025-Dec-09 22:34:53.546533
+#8 21.74
+2025-Dec-09 22:34:53.546533
+#8 21.74 To address all issues, run:
+2025-Dec-09 22:34:53.546533
+#8 21.74   npm audit fix
+2025-Dec-09 22:34:53.546533
+#8 21.74
+2025-Dec-09 22:34:53.546533
+#8 21.74 Run `npm audit` for details.
+2025-Dec-09 22:34:53.546533
+#8 21.74 npm notice
+2025-Dec-09 22:34:53.546533
+#8 21.74 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2025-Dec-09 22:34:53.546533
+#8 21.74 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2025-Dec-09 22:34:53.546533
+#8 21.74 npm notice To update run: npm install -g npm@11.7.0
+2025-Dec-09 22:34:53.546533
+#8 21.74 npm notice
+2025-Dec-09 22:34:53.546533
+#8 ...
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#9 [builder 4/6] RUN npm ci
+2025-Dec-09 22:34:53.546533
+#9 DONE 22.1s
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#8 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 22:34:53.546533
+#8 DONE 22.2s
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#10 [builder 5/6] COPY . .
+2025-Dec-09 22:34:53.546533
+#10 DONE 0.3s
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+#11 [builder 6/6] RUN npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 22:34:53.546533
+#11 1.611 npm warn exec The following package was not found and will be installed: vite@7.2.7
+2025-Dec-09 22:34:53.546533
+#11 7.073 failed to load config from /app/vite.config.ts
+2025-Dec-09 22:34:53.546533
+#11 7.074 error during build:
+2025-Dec-09 22:34:53.546533
+#11 7.074 Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /app/node_modules/.vite-temp/vite.config.ts.timestamp-1765319693168-a5a34427b56.mjs
+2025-Dec-09 22:34:53.546533
+#11 7.074     at packageResolve (node:internal/modules/esm/resolve:873:9)
+2025-Dec-09 22:34:53.546533
+#11 7.074     at moduleResolve (node:internal/modules/esm/resolve:946:18)
+2025-Dec-09 22:34:53.546533
+#11 7.074     at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+2025-Dec-09 22:34:53.546533
+#11 7.074     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+2025-Dec-09 22:34:53.546533
+#11 7.074     at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+2025-Dec-09 22:34:53.546533
+#11 7.074     at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+2025-Dec-09 22:34:53.546533
+#11 7.074     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+2025-Dec-09 22:34:53.546533
+#11 7.074     at ModuleJob._link (node:internal/modules/esm/module_job:168:49)
+2025-Dec-09 22:34:53.546533
+#11 ERROR: process "/bin/sh -c npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist" did not complete successfully: exit code: 1
+2025-Dec-09 22:34:53.546533
+------
+2025-Dec-09 22:34:53.546533
+> [builder 6/6] RUN npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist:
+2025-Dec-09 22:34:53.546533
+7.074 error during build:
+2025-Dec-09 22:34:53.546533
+7.074 Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /app/node_modules/.vite-temp/vite.config.ts.timestamp-1765319693168-a5a34427b56.mjs
+2025-Dec-09 22:34:53.546533
+7.074     at packageResolve (node:internal/modules/esm/resolve:873:9)
+2025-Dec-09 22:34:53.546533
+7.074     at moduleResolve (node:internal/modules/esm/resolve:946:18)
+2025-Dec-09 22:34:53.546533
+7.074     at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+2025-Dec-09 22:34:53.546533
+7.074     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+2025-Dec-09 22:34:53.546533
+7.074     at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+2025-Dec-09 22:34:53.546533
+7.074     at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+2025-Dec-09 22:34:53.546533
+7.074     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+2025-Dec-09 22:34:53.546533
+7.074     at ModuleJob._link (node:internal/modules/esm/module_job:168:49)
+2025-Dec-09 22:34:53.546533
+------
+2025-Dec-09 22:34:53.546533
+2025-Dec-09 22:34:53.546533
+2 warnings found (use docker --debug to expand):
+2025-Dec-09 22:34:53.546533
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 5)
+2025-Dec-09 22:34:53.546533
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 31)
+2025-Dec-09 22:34:53.546533
+Dockerfile:25
+2025-Dec-09 22:34:53.546533
+--------------------
+2025-Dec-09 22:34:53.546533
+23 |
+2025-Dec-09 22:34:53.546533
+24 |     # Build the application
+2025-Dec-09 22:34:53.546533
+25 | >>> RUN npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 22:34:53.546533
+26 |
+2025-Dec-09 22:34:53.546533
+27 |     # Production stage
+2025-Dec-09 22:34:53.546533
+--------------------
+2025-Dec-09 22:34:53.546533
+ERROR: failed to build: failed to solve: process "/bin/sh -c npm exec -- vite build && npm exec -- esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist" did not complete successfully: exit code: 1
+2025-Dec-09 22:34:53.546533
+exit status 1
+2025-Dec-09 22:34:53.555616
+Deployment failed. Removing the new version of your application.
+2025-Dec-09 22:34:55.374403
+Gracefully shutting down build container: e08cgwgssgc88swwg888wk0w
+2025-Dec-09 22:34:55.815772
+[CMD]: docker stop --time=30 e08cgwgssgc88swwg888wk0w
+2025-Dec-09 22:34:55.815772
+Flag --time has been deprecated, use --timeout instead
+2025-Dec-09 22:34:56.309418
+e08cgwgssgc88swwg888wk0w
+2025-Dec-09 22:34:56.792975
+[CMD]: docker rm -f e08cgwgssgc88swwg888wk0w
+2025-Dec-09 22:34:56.792975
+Error response from daemon: No such container: e08cgwgssgc88swwg888wk0w
