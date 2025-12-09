@@ -1,0 +1,449 @@
+25-Dec-09 21:15:37.303501
+#9 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 21:15:37.303501
+#9 0.311 npm warn config only Use `--omit=dev` to omit dev dependencies from the install.
+2025-Dec-09 21:15:50.667655
+#9 20.87
+2025-Dec-09 21:15:50.667655
+#9 20.87 added 583 packages, and audited 584 packages in 21s
+2025-Dec-09 21:15:50.828595
+#9 20.87
+2025-Dec-09 21:15:50.837203
+#9 20.87 66 packages are looking for funding
+2025-Dec-09 21:15:50.837203
+#9 20.87   run `npm fund` for details
+2025-Dec-09 21:15:50.837203
+#9 20.88
+2025-Dec-09 21:15:50.837203
+#9 20.88 5 vulnerabilities (3 low, 2 high)
+2025-Dec-09 21:15:50.837203
+#9 20.88
+2025-Dec-09 21:15:50.837203
+#9 20.88 To address all issues, run:
+2025-Dec-09 21:15:50.837203
+#9 20.88   npm audit fix
+2025-Dec-09 21:15:50.837203
+#9 20.88
+2025-Dec-09 21:15:50.837203
+#9 20.88 Run `npm audit` for details.
+2025-Dec-09 21:15:50.837203
+#9 20.89 npm notice
+2025-Dec-09 21:15:50.837203
+#9 20.89 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2025-Dec-09 21:15:50.837203
+#9 20.89 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2025-Dec-09 21:15:50.837203
+#9 20.89 npm notice To update run: npm install -g npm@11.7.0
+2025-Dec-09 21:15:50.837203
+#9 20.89 npm notice
+2025-Dec-09 21:15:50.876902
+#9 ...
+2025-Dec-09 21:15:50.876902
+2025-Dec-09 21:15:50.876902
+#8 [builder 4/6] RUN npm ci
+2025-Dec-09 21:15:50.876902
+#8 21.08
+2025-Dec-09 21:15:50.876902
+#8 21.08 added 583 packages, and audited 584 packages in 21s
+2025-Dec-09 21:15:50.980631
+#8 ...
+2025-Dec-09 21:15:50.980631
+2025-Dec-09 21:15:50.980631
+#9 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 21:15:50.980631
+#9 DONE 21.2s
+2025-Dec-09 21:15:50.980631
+2025-Dec-09 21:15:50.980631
+#8 [builder 4/6] RUN npm ci
+2025-Dec-09 21:15:50.980631
+#8 21.08
+2025-Dec-09 21:15:50.980631
+#8 21.08 66 packages are looking for funding
+2025-Dec-09 21:15:50.980631
+#8 21.08   run `npm fund` for details
+2025-Dec-09 21:15:50.980631
+#8 21.09
+2025-Dec-09 21:15:50.980631
+#8 21.09 5 vulnerabilities (3 low, 2 high)
+2025-Dec-09 21:15:50.980631
+#8 21.09
+2025-Dec-09 21:15:50.980631
+#8 21.09 To address all issues, run:
+2025-Dec-09 21:15:50.980631
+#8 21.09   npm audit fix
+2025-Dec-09 21:15:50.980631
+#8 21.09
+2025-Dec-09 21:15:50.980631
+#8 21.09 Run `npm audit` for details.
+2025-Dec-09 21:15:50.980631
+#8 21.09 npm notice
+2025-Dec-09 21:15:50.980631
+#8 21.09 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2025-Dec-09 21:15:50.980631
+#8 21.09 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2025-Dec-09 21:15:50.980631
+#8 21.09 npm notice To update run: npm install -g npm@11.7.0
+2025-Dec-09 21:15:50.980631
+#8 21.09 npm notice
+2025-Dec-09 21:15:51.271553
+#8 DONE 21.5s
+2025-Dec-09 21:15:51.425102
+#10 [builder 5/6] COPY . .
+2025-Dec-09 21:15:51.459888
+#10 DONE 0.2s
+2025-Dec-09 21:15:51.613000
+#11 [builder 6/6] RUN npm run build
+2025-Dec-09 21:15:51.765920
+#11 0.300
+2025-Dec-09 21:15:51.765920
+#11 0.300 > rest-express@1.0.0 build
+2025-Dec-09 21:15:51.765920
+#11 0.300 > vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 21:15:51.765920
+#11 0.300
+2025-Dec-09 21:15:51.892964
+#11 0.307 sh: vite: not found
+2025-Dec-09 21:15:51.892964
+#11 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 127
+2025-Dec-09 21:15:51.922142
+------
+2025-Dec-09 21:15:51.922142
+> [builder 6/6] RUN npm run build:
+2025-Dec-09 21:15:51.922142
+0.300
+2025-Dec-09 21:15:51.922142
+0.300 > rest-express@1.0.0 build
+2025-Dec-09 21:15:51.922142
+0.300 > vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 21:15:51.922142
+0.300
+2025-Dec-09 21:15:51.922142
+0.307 sh: vite: not found
+2025-Dec-09 21:15:51.922142
+------
+2025-Dec-09 21:15:51.932059
+10 warnings found (use docker --debug to expand):
+2025-Dec-09 21:15:51.932059
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "OPENAI_API_KEY") (line 40)
+2025-Dec-09 21:15:51.932059
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "SESSION_SECRET") (line 42)
+2025-Dec-09 21:15:51.932059
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_ACCESS_KEY_ID") (line 43)
+2025-Dec-09 21:15:51.932059
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 47)
+2025-Dec-09 21:15:51.932059
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "APIFY_API_TOKEN") (line 3)
+2025-Dec-09 21:15:51.932059
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "OPENAI_API_KEY") (line 6)
+2025-Dec-09 21:15:51.932059
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "SESSION_SECRET") (line 8)
+2025-Dec-09 21:15:51.932059
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_ACCESS_KEY_ID") (line 9)
+2025-Dec-09 21:15:51.932059
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 13)
+2025-Dec-09 21:15:51.932059
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "APIFY_API_TOKEN") (line 37)
+2025-Dec-09 21:15:51.936806
+Dockerfile:33
+2025-Dec-09 21:15:51.936806
+--------------------
+2025-Dec-09 21:15:51.936806
+31 |
+2025-Dec-09 21:15:51.936806
+32 |     # Build the application
+2025-Dec-09 21:15:51.936806
+33 | >>> RUN npm run build
+2025-Dec-09 21:15:51.936806
+34 |
+2025-Dec-09 21:15:51.936806
+35 |     # Production stage
+2025-Dec-09 21:15:51.936806
+--------------------
+2025-Dec-09 21:15:51.936806
+ERROR: failed to build: failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 127
+2025-Dec-09 21:15:51.941013
+exit status 1
+2025-Dec-09 21:15:51.999692
+Oops something is not okay, are you okay? 😢
+2025-Dec-09 21:15:52.009091
+#0 building with "default" instance using docker driver
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#1 [internal] load build definition from Dockerfile
+2025-Dec-09 21:15:52.009091
+#1 transferring dockerfile: 3.07kB done
+2025-Dec-09 21:15:52.009091
+#1 DONE 0.0s
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#2 [internal] load metadata for docker.io/library/node:20-alpine
+2025-Dec-09 21:15:52.009091
+#2 DONE 1.0s
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#3 [internal] load .dockerignore
+2025-Dec-09 21:15:52.009091
+#3 transferring context: 219B done
+2025-Dec-09 21:15:52.009091
+#3 DONE 0.0s
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#4 [builder 1/6] FROM docker.io/library/node:20-alpine@sha256:643e7036aa985317ebfee460005e322aa550c6b6883000d01daefb58689a58e2
+2025-Dec-09 21:15:52.009091
+#4 resolve docker.io/library/node:20-alpine@sha256:643e7036aa985317ebfee460005e322aa550c6b6883000d01daefb58689a58e2 0.0s done
+2025-Dec-09 21:15:52.009091
+#4 ...
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#5 [internal] load build context
+2025-Dec-09 21:15:52.009091
+#5 transferring context: 1.05MB 0.1s done
+2025-Dec-09 21:15:52.009091
+#5 DONE 0.1s
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#4 [builder 1/6] FROM docker.io/library/node:20-alpine@sha256:643e7036aa985317ebfee460005e322aa550c6b6883000d01daefb58689a58e2
+2025-Dec-09 21:15:52.009091
+#4 sha256:6ac8cc1f0b52065d2132d052abc59bf19e19ac0c65729d4300ab41db30fed855 0B / 446B 0.2s
+2025-Dec-09 21:15:52.009091
+#4 sha256:643e7036aa985317ebfee460005e322aa550c6b6883000d01daefb58689a58e2 7.67kB / 7.67kB done
+2025-Dec-09 21:15:52.009091
+#4 sha256:fb140f51db2dfb99a12ea29ddc933a8719e46501de0295bed8c4c2824d1332cf 1.72kB / 1.72kB done
+2025-Dec-09 21:15:52.009091
+#4 sha256:9992b59c17bf27bd13e187f54112049f23f7da7b89343bee73963ae3d6a65fb9 6.52kB / 6.52kB done
+2025-Dec-09 21:15:52.009091
+#4 sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 0B / 42.78MB 0.2s
+2025-Dec-09 21:15:52.009091
+#4 sha256:34226f5414967f183a8ba2d2a0bf2809b3864182e8f68c07c066fa83f025024a 0B / 1.26MB 0.2s
+2025-Dec-09 21:15:52.009091
+#4 sha256:6ac8cc1f0b52065d2132d052abc59bf19e19ac0c65729d4300ab41db30fed855 446B / 446B 0.4s done
+2025-Dec-09 21:15:52.009091
+#4 sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 3.15MB / 42.78MB 0.4s
+2025-Dec-09 21:15:52.009091
+#4 sha256:34226f5414967f183a8ba2d2a0bf2809b3864182e8f68c07c066fa83f025024a 1.26MB / 1.26MB 0.3s done
+2025-Dec-09 21:15:52.009091
+#4 sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 10.49MB / 42.78MB 0.6s
+2025-Dec-09 21:15:52.009091
+#4 sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 16.78MB / 42.78MB 0.8s
+2025-Dec-09 21:15:52.009091
+#4 sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 19.92MB / 42.78MB 0.9s
+2025-Dec-09 21:15:52.009091
+#4 sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 30.41MB / 42.78MB 1.2s
+2025-Dec-09 21:15:52.009091
+#4 sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 35.65MB / 42.78MB 1.3s
+2025-Dec-09 21:15:52.009091
+#4 sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 39.85MB / 42.78MB 1.4s
+2025-Dec-09 21:15:52.009091
+#4 sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 42.78MB / 42.78MB 1.5s
+2025-Dec-09 21:15:52.009091
+#4 extracting sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645
+2025-Dec-09 21:15:52.009091
+#4 sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 42.78MB / 42.78MB 1.5s done
+2025-Dec-09 21:15:52.009091
+#4 extracting sha256:d28ab52fe4290429b930e8fa368da4da8a7e63cf143c38f9b869950a67c32645 1.8s done
+2025-Dec-09 21:15:52.009091
+#4 extracting sha256:34226f5414967f183a8ba2d2a0bf2809b3864182e8f68c07c066fa83f025024a
+2025-Dec-09 21:15:52.009091
+#4 extracting sha256:34226f5414967f183a8ba2d2a0bf2809b3864182e8f68c07c066fa83f025024a 0.1s done
+2025-Dec-09 21:15:52.009091
+#4 extracting sha256:6ac8cc1f0b52065d2132d052abc59bf19e19ac0c65729d4300ab41db30fed855 done
+2025-Dec-09 21:15:52.009091
+#4 DONE 3.6s
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#6 [builder 2/6] WORKDIR /app
+2025-Dec-09 21:15:52.009091
+#6 DONE 0.3s
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#7 [builder 3/6] COPY package*.json ./
+2025-Dec-09 21:15:52.009091
+#7 DONE 0.1s
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#8 [builder 4/6] RUN npm ci
+2025-Dec-09 21:15:52.009091
+#8 ...
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#9 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 21:15:52.009091
+#9 0.311 npm warn config only Use `--omit=dev` to omit dev dependencies from the install.
+2025-Dec-09 21:15:52.009091
+#9 20.87
+2025-Dec-09 21:15:52.009091
+#9 20.87 added 583 packages, and audited 584 packages in 21s
+2025-Dec-09 21:15:52.009091
+#9 20.87
+2025-Dec-09 21:15:52.009091
+#9 20.87 66 packages are looking for funding
+2025-Dec-09 21:15:52.009091
+#9 20.87   run `npm fund` for details
+2025-Dec-09 21:15:52.009091
+#9 20.88
+2025-Dec-09 21:15:52.009091
+#9 20.88 5 vulnerabilities (3 low, 2 high)
+2025-Dec-09 21:15:52.009091
+#9 20.88
+2025-Dec-09 21:15:52.009091
+#9 20.88 To address all issues, run:
+2025-Dec-09 21:15:52.009091
+#9 20.88   npm audit fix
+2025-Dec-09 21:15:52.009091
+#9 20.88
+2025-Dec-09 21:15:52.009091
+#9 20.88 Run `npm audit` for details.
+2025-Dec-09 21:15:52.009091
+#9 20.89 npm notice
+2025-Dec-09 21:15:52.009091
+#9 20.89 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2025-Dec-09 21:15:52.009091
+#9 20.89 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2025-Dec-09 21:15:52.009091
+#9 20.89 npm notice To update run: npm install -g npm@11.7.0
+2025-Dec-09 21:15:52.009091
+#9 20.89 npm notice
+2025-Dec-09 21:15:52.009091
+#9 ...
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#8 [builder 4/6] RUN npm ci
+2025-Dec-09 21:15:52.009091
+#8 21.08
+2025-Dec-09 21:15:52.009091
+#8 21.08 added 583 packages, and audited 584 packages in 21s
+2025-Dec-09 21:15:52.009091
+#8 ...
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#9 [production 4/7] RUN npm ci --only=production
+2025-Dec-09 21:15:52.009091
+#9 DONE 21.2s
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#8 [builder 4/6] RUN npm ci
+2025-Dec-09 21:15:52.009091
+#8 21.08
+2025-Dec-09 21:15:52.009091
+#8 21.08 66 packages are looking for funding
+2025-Dec-09 21:15:52.009091
+#8 21.08   run `npm fund` for details
+2025-Dec-09 21:15:52.009091
+#8 21.09
+2025-Dec-09 21:15:52.009091
+#8 21.09 5 vulnerabilities (3 low, 2 high)
+2025-Dec-09 21:15:52.009091
+#8 21.09
+2025-Dec-09 21:15:52.009091
+#8 21.09 To address all issues, run:
+2025-Dec-09 21:15:52.009091
+#8 21.09   npm audit fix
+2025-Dec-09 21:15:52.009091
+#8 21.09
+2025-Dec-09 21:15:52.009091
+#8 21.09 Run `npm audit` for details.
+2025-Dec-09 21:15:52.009091
+#8 21.09 npm notice
+2025-Dec-09 21:15:52.009091
+#8 21.09 npm notice New major version of npm available! 10.8.2 -> 11.7.0
+2025-Dec-09 21:15:52.009091
+#8 21.09 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+2025-Dec-09 21:15:52.009091
+#8 21.09 npm notice To update run: npm install -g npm@11.7.0
+2025-Dec-09 21:15:52.009091
+#8 21.09 npm notice
+2025-Dec-09 21:15:52.009091
+#8 DONE 21.5s
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#10 [builder 5/6] COPY . .
+2025-Dec-09 21:15:52.009091
+#10 DONE 0.2s
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+#11 [builder 6/6] RUN npm run build
+2025-Dec-09 21:15:52.009091
+#11 0.300
+2025-Dec-09 21:15:52.009091
+#11 0.300 > rest-express@1.0.0 build
+2025-Dec-09 21:15:52.009091
+#11 0.300 > vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 21:15:52.009091
+#11 0.300
+2025-Dec-09 21:15:52.009091
+#11 0.307 sh: vite: not found
+2025-Dec-09 21:15:52.009091
+#11 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 127
+2025-Dec-09 21:15:52.009091
+------
+2025-Dec-09 21:15:52.009091
+> [builder 6/6] RUN npm run build:
+2025-Dec-09 21:15:52.009091
+0.300
+2025-Dec-09 21:15:52.009091
+0.300 > rest-express@1.0.0 build
+2025-Dec-09 21:15:52.009091
+0.300 > vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+2025-Dec-09 21:15:52.009091
+0.300
+2025-Dec-09 21:15:52.009091
+0.307 sh: vite: not found
+2025-Dec-09 21:15:52.009091
+------
+2025-Dec-09 21:15:52.009091
+2025-Dec-09 21:15:52.009091
+10 warnings found (use docker --debug to expand):
+2025-Dec-09 21:15:52.009091
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "OPENAI_API_KEY") (line 40)
+2025-Dec-09 21:15:52.009091
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "SESSION_SECRET") (line 42)
+2025-Dec-09 21:15:52.009091
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_ACCESS_KEY_ID") (line 43)
+2025-Dec-09 21:15:52.009091
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 47)
+2025-Dec-09 21:15:52.009091
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "APIFY_API_TOKEN") (line 3)
+2025-Dec-09 21:15:52.009091
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "OPENAI_API_KEY") (line 6)
+2025-Dec-09 21:15:52.009091
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "SESSION_SECRET") (line 8)
+2025-Dec-09 21:15:52.009091
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_ACCESS_KEY_ID") (line 9)
+2025-Dec-09 21:15:52.009091
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "WASABI_SECRET_ACCESS_KEY") (line 13)
+2025-Dec-09 21:15:52.009091
+- SecretsUsedInArgOrEnv: Do not use ARG or ENV instructions for sensitive data (ARG "APIFY_API_TOKEN") (line 37)
+2025-Dec-09 21:15:52.009091
+Dockerfile:33
+2025-Dec-09 21:15:52.009091
+--------------------
+2025-Dec-09 21:15:52.009091
+31 |
+2025-Dec-09 21:15:52.009091
+32 |     # Build the application
+2025-Dec-09 21:15:52.009091
+33 | >>> RUN npm run build
+2025-Dec-09 21:15:52.009091
+34 |
+2025-Dec-09 21:15:52.009091
+35 |     # Production stage
+2025-Dec-09 21:15:52.009091
+--------------------
+2025-Dec-09 21:15:52.009091
+ERROR: failed to build: failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 127
+2025-Dec-09 21:15:52.009091
+exit status 1
+2025-Dec-09 21:15:52.018913
+Deployment failed. Removing the new version of your application.
+2025-Dec-09 21:15:52.607520
+Gracefully shutting down build container: pg4ogg4okgkwcgcowg4o00gk
+2025-Dec-09 21:15:52.790745
+[CMD]: docker stop --time=30 pg4ogg4okgkwcgcowg4o00gk
+2025-Dec-09 21:15:52.790745
+Flag --time has been deprecated, use --timeout instead
+2025-Dec-09 21:15:53.198366
+pg4ogg4okgkwcgcowg4o00gk
+2025-Dec-09 21:15:53.367533
+[CMD]: docker rm -f pg4ogg4okgkwcgcowg4o00gk
+2025-Dec-09 21:15:53.367533
+Error response from daemon: No such container: pg4ogg4okgkwcgcowg4o00gk
