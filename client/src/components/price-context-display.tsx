@@ -26,7 +26,8 @@ interface ConditionData {
 }
 
 export function PriceContextDisplay({ priceData, isPollingScrape = false, testIdPrefix = '' }: PriceContextDisplayProps) {
-  const formatEuro = (value: number) => `€${value.toLocaleString('de-DE')}`;
+  // Round to whole euros for cleaner display
+  const formatEuro = (value: number) => `€${Math.round(value).toLocaleString('de-DE')}`;
 
   // Build condition data array
   const conditions: ConditionData[] = [
