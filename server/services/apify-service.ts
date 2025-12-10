@@ -4,6 +4,7 @@ interface ApifySearchResult {
   url: string;
   title: string;
   description?: string;
+  _queryName?: string; // Tracks which search query found this result for condition hints
 }
 
 interface MarketplaceListing {
@@ -218,7 +219,7 @@ export async function searchMarketplaceListings(brand: string, model: string): P
 
     const responses = await Promise.all(searchPromises);
 
-    // Process ALL global results
+    // Process ALL global results - tag each result with its source query for condition hints
     let allOrganicResults: any[] = [];
     
     for (const result of responses) {
@@ -234,7 +235,9 @@ export async function searchMarketplaceListings(brand: string, model: string): P
           if (Array.isArray(data)) {
             const organic = data.flatMap((page: any) => page.organicResults || []);
             console.log(`[Apify] ${name} organic results:`, organic.length);
-            allOrganicResults.push(...organic);
+            // Tag each result with the query name for condition hinting
+            const taggedOrganic = organic.map((r: any) => ({ ...r, _queryName: name }));
+            allOrganicResults.push(...taggedOrganic);
           }
         } catch (e) {
           console.error(`[Apify] ${name} parse error:`, e);
@@ -348,6 +351,7 @@ export async function searchMarketplaceListings(brand: string, model: string): P
         url: r.url,
         title: r.title,
         description: r.description || '',
+        _queryName: r._queryName || '', // Preserve query name for condition hints
       }));
 
     console.log('[Apify] Marketplace filtered results count:', filtered.length);
@@ -394,7 +398,10 @@ export async function searchMarketplaceListings(brand: string, model: string): P
   }
 }
 
-export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceListing[]> {
+// Map to track condition hints by URL
+let conditionHintsByUrl: Map<string, string> = new Map();
+
+export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[]): Promise<MarketplaceListing[]> {
   if (!APIFY_TOKEN) {
     console.warn('APIFY_API_TOKEN not configured');
     throw new Error('Search service not configured. Please contact support.');
@@ -404,7 +411,35 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
     return [];
   }
 
-  console.log('[Apify] Fast scraping', urls.length, 'URLs using Cheerio');
+  // Handle both string[] and ApifySearchResult[] inputs
+  let urlStrings: string[];
+  if (typeof urls[0] === 'string') {
+    urlStrings = urls as string[];
+  } else {
+    const searchResults = urls as ApifySearchResult[];
+    urlStrings = searchResults.map(r => r.url);
+    // Build condition hints map from query names
+    conditionHintsByUrl = new Map();
+    searchResults.forEach(r => {
+      if (r._queryName) {
+        // Determine condition hint from query name
+        let hint = '';
+        if (r._queryName.includes('Refurb')) {
+          hint = 'refurbished';
+        } else if (r._queryName.includes('New') || r._queryName.includes('Official')) {
+          hint = 'new';
+        } else if (r._queryName.includes('Used') || r._queryName.includes('eBay')) {
+          hint = 'used';
+        }
+        if (hint) {
+          conditionHintsByUrl.set(r.url, hint);
+        }
+      }
+    });
+    console.log('[Apify] Condition hints built for', conditionHintsByUrl.size, 'URLs');
+  }
+
+  console.log('[Apify] Fast scraping', urlStrings.length, 'URLs using Cheerio');
   
   try {
     // Use Cheerio scraper for faster HTML parsing (no JavaScript rendering)
@@ -412,8 +447,8 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        startUrls: urls.map(url => ({ url })),
-        maxRequestsPerCrawl: urls.length,
+        startUrls: urlStrings.map(url => ({ url })),
+        maxRequestsPerCrawl: urlStrings.length,
         maxConcurrency: 25, // High concurrency for Cheerio (parallel scraping)
         maxRequestRetries: 1,
         requestTimeoutSecs: 12,
@@ -671,13 +706,27 @@ export async function scrapePricesFromURLs(urls: string[]): Promise<MarketplaceL
         
         return true;
       })
-      .map((r: any) => ({
-        url: r.url,
-        title: r.title,
-        price: r.price,
-        condition: r.condition as 'new' | 'refurbished' | 'used',
-        source: r.source
-      }));
+      .map((r: any) => {
+        let condition = r.condition as 'new' | 'refurbished' | 'used';
+        
+        // Apply condition hint from search query if page detection defaulted to 'new'
+        // This helps properly classify results from refurbished/used search queries
+        if (condition === 'new' && conditionHintsByUrl.has(r.url)) {
+          const hint = conditionHintsByUrl.get(r.url);
+          if (hint === 'refurbished' || hint === 'used') {
+            console.log(`[Apify] Applying condition hint '${hint}' to ${r.url.substring(0, 60)}`);
+            condition = hint as 'new' | 'refurbished' | 'used';
+          }
+        }
+        
+        return {
+          url: r.url,
+          title: r.title,
+          price: r.price,
+          condition,
+          source: r.source
+        };
+      });
 
     console.log('[Apify] Valid Playwright price listings found:', listings.length);
     

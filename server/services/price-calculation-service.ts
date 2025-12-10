@@ -97,8 +97,8 @@ export async function calculateMarketPrice(brand: string, model: string, categor
       return await useAIFallback(brand, model, category);
     }
 
-    const urls = searchResults.map(r => r.url);
-    const scrapedListings = await scrapePricesFromURLs(urls);
+    // Pass full search results to preserve _queryName for condition hints
+    const scrapedListings = await scrapePricesFromURLs(searchResults);
     
     console.log('[PriceCalc] Scraped', scrapedListings.length, 'listings with valid prices');
     
