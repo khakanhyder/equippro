@@ -478,10 +478,18 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
             const priceRange = {
               new_min: result.new_min,
               new_max: result.new_max,
+              new_avg: result.new_avg,
+              new_count: result.new_count,
               refurbished_min: result.refurbished_min,
               refurbished_max: result.refurbished_max,
+              refurbished_avg: result.refurbished_avg,
+              refurbished_count: result.refurbished_count,
               used_min: result.used_min,
               used_max: result.used_max,
+              used_avg: result.used_avg,
+              used_count: result.used_count,
+              has_marketplace_data: result.has_marketplace_data,
+              totalListingsFound: result.totalListingsFound,
             };
             form.setValue('marketPriceRange', priceRange as any);
             form.setValue('priceSource', result.source || 'Market data');
@@ -551,10 +559,18 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
       const priceRange = {
         new_min: result.new_min,
         new_max: result.new_max,
+        new_avg: result.new_avg,
+        new_count: result.new_count,
         refurbished_min: result.refurbished_min,
         refurbished_max: result.refurbished_max,
+        refurbished_avg: result.refurbished_avg,
+        refurbished_count: result.refurbished_count,
         used_min: result.used_min,
         used_max: result.used_max,
+        used_avg: result.used_avg,
+        used_count: result.used_count,
+        has_marketplace_data: result.has_marketplace_data,
+        totalListingsFound: result.totalListingsFound,
       };
 
       form.setValue('marketPriceRange', priceRange as any);
