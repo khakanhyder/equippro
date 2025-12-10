@@ -398,8 +398,19 @@ export async function searchMarketplaceListings(brand: string, model: string): P
   }
 }
 
-// Map to track condition hints by URL
+// Map to track condition hints by normalized URL
 let conditionHintsByUrl: Map<string, string> = new Map();
+
+// Normalize URL for consistent matching (handles canonical URL changes by Apify)
+function normalizeUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    // Use origin + pathname, lowercase, strip trailing slash
+    return (parsed.origin + parsed.pathname).toLowerCase().replace(/\/+$/, '');
+  } catch {
+    return url.toLowerCase().replace(/\/+$/, '');
+  }
+}
 
 export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[]): Promise<MarketplaceListing[]> {
   if (!APIFY_TOKEN) {
@@ -418,7 +429,7 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
   } else {
     const searchResults = urls as ApifySearchResult[];
     urlStrings = searchResults.map(r => r.url);
-    // Build condition hints map from query names
+    // Build condition hints map from query names using normalized URLs
     conditionHintsByUrl = new Map();
     searchResults.forEach(r => {
       if (r._queryName) {
@@ -432,7 +443,9 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
           hint = 'used';
         }
         if (hint) {
-          conditionHintsByUrl.set(r.url, hint);
+          const normalizedUrl = normalizeUrl(r.url);
+          conditionHintsByUrl.set(normalizedUrl, hint);
+          console.log(`[Apify] Hint '${hint}' for normalized: ${normalizedUrl.substring(0, 60)}`);
         }
       }
     });
@@ -711,12 +724,16 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
         
         // Apply condition hint from search query if page detection defaulted to 'new'
         // This helps properly classify results from refurbished/used search queries
-        if (condition === 'new' && conditionHintsByUrl.has(r.url)) {
-          const hint = conditionHintsByUrl.get(r.url);
+        // Use normalized URL for matching since Apify may return canonical URLs
+        const normalizedResultUrl = normalizeUrl(r.url);
+        if (condition === 'new' && conditionHintsByUrl.has(normalizedResultUrl)) {
+          const hint = conditionHintsByUrl.get(normalizedResultUrl);
           if (hint === 'refurbished' || hint === 'used') {
             console.log(`[Apify] Applying condition hint '${hint}' to ${r.url.substring(0, 60)}`);
             condition = hint as 'new' | 'refurbished' | 'used';
           }
+        } else if (condition === 'new' && conditionHintsByUrl.size > 0) {
+          console.log(`[Apify] No hint match for: ${normalizedResultUrl.substring(0, 60)}`);
         }
         
         return {
