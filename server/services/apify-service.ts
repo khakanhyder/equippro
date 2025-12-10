@@ -759,34 +759,41 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
         return true;
       })
       .map((r: any) => {
-        let condition = r.condition as 'new' | 'refurbished' | 'used';
+        // Default to 'new' if condition is missing/undefined
+        let condition: 'new' | 'refurbished' | 'used' = r.condition || 'new';
         const normalizedResultUrl = normalizeUrl(r.url);
-        const urlLower = r.url.toLowerCase();
+        const urlLower = (r.url || '').toLowerCase();
         
         // Known refurbished marketplace domains - these sell primarily refurbished/pre-owned
         const refurbishedDomains = ['labx', 'banebio', 'biosurplus', 'machinio', 'labexchange', 
           'labequip', 'dotmed', 'questpair', 'thelabworldgroup'];
         const usedDomains = ['ebay'];
         
-        console.log(`[Apify] Checking result: scraped=${condition}, url=${urlLower.substring(0, 50)}`);
+        console.log(`[Apify] Processing: scraped=${r.condition || 'undefined'}, url=${urlLower.substring(0, 50)}`);
         
         // Step 1: Check stored hints by URL (from search query context)
         if (conditionHintsByUrl.has(normalizedResultUrl)) {
           const hint = conditionHintsByUrl.get(normalizedResultUrl);
           if (hint) {
-            console.log(`[Apify] Applying URL hint '${hint}' to ${r.url.substring(0, 50)}`);
+            console.log(`[Apify] Applying URL hint '${hint}' to ${urlLower.substring(0, 50)}`);
             condition = hint as 'new' | 'refurbished' | 'used';
           }
         }
         // Step 2: Fallback - use domain-based classification for refurbished marketplaces
         // This catches URLs that weren't in the original search results (redirects, canonicals)
         else if (refurbishedDomains.some(d => urlLower.includes(d))) {
-          console.log(`[Apify] Applying domain hint 'refurbished' to ${r.url.substring(0, 50)}`);
+          console.log(`[Apify] Domain → 'refurbished': ${urlLower.substring(0, 50)}`);
           condition = 'refurbished';
         }
         else if (usedDomains.some(d => urlLower.includes(d))) {
-          console.log(`[Apify] Applying domain hint 'used' to ${r.url.substring(0, 50)}`);
+          console.log(`[Apify] Domain → 'used': ${urlLower.substring(0, 50)}`);
           condition = 'used';
+        }
+        
+        // Final validation: ensure condition is one of the valid values
+        if (!['new', 'refurbished', 'used'].includes(condition)) {
+          console.log(`[Apify] Invalid condition '${condition}', defaulting to 'new'`);
+          condition = 'new';
         }
         
         return {
