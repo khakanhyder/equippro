@@ -924,7 +924,7 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-foreground truncate text-sm">{match.brand} {match.model}</div>
                           <div className="text-xs text-muted-foreground truncate">
-                            €{parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
+                            €{Math.round(parseFloat(match.askingPrice)).toLocaleString()} · {match.condition} · {match.location}
                           </div>
                         </div>
                         <Badge variant={selectedInternalIds.includes(match.id) ? 'default' : 'outline'} className="shrink-0 text-xs">
@@ -1085,7 +1085,7 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-foreground truncate text-sm">{match.brand} {match.model}</div>
                     <div className="text-xs text-muted-foreground">
-                      €{parseFloat(match.askingPrice).toLocaleString()} · {match.condition} · {match.location}
+                      €{Math.round(parseFloat(match.askingPrice)).toLocaleString()} · {match.condition} · {match.location}
                     </div>
                   </div>
                   <Button

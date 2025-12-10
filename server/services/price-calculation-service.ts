@@ -102,6 +102,11 @@ export async function calculateMarketPrice(brand: string, model: string, categor
     
     console.log('[PriceCalc] Scraped', scrapedListings.length, 'listings with valid prices');
     
+    // Debug: Log all scraped prices to identify parsing issues
+    scrapedListings.forEach((listing, i) => {
+      console.log(`[PriceCalc] Listing ${i}: price=${listing.price}, source=${listing.source}, condition=${listing.condition}`);
+    });
+    
     // Filter out listings that don't actually match the product
     const normalizedBrand = brand.toLowerCase().replace(/[^a-z0-9]/g, '');
     const modelNumber = model.replace(/[^0-9]/g, '');

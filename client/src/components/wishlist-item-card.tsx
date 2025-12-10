@@ -104,7 +104,8 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
 
   const formatPrice = (value: number | null) => {
     if (value === null || value === undefined) return null;
-    return `€${value.toLocaleString()}`;
+    // Round to whole euros for cleaner display
+    return `€${Math.round(value).toLocaleString()}`;
   };
 
   const formatPriceRange = (min: number | null, max: number | null) => {
@@ -122,12 +123,14 @@ export function WishlistItemCard({ item, onFindMatches, onEdit, onDelete }: Wish
       if (price.startsWith('€') || price.startsWith('$')) return price.replace('$', '€');
       const numericValue = parseFloat(price.replace(/[^0-9.-]/g, ''));
       if (!isNaN(numericValue)) {
-        return `€${numericValue.toLocaleString()}`;
+        // Round to whole euros for cleaner display
+        return `€${Math.round(numericValue).toLocaleString()}`;
       }
       return price;
     }
     if (typeof price === 'number' && !isNaN(price)) {
-      return `€${price.toLocaleString()}`;
+      // Round to whole euros for cleaner display
+      return `€${Math.round(price).toLocaleString()}`;
     }
     return 'N/A';
   };

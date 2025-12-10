@@ -567,13 +567,18 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
                   conversionRate = CURRENCY_TO_USD['JPY']; currency = 'JPY';
                 }
                 
-                const cleanText = trimmed
+                // Extract just the first price - split on + (shipping) or multiple spaces
+                const firstPart = trimmed.split(/[+]/)[0].trim();
+                
+                const cleanText = firstPart
                   .replace(/US\\s*\\$/gi, '')
                   .replace(/USD|EUR|GBP|CAD|AUD|CHF|JPY|CNY|RMB/gi, '')
                   .replace(/[€£$¥円元]/g, '')
-                  .replace(/CA\\$|C\\$|AU\\$|A\\$/gi, '');
+                  .replace(/CA\\$|C\\$|AU\\$|A\\$/gi, '')
+                  .trim();
                 
-                const numericMatch = cleanText.match(/([0-9][0-9,. ]*)/);
+                // Match only the first contiguous price number (no spaces allowed in number)
+                const numericMatch = cleanText.match(/([0-9][0-9,.]*)/);
                 if (!numericMatch) return null;
                 
                 let numericPart = numericMatch[1].replace(/\\s/g, '');
@@ -596,7 +601,16 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
                 
                 const parsed = parseFloat(numericPart);
                 if (isNaN(parsed)) return null;
-                return parsed * conversionRate;
+                
+                const finalPrice = parsed * conversionRate;
+                
+                // Sanity check: filter out obviously wrong prices
+                // Lab equipment rarely costs more than $500,000 or less than $10
+                if (finalPrice > 500000 || finalPrice < 10) {
+                  return null;
+                }
+                
+                return finalPrice;
               }
               
               const price = normalizePriceText(priceText);
