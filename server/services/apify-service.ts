@@ -760,20 +760,33 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
       })
       .map((r: any) => {
         let condition = r.condition as 'new' | 'refurbished' | 'used';
-        
-        // Apply condition hint from search query if page detection defaulted to 'new'
-        // This helps properly classify results from refurbished/used search queries
-        // Use normalized URL for matching since Apify may return canonical URLs
         const normalizedResultUrl = normalizeUrl(r.url);
-        console.log(`[Apify] Checking result: condition=${condition}, normalized=${normalizedResultUrl.substring(0, 60)}, hints=${conditionHintsByUrl.size}`);
-        if (condition === 'new' && conditionHintsByUrl.has(normalizedResultUrl)) {
+        const urlLower = r.url.toLowerCase();
+        
+        // Known refurbished marketplace domains - these sell primarily refurbished/pre-owned
+        const refurbishedDomains = ['labx', 'banebio', 'biosurplus', 'machinio', 'labexchange', 
+          'labequip', 'dotmed', 'questpair', 'thelabworldgroup'];
+        const usedDomains = ['ebay'];
+        
+        console.log(`[Apify] Checking result: scraped=${condition}, url=${urlLower.substring(0, 50)}`);
+        
+        // Step 1: Check stored hints by URL (from search query context)
+        if (conditionHintsByUrl.has(normalizedResultUrl)) {
           const hint = conditionHintsByUrl.get(normalizedResultUrl);
-          if (hint === 'refurbished' || hint === 'used') {
-            console.log(`[Apify] Applying condition hint '${hint}' to ${r.url.substring(0, 60)}`);
+          if (hint) {
+            console.log(`[Apify] Applying URL hint '${hint}' to ${r.url.substring(0, 50)}`);
             condition = hint as 'new' | 'refurbished' | 'used';
           }
-        } else if (condition === 'new' && conditionHintsByUrl.size > 0) {
-          console.log(`[Apify] No hint match for: ${normalizedResultUrl.substring(0, 60)}`);
+        }
+        // Step 2: Fallback - use domain-based classification for refurbished marketplaces
+        // This catches URLs that weren't in the original search results (redirects, canonicals)
+        else if (refurbishedDomains.some(d => urlLower.includes(d))) {
+          console.log(`[Apify] Applying domain hint 'refurbished' to ${r.url.substring(0, 50)}`);
+          condition = 'refurbished';
+        }
+        else if (usedDomains.some(d => urlLower.includes(d))) {
+          console.log(`[Apify] Applying domain hint 'used' to ${r.url.substring(0, 50)}`);
+          condition = 'used';
         }
         
         return {
