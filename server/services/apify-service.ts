@@ -365,21 +365,37 @@ export async function searchMarketplaceListings(brand: string, model: string): P
       return true;
     });
     
-    // Prioritize official NEW sellers over used marketplaces
+    // Prioritize official NEW sellers
     const officialNewSellers = ['thermofisher', 'fishersci', 'sigmaaldrich', 'vwr', 'agilent', 
       'bio-rad', 'biorad', 'carlroth', 'merck', 'beckman', 'perkinelmer', 'waters', 'shimadzu',
       'sartorius', 'mettler-toledo', 'hach', 'illumina', 'roche', 'pipette.com', 'usascientific', 
       'coleparmer', 'grainger', 'millipore', 'eppendorf', 'tecan'];
     
+    // Also prioritize refurbished/used marketplaces to ensure condition variety
+    const refurbishedMarketplaces = ['questpair', 'thelabworldgroup', 'banebio', 'labx', 
+      'biosurplus', 'biomart', 'dotmed', 'labequip', 'machinio', 'labexchange'];
+    
+    // Separate results by source type
     const officialUrls = deduped.filter((r: any) => 
       officialNewSellers.some(seller => r.url.toLowerCase().includes(seller))
     );
-    const otherUrls = deduped.filter((r: any) => 
+    const refurbUrls = deduped.filter((r: any) => 
+      refurbishedMarketplaces.some(site => r.url.toLowerCase().includes(site)) &&
       !officialNewSellers.some(seller => r.url.toLowerCase().includes(seller))
     );
+    const otherUrls = deduped.filter((r: any) => 
+      !officialNewSellers.some(seller => r.url.toLowerCase().includes(seller)) &&
+      !refurbishedMarketplaces.some(site => r.url.toLowerCase().includes(site))
+    );
     
-    // Take up to 8 from official sellers first, then fill rest from others
-    const prioritized = [...officialUrls.slice(0, 8), ...otherUrls].slice(0, 25);
+    // Balanced selection: 8 official (new), 8 refurbished/used, 9 other
+    const prioritized = [
+      ...officialUrls.slice(0, 8),
+      ...refurbUrls.slice(0, 8),
+      ...otherUrls
+    ].slice(0, 25);
+    
+    console.log(`[Apify] URL balance: ${officialUrls.length} official, ${refurbUrls.length} refurb sites, ${otherUrls.length} other`);
     
     if (officialUrls.length > 0) {
       console.log('[Apify] Found', officialUrls.length, 'official seller URLs, prioritizing', Math.min(8, officialUrls.length));
@@ -431,10 +447,18 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
     urlStrings = searchResults.map(r => r.url);
     // Build condition hints map from query names using normalized URLs
     conditionHintsByUrl = new Map();
+    // Known refurbished/used marketplace domains
+    const refurbishedDomains = ['questpair', 'thelabworldgroup', 'banebio', 'labx', 
+      'biosurplus', 'biomart', 'dotmed', 'labequip', 'machinio', 'labexchange'];
+    const usedDomains = ['ebay'];
+    
     searchResults.forEach(r => {
+      // Determine condition hint from query name OR URL domain
+      let hint = '';
+      const urlLower = r.url.toLowerCase();
+      
+      // First, check query name
       if (r._queryName) {
-        // Determine condition hint from query name
-        let hint = '';
         if (r._queryName.includes('Refurb')) {
           hint = 'refurbished';
         } else if (r._queryName.includes('New') || r._queryName.includes('Official')) {
@@ -442,14 +466,29 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
         } else if (r._queryName.includes('Used') || r._queryName.includes('eBay')) {
           hint = 'used';
         }
-        if (hint) {
-          const normalizedUrl = normalizeUrl(r.url);
-          conditionHintsByUrl.set(normalizedUrl, hint);
-          console.log(`[Apify] Hint '${hint}' for normalized: ${normalizedUrl.substring(0, 60)}`);
+      }
+      
+      // Second, use URL domain as hint (overrides if query didn't set a specific hint)
+      // Refurbished marketplaces should hint 'refurbished' unless query says 'new'
+      if (hint !== 'new') {
+        if (refurbishedDomains.some(d => urlLower.includes(d))) {
+          hint = 'refurbished';
+        } else if (usedDomains.some(d => urlLower.includes(d))) {
+          hint = 'used';
         }
+      }
+      
+      if (hint) {
+        const normalizedUrl = normalizeUrl(r.url);
+        conditionHintsByUrl.set(normalizedUrl, hint);
+        console.log(`[Apify] Hint '${hint}' for: ${normalizedUrl.substring(0, 60)}`);
       }
     });
     console.log('[Apify] Condition hints built for', conditionHintsByUrl.size, 'URLs');
+    // Debug: Show all hints
+    conditionHintsByUrl.forEach((hint, url) => {
+      console.log(`[Apify] Hint stored: ${hint} => ${url.substring(0, 80)}`);
+    });
   }
 
   console.log('[Apify] Fast scraping', urlStrings.length, 'URLs using Cheerio');
@@ -726,6 +765,7 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
         // This helps properly classify results from refurbished/used search queries
         // Use normalized URL for matching since Apify may return canonical URLs
         const normalizedResultUrl = normalizeUrl(r.url);
+        console.log(`[Apify] Checking result: condition=${condition}, normalized=${normalizedResultUrl.substring(0, 60)}, hints=${conditionHintsByUrl.size}`);
         if (condition === 'new' && conditionHintsByUrl.has(normalizedResultUrl)) {
           const hint = conditionHintsByUrl.get(normalizedResultUrl);
           if (hint === 'refurbished' || hint === 'used') {
