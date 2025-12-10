@@ -582,7 +582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/price-context/scrape", async (req, res) => {
     try {
-      let { brand, model, category } = req.body;
+      let { brand, model, category, skipCache } = req.body;
       
       if (!brand || !model) {
         return res.status(400).json({ message: "brand and model are required" });
@@ -595,19 +595,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const cacheKey = getCacheKey(brand, model, category || 'Unknown');
 
-      // Check for cached data (AI or marketplace) that's not expired
-      const cached = await db.select()
-        .from(priceContextCache)
-        .where(and(
-          eq(priceContextCache.brand, brand),
-          eq(priceContextCache.model, model),
-          eq(priceContextCache.category, category || 'Unknown'),
-          sql`${priceContextCache.expiresAt} > NOW()`
-        ))
-        .limit(1);
+      // Skip cache check if skipCache is true (force fresh scrape)
+      let cached: any[] = [];
+      let hasMarketplaceData = false;
+      let hasAnyCache = false;
 
-      const hasMarketplaceData = cached.length > 0 && cached[0].hasMarketplaceData === 'true';
-      const hasAnyCache = cached.length > 0;
+      if (!skipCache) {
+        // Check for cached data (AI or marketplace) that's not expired
+        cached = await db.select()
+          .from(priceContextCache)
+          .where(and(
+            eq(priceContextCache.brand, brand),
+            eq(priceContextCache.model, model),
+            eq(priceContextCache.category, category || 'Unknown'),
+            sql`${priceContextCache.expiresAt} > NOW()`
+          ))
+          .limit(1);
+
+        hasMarketplaceData = cached.length > 0 && cached[0].hasMarketplaceData === 'true';
+        hasAnyCache = cached.length > 0;
+      } else {
+        console.log('[PriceScrape] skipCache=true, forcing fresh scrape for', brand, model);
+      }
 
       // Return cached data immediately if available
       if (hasAnyCache) {

@@ -545,7 +545,7 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
       const response = await fetch('/api/price-context/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brand, model, category }),
+        body: JSON.stringify({ brand, model, category, skipCache: true }),
       });
 
       if (!response.ok) {
