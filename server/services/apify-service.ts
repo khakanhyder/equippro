@@ -666,57 +666,26 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
                 else if (usedTitleMatch) condition = 'used';
                 else condition = 'used'; // eBay is primarily a used marketplace
               }
-              // Priority 2: Refurbished equipment marketplaces default to refurbished
-              else if (isRefurbishedMarketplace) {
-                if (newTitleMatch && !usedTitleMatch && !refurbTitleMatch) {
-                  condition = 'new';
-                } else if (usedTitleMatch && !refurbTitleMatch) {
-                  condition = 'used';
-                } else {
-                  condition = 'refurbished'; // Refurbished marketplaces default to refurbished
-                }
-              }
-              // Priority 3: Used equipment marketplaces default to used
-              else if (isUsedEquipmentMarketplace) {
-                if (newTitleMatch || newPatterns.test(productText)) {
-                  condition = 'new';
-                } else if (refurbTitleMatch || refurbPatterns.test(productText)) {
-                  condition = 'refurbished';
-                } else if (usedTitleMatch) {
-                  condition = 'used';
-                } else {
-                  condition = 'used'; // Used equipment marketplaces default to used
-                }
-              }
-              // Priority 3: Check title for explicit condition (most reliable)
-              else if (refurbTitleMatch) {
+              // NEW LOGIC: Text-based classification first, domain hints second
+              // Priority 2: Explicit text markers are most reliable (check title AND product text)
+              else if (refurbTitleMatch || refurbPatterns.test(productText)) {
                 condition = 'refurbished';
-              } else if (usedTitleMatch) {
+              } else if (usedTitleMatch || usedPatterns.test(productText)) {
                 condition = 'used';
-              } else if (newTitleMatch) {
+              } else if (newTitleMatch || newPatterns.test(productText)) {
                 condition = 'new';
               }
-              // Priority 4: Official sellers default to NEW
+              // Priority 3: No explicit text found - use domain hints as secondary signal
               else if (isOfficialSeller) {
+                condition = 'new'; // Official manufacturers/distributors = new
+              } else if (isUsedEquipmentMarketplace) {
+                condition = 'used'; // biosurplus, machinio = primarily used
+              }
+              // Priority 4: Default to NEW if no condition indicators found
+              // (Most resellers sell new unless explicitly marked refurbished/used)
+              else {
                 condition = 'new';
               }
-              // Priority 5: New equipment resellers - check text, default to new
-              else if (isNewEquipmentReseller) {
-                if (refurbPatterns.test(productText)) {
-                  condition = 'refurbished';
-                } else if (usedPatterns.test(productText)) {
-                  condition = 'used';
-                } else {
-                  condition = 'new'; // Quality resellers default to new unless marked otherwise
-                }
-              }
-              // Priority 6: Other sellers - check productText for condition indicators
-              else if (refurbPatterns.test(productText)) {
-                condition = 'refurbished';
-              } else if (usedPatterns.test(productText)) {
-                condition = 'used';
-              }
-              // If no indicators found, keeps default 'new' from initialization
               
               return {
                 url: url,
