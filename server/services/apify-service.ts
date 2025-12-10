@@ -759,41 +759,48 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
         return true;
       })
       .map((r: any) => {
-        // Default to 'new' if condition is missing/undefined
-        let condition: 'new' | 'refurbished' | 'used' = r.condition || 'new';
+        const scrapedCondition = r.condition?.toLowerCase?.()?.trim?.();
         const normalizedResultUrl = normalizeUrl(r.url);
         const urlLower = (r.url || '').toLowerCase();
         
-        // Known refurbished marketplace domains - these sell primarily refurbished/pre-owned
+        // Valid conditions the scraper can detect
+        const validConditions = ['new', 'refurbished', 'used'];
+        
+        // Known marketplace domains for fallback when scraper can't detect condition
         const refurbishedDomains = ['labx', 'banebio', 'biosurplus', 'machinio', 'labexchange', 
           'labequip', 'dotmed', 'questpair', 'thelabworldgroup'];
         const usedDomains = ['ebay'];
         
-        console.log(`[Apify] Processing: scraped=${r.condition || 'undefined'}, url=${urlLower.substring(0, 50)}`);
+        let condition: 'new' | 'refurbished' | 'used';
         
-        // Step 1: Check stored hints by URL (from search query context)
-        if (conditionHintsByUrl.has(normalizedResultUrl)) {
+        // Priority 1: If scraper detected a valid condition from page content, RESPECT IT
+        if (scrapedCondition && validConditions.includes(scrapedCondition)) {
+          condition = scrapedCondition as 'new' | 'refurbished' | 'used';
+          console.log(`[Apify] Scraped condition '${condition}' from: ${urlLower.substring(0, 50)}`);
+        }
+        // Priority 2: Check URL hints from search query context (only if scraper failed)
+        else if (conditionHintsByUrl.has(normalizedResultUrl)) {
           const hint = conditionHintsByUrl.get(normalizedResultUrl);
           if (hint) {
-            console.log(`[Apify] Applying URL hint '${hint}' to ${urlLower.substring(0, 50)}`);
             condition = hint as 'new' | 'refurbished' | 'used';
+            console.log(`[Apify] URL hint '${condition}' for: ${urlLower.substring(0, 50)}`);
+          } else {
+            condition = 'new';
           }
         }
-        // Step 2: Fallback - use domain-based classification for refurbished marketplaces
-        // This catches URLs that weren't in the original search results (redirects, canonicals)
+        // Priority 3: Domain-based fallback (only if scraper failed AND no URL hint)
         else if (refurbishedDomains.some(d => urlLower.includes(d))) {
-          console.log(`[Apify] Domain → 'refurbished': ${urlLower.substring(0, 50)}`);
           condition = 'refurbished';
+          console.log(`[Apify] Domain fallback 'refurbished' for: ${urlLower.substring(0, 50)}`);
         }
         else if (usedDomains.some(d => urlLower.includes(d))) {
-          console.log(`[Apify] Domain → 'used': ${urlLower.substring(0, 50)}`);
           condition = 'used';
+          console.log(`[Apify] Domain fallback 'used' for: ${urlLower.substring(0, 50)}`);
         }
-        
-        // Final validation: ensure condition is one of the valid values
-        if (!['new', 'refurbished', 'used'].includes(condition)) {
-          console.log(`[Apify] Invalid condition '${condition}', defaulting to 'new'`);
+        // Priority 4: Default to 'new' when nothing else matches
+        else {
           condition = 'new';
+          console.log(`[Apify] Default 'new' for: ${urlLower.substring(0, 50)}`);
         }
         
         return {
