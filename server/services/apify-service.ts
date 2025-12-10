@@ -621,9 +621,14 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
                 'watson-marlow', 'watsonmarlow', 'newark', 'digikey', 'mouser', 'mcmaster', 'mcmaster-carr'];
               const isOfficialSeller = officialSellers.some(seller => hostname.includes(seller));
               
+              // Refurbished equipment marketplaces (sell primarily refurbished/certified equipment)
+              const refurbishedMarketplaceDomains = ['questpair', 'thelabworldgroup', 'banebio', 'labexchange', 
+                'biomart', 'labequip', 'labx', 'dotmed'];
+              const isRefurbishedMarketplace = refurbishedMarketplaceDomains.some(seller => hostname.includes(seller));
+              
               // NEW equipment resellers (sell primarily new equipment)
-              const newEquipmentSellers = ['questpair', 'thelabworldgroup', 'banebio', 'thermobid', 'genlab', 
-                'biocompare', 'labwrench', 'directindustry', 'medwow', 'promed', 'blockscientific'];
+              const newEquipmentSellers = ['thermobid', 'genlab', 'biocompare', 'labwrench', 
+                'directindustry', 'medwow', 'promed', 'blockscientific'];
               const isNewEquipmentReseller = newEquipmentSellers.some(seller => hostname.includes(seller));
               
               // Condition indicators - check TITLE and productText
@@ -642,10 +647,9 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
               
               // Marketplace-specific condition detection
               const isEbay = hostname.includes('ebay');
-              const isLabx = hostname.includes('labx');
-              const isDotmed = hostname.includes('dotmed');
               const isBimedis = hostname.includes('bimedis');
-              const isUsedEquipmentMarketplace = isLabx || isDotmed || isBimedis || 
+              // Marketplaces that primarily sell used (not refurbished) equipment
+              const isUsedEquipmentMarketplace = isBimedis || 
                 hostname.includes('biosurplus') || hostname.includes('machinio') || hostname.includes('used-line');
               
               // Default to 'new' for sellers without explicit condition indicators
@@ -662,7 +666,17 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
                 else if (usedTitleMatch) condition = 'used';
                 else condition = 'used'; // eBay is primarily a used marketplace
               }
-              // Priority 2: Used equipment marketplaces default to used
+              // Priority 2: Refurbished equipment marketplaces default to refurbished
+              else if (isRefurbishedMarketplace) {
+                if (newTitleMatch && !usedTitleMatch && !refurbTitleMatch) {
+                  condition = 'new';
+                } else if (usedTitleMatch && !refurbTitleMatch) {
+                  condition = 'used';
+                } else {
+                  condition = 'refurbished'; // Refurbished marketplaces default to refurbished
+                }
+              }
+              // Priority 3: Used equipment marketplaces default to used
               else if (isUsedEquipmentMarketplace) {
                 if (newTitleMatch || newPatterns.test(productText)) {
                   condition = 'new';
