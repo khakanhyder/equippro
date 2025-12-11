@@ -1,10 +1,6 @@
 import pg from 'pg';
 
 const migrationSQL = `
--- Drop tables with wrong schema to recreate them correctly
-DROP TABLE IF EXISTS matches CASCADE;
-DROP TABLE IF EXISTS wishlist_items CASCADE;
-
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,

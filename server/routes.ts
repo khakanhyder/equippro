@@ -118,7 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       httpOnly: true,
       secure: secureCookies,
-      sameSite: 'lax'
+      sameSite: secureCookies ? 'lax' : 'lax', // Keep lax for both HTTP and HTTPS
     }
   }));
   
