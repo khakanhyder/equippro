@@ -100,6 +100,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     throw new Error('SESSION_SECRET environment variable is required in production');
   }
 
+  // Allow disabling secure cookies via env var for HTTP deployments
+  const secureCookies = process.env.COOKIE_SECURE !== 'false' && isProduction;
+  
   app.use(session({
     secret: sessionSecret || 'equipment-pro-dev-secret-key',
     resave: false,
@@ -108,10 +111,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     cookie: {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       httpOnly: true,
-      secure: isProduction,
+      secure: secureCookies,
       sameSite: 'lax'
     }
   }));
+  
+  if (isProduction && !secureCookies) {
+    console.log('[Session] WARNING: Secure cookies disabled - enable HTTPS for production security');
+  }
 
   // ===== Authentication Routes =====
 
