@@ -62,6 +62,12 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 export async function registerRoutes(app: Express): Promise<Server> {
   const isProduction = process.env.NODE_ENV === 'production';
   
+  // Trust proxy in production (behind Coolify/Traefik reverse proxy)
+  if (isProduction) {
+    app.set('trust proxy', 1);
+    console.log('[Express] Trust proxy enabled for production');
+  }
+  
   // Health check endpoint for container orchestration (Coolify, Docker, etc.)
   app.get('/api/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
