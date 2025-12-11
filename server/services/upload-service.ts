@@ -33,8 +33,14 @@ const WASABI_ACCESS_KEY = process.env.WASABI_ACCESS_KEY_ID;
 const WASABI_SECRET_KEY = process.env.WASABI_SECRET_ACCESS_KEY;
 
 if (isProduction && WASABI_ACCESS_KEY && WASABI_SECRET_KEY && WASABI_BUCKET) {
+  // Build endpoint URL - ensure https:// prefix
+  let endpoint = WASABI_ENDPOINT || `s3.${WASABI_REGION || 'us-east-1'}.wasabisys.com`;
+  if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+    endpoint = `https://${endpoint}`;
+  }
+  
   s3Client = new S3Client({
-    endpoint: WASABI_ENDPOINT || `https://s3.${WASABI_REGION || 'us-east-1'}.wasabisys.com`,
+    endpoint,
     region: WASABI_REGION || 'us-east-1',
     credentials: {
       accessKeyId: WASABI_ACCESS_KEY,
@@ -42,7 +48,7 @@ if (isProduction && WASABI_ACCESS_KEY && WASABI_SECRET_KEY && WASABI_BUCKET) {
     },
     forcePathStyle: true, // Required for Wasabi and S3-compatible storage
   });
-  console.log(`[Storage] Using Wasabi S3 Storage (production) - Bucket: ${WASABI_BUCKET}`);
+  console.log(`[Storage] Using Wasabi S3 Storage (production) - Bucket: ${WASABI_BUCKET}, Endpoint: ${endpoint}`);
 }
 
 // Validate storage is configured
@@ -133,7 +139,10 @@ async function uploadToWasabi(filename: string, buffer: Buffer, contentType: str
   await s3Client.send(command);
   
   // Return the public URL for the file
-  const endpoint = WASABI_ENDPOINT || `https://s3.${WASABI_REGION || 'us-east-1'}.wasabisys.com`;
+  let endpoint = WASABI_ENDPOINT || `s3.${WASABI_REGION || 'us-east-1'}.wasabisys.com`;
+  if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+    endpoint = `https://${endpoint}`;
+  }
   return `${endpoint}/${WASABI_BUCKET}/uploads/${filename}`;
 }
 

@@ -1,0 +1,48 @@
+[Migration] Running migrations...
+[Migration] All tables created successfully
+[Express] Trust proxy enabled for production
+[Session] Using PostgreSQL session store (production)
+[Session] WARNING: Secure cookies disabled - enable HTTPS for production security
+7:26:52 PM [express] Production server running on port 5000
+[Auth] User not found for session, destroying invalid session: 6914cbb9-dde3-4a67-8695-30d2a08a3d3f
+7:28:53 PM [express] GET /api/auth/user 401 in 7ms :: {"message":"Unauthorized"}
+7:32:00 PM [express] POST /api/auth/login 401 in 27ms :: {"message":"Invalid credentials"}
+7:32:07 PM [express] POST /api/auth/signup 200 in 150ms :: {"username":"irtisamali2","email":null,"i…
+7:32:07 PM [express] GET /api/auth/user 200 in 4ms :: {"username":"irtisamali2","email":null,"id":"b…
+7:32:08 PM [express] GET /api/marketplace 200 in 27ms :: []
+7:32:15 PM [express] GET /api/auth/user 304 in 3ms :: {"username":"irtisamali2","email":null,"id":"b…
+7:32:15 PM [express] GET /api/wishlist-items 200 in 7ms :: []
+7:32:15 PM [express] GET /api/wishlist-projects 200 in 22ms :: []
+7:32:19 PM [express] POST /api/wishlist-projects 200 in 11ms :: {"id":3,"name":"Test Chapter 02","to…
+7:32:19 PM [express] GET /api/wishlist-projects 200 in 10ms :: [{"id":3,"name":"Test Chapter 02","to…
+7:32:19 PM [express] GET /api/wishlist-items 200 in 12ms :: []
+7:32:34 PM [express] POST /api/upload 500 in 1288ms :: {"message":"Invalid URL"}
+7:32:34 PM [express] POST /api/upload 500 in 21ms :: {"message":"Invalid URL"}
+7:32:35 PM [express] POST /api/upload 500 in 185ms :: {"message":"Invalid URL"}
+Upload error: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at Object.parseUrl (/app/node_modules/@smithy/url-parser/dist-cjs/index.js:7:25)
+    at toEndpointV1 (/app/node_modules/@smithy/middleware-endpoint/dist-cjs/index.js:95:22)
+    at customEndpointProvider (/app/node_modules/@smithy/middleware-endpoint/dist-cjs/index.js:204:67)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  code: 'ERR_INVALID_URL',
+  input: 's3.eu-central-2.wasabisys.com'
+}
+Upload error: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at Object.parseUrl (/app/node_modules/@smithy/url-parser/dist-cjs/index.js:7:25)
+    at toEndpointV1 (/app/node_modules/@smithy/middleware-endpoint/dist-cjs/index.js:95:22)
+    at customEndpointProvider (/app/node_modules/@smithy/middleware-endpoint/dist-cjs/index.js:204:67)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  code: 'ERR_INVALID_URL',
+  input: 's3.eu-central-2.wasabisys.com'
+}
+Upload error: TypeError: Invalid URL
+    at new URL (node:internal/url:806:29)
+    at Object.parseUrl (/app/node_modules/@smithy/url-parser/dist-cjs/index.js:7:25)
+    at toEndpointV1 (/app/node_modules/@smithy/middleware-endpoint/dist-cjs/index.js:95:22)
+    at customEndpointProvider (/app/node_modules/@smithy/middleware-endpoint/dist-cjs/index.js:204:67)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  code: 'ERR_INVALID_URL',
+  input: 's3.eu-central-2.wasabisys.com'
+}
