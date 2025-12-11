@@ -158,18 +158,50 @@ CREATE TABLE IF NOT EXISTS matches (
 CREATE INDEX IF NOT EXISTS matches_wishlist_item_id_idx ON matches (wishlist_item_id);
 CREATE INDEX IF NOT EXISTS matches_status_idx ON matches (status);
 
--- Bids table
+-- Bids table (updated schema)
 CREATE TABLE IF NOT EXISTS bids (
   id SERIAL PRIMARY KEY,
   equipment_id INTEGER NOT NULL REFERENCES equipment(id) ON DELETE CASCADE,
-  bidder_id TEXT NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
+  bidder_user_id TEXT NOT NULL,
+  bid_amount DECIMAL(10,2) NOT NULL,
   message TEXT,
-  status TEXT DEFAULT 'pending',
-  created_at TIMESTAMP DEFAULT NOW() NOT NULL
+  status TEXT NOT NULL DEFAULT 'pending',
+  expires_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 CREATE INDEX IF NOT EXISTS bids_equipment_id_idx ON bids (equipment_id);
-CREATE INDEX IF NOT EXISTS bids_bidder_id_idx ON bids (bidder_id);
+CREATE INDEX IF NOT EXISTS bids_bidder_user_id_idx ON bids (bidder_user_id);
+CREATE INDEX IF NOT EXISTS bids_status_idx ON bids (status);
+
+-- Add/rename missing columns in bids if table exists with old schema
+DO $$ 
+BEGIN
+  -- Add bidder_user_id if it doesn't exist (migrate from bidder_id if needed)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'bidder_user_id') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'bidder_id') THEN
+      ALTER TABLE bids RENAME COLUMN bidder_id TO bidder_user_id;
+    ELSE
+      ALTER TABLE bids ADD COLUMN bidder_user_id TEXT NOT NULL DEFAULT '';
+    END IF;
+  END IF;
+  -- Add bid_amount if it doesn't exist (migrate from amount if needed)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'bid_amount') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'amount') THEN
+      ALTER TABLE bids RENAME COLUMN amount TO bid_amount;
+    ELSE
+      ALTER TABLE bids ADD COLUMN bid_amount DECIMAL(10,2) NOT NULL DEFAULT 0;
+    END IF;
+  END IF;
+  -- Add expires_at if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'expires_at') THEN
+    ALTER TABLE bids ADD COLUMN expires_at TIMESTAMP;
+  END IF;
+  -- Add updated_at if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'updated_at') THEN
+    ALTER TABLE bids ADD COLUMN updated_at TIMESTAMP DEFAULT NOW() NOT NULL;
+  END IF;
+END $$;
 
 -- Price context cache (drop and recreate if schema is wrong)
 DROP TABLE IF EXISTS price_context_cache CASCADE;

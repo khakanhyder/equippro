@@ -1,0 +1,100 @@
+  "#debug": {
+    "requestId": "6PCfnatJPyGG6yw",
+    "url": "https://www.labx.com/item/sartorius-cpa10001-precision-balance-10000g-capacity-0-1g-readability-turnkey-7770510/DIS-87999-7770510",
+    "loadedUrl": "https://www.labx.com/item/sartorius-cpa10001-precision-balance-10000g-capacity-0-1g-readability-turnkey-7770510/DIS-87999-7770510",
+    "method": "GET",
+    "retryCount": 0,
+    "errorMessages": [],
+    "statusCode": 200
+  }
+}
+[Apify] Checking result: condition=used, normalized=https://www.labx.com/item/sartorius-cpa10001-precision-balan, hints=14
+[Apify] Checking result: condition=used, normalized=https://www.machinio.co.nz/vankel/test-lab-medical-equipment, hints=14
+[Apify] Checking result: condition=used, normalized=https://www.machinio.co.nz/listings/102540355-watson-marlow-, hints=14
+[Apify] Checking result: condition=new, normalized=https://banebio.com/product/watson-marlow-peristaltic-pump-6, hints=14
+[Apify] Applying condition hint 'refurbished' to https://banebio.com/product/watson-marlow-peristaltic-pump-6
+[Apify] Checking result: condition=used, normalized=https://www.labx.com/item/watson-marlow-watson-marlow-perist, hints=14
+[Apify] Checking result: condition=new, normalized=https://banebio.com/product/watson-marlow-watson-marlow-peri, hints=14
+[Apify] Applying condition hint 'refurbished' to https://banebio.com/product/watson-marlow-watson-marlow-peri
+[Apify] Checking result: condition=used, normalized=https://www.ebay.com/itm/394426307391, hints=14
+[Apify] Checking result: condition=used, normalized=https://www.ebay.com/itm/335567365293, hints=14
+[Apify] Valid Playwright price listings found: 8
+[PriceCalc] Scraped 8 listings with valid prices
+[PriceCalc] Listing 0: price=449, source=www.labx.com, condition=used
+[PriceCalc] Listing 1: price=1337, source=www.machinio.co.nz, condition=used
+[PriceCalc] Listing 2: price=3000, source=www.machinio.co.nz, condition=used
+[PriceCalc] Listing 3: price=2495, source=banebio.com, condition=refurbished
+[PriceCalc] Listing 4: price=2495, source=www.labx.com, condition=used
+[PriceCalc] Listing 5: price=2495, source=banebio.com, condition=refurbished
+[PriceCalc] Listing 6: price=4898.88, source=www.ebay.com, condition=used
+[PriceCalc] Listing 7: price=1299.001149, source=www.ebay.com, condition=used
+[PriceCalc] Filtered out wrong product: Sartorius CPA 10001 Precision Balance 10000g Capac
+[PriceCalc] Filtered out wrong product: Used Vankel Test, Lab, Medical Equipment in Scotla
+[PriceCalc] Filtered out wrong product: WATSON MARLOW 060.416N.02A / 060416N02A (USED)
+[PriceCalc] Validated listings: 5 of 8
+[PriceCalc] Price breakdown: { new: 0, refurbished: 2, used: 3 }
+[BackgroundScrape] Successfully cached marketplace data (listings: 5 ) for watson marlow 620bp
+10:31:10 PM [express] GET /api/price-context/status 200 in 6ms :: {"new_min":null,"new_max":null,"new…
+10:31:30 PM [express] POST /api/equipment 200 in 16ms :: {"id":1,"createdBy":"e4839975-80c7-4b82-a014…
+10:31:30 PM [express] GET /api/equipment 200 in 7ms :: [{"id":1,"createdBy":"e4839975-80c7-4b82-a014-…
+10:31:30 PM [express] GET /api/equipment 304 in 4ms :: []
+10:31:34 PM [express] GET /api/auth/user 304 in 4ms :: {"username":"irtisamali2","email":null,"id":"e…
+10:31:34 PM [express] GET /api/marketplace 304 in 5ms :: []
+10:31:37 PM [express] GET /api/auth/user 304 in 3ms :: {"username":"irtisamali2","email":null,"id":"e…
+10:31:37 PM [express] GET /api/marketplace 304 in 5ms :: []
+10:31:39 PM [express] GET /api/auth/user 304 in 3ms :: {"username":"irtisamali2","email":null,"id":"e…
+10:31:40 PM [express] GET /api/equipment 304 in 8ms :: [{"id":1,"createdBy":"e4839975-80c7-4b82-a014-…
+10:31:40 PM [express] GET /api/equipment 304 in 5ms :: []
+10:31:42 PM [express] GET /api/auth/user 304 in 4ms :: {"username":"irtisamali2","email":null,"id":"e…
+10:31:43 PM [express] GET /api/dashboard/stats 200 in 15ms :: {"surplusCount":1,"publishedCount":0,"w…
+10:31:43 PM [express] GET /api/bids/received 500 in 33ms :: {"message":"column bids.bidder_user_id do…
+10:31:43 PM [express] GET /api/bids/placed 500 in 9ms :: {"message":"column bids.bidder_user_id does …
+10:31:47 PM [express] GET /api/auth/user 304 in 3ms :: {"username":"irtisamali2","email":null,"id":"e…
+10:31:47 PM [express] GET /api/equipment 304 in 31ms :: []
+10:31:47 PM [express] GET /api/equipment 304 in 30ms :: [{"id":1,"createdBy":"e4839975-80c7-4b82-a014…
+Get bids received error: error: column bids.bidder_user_id does not exist
+    at /app/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///app/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async file:///app/dist/production.js:3344:28 {
+  length: 117,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '44',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn'
+}
+Get bids placed error: error: column bids.bidder_user_id does not exist
+    at /app/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///app/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async file:///app/dist/production.js:3357:26 {
+  length: 117,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '44',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn'
+}
