@@ -29,35 +29,50 @@ if (isProduction && process.env.WASABI_ACCESS_KEY_ID && process.env.WASABI_SECRE
   });
 }
 
+// Extract filename from proxy URL or Wasabi URL
+function extractFilename(url: string): string | null {
+  // Handle proxy URLs like /api/files/equipment_123.png
+  if (url.startsWith('/api/files/')) {
+    return url.replace('/api/files/', '');
+  }
+  // Handle Wasabi URLs
+  if (url.includes('wasabisys.com')) {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/');
+    const keyIndex = pathParts.findIndex(p => p === 'uploads');
+    if (keyIndex >= 0) {
+      return pathParts.slice(keyIndex + 1).join('/');
+    }
+  }
+  return null;
+}
+
 // Convert image URL to base64 data URL for OpenAI
 async function imageUrlToBase64(url: string): Promise<string> {
-  // Check if it's a Wasabi URL that we need to fetch via S3
-  if (isProduction && s3Client && WASABI_BUCKET && url.includes('wasabisys.com')) {
-    try {
-      // Extract the key from the URL (e.g., uploads/equipment_123.png)
-      const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split('/');
-      // Remove bucket name from path if present
-      const keyIndex = pathParts.findIndex(p => p === 'uploads');
-      const key = keyIndex >= 0 ? pathParts.slice(keyIndex).join('/') : pathParts.slice(2).join('/');
-      
-      console.log(`[AI] Fetching image from Wasabi: ${key}`);
-      
-      const command = new GetObjectCommand({
-        Bucket: WASABI_BUCKET,
-        Key: key,
-      });
-      
-      const response = await s3Client.send(command);
-      const bodyContents = await response.Body?.transformToByteArray();
-      
-      if (bodyContents) {
-        const base64 = Buffer.from(bodyContents).toString('base64');
-        const contentType = response.ContentType || 'image/jpeg';
-        return `data:${contentType};base64,${base64}`;
+  // In production, fetch from Wasabi via S3 for proxy URLs or direct Wasabi URLs
+  if (isProduction && s3Client && WASABI_BUCKET) {
+    const filename = extractFilename(url);
+    if (filename) {
+      try {
+        const key = `uploads/${filename}`;
+        console.log(`[AI] Fetching image from Wasabi: ${key}`);
+        
+        const command = new GetObjectCommand({
+          Bucket: WASABI_BUCKET,
+          Key: key,
+        });
+        
+        const response = await s3Client.send(command);
+        const bodyContents = await response.Body?.transformToByteArray();
+        
+        if (bodyContents) {
+          const base64 = Buffer.from(bodyContents).toString('base64');
+          const contentType = response.ContentType || 'image/jpeg';
+          return `data:${contentType};base64,${base64}`;
+        }
+      } catch (error) {
+        console.error('[AI] Failed to fetch image from Wasabi:', error);
       }
-    } catch (error) {
-      console.error('[AI] Failed to fetch image from Wasabi:', error);
     }
   }
   
