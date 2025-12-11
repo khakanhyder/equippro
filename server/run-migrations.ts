@@ -1,5 +1,10 @@
 import pg from 'pg';
 
+// Log database connection info (without password)
+const dbUrl = process.env.DATABASE_URL || '';
+const sanitizedUrl = dbUrl.replace(/:([^@]+)@/, ':***@');
+console.log('[Migration] Connecting to database:', sanitizedUrl);
+
 const migrationSQL = `
 -- Users table
 CREATE TABLE IF NOT EXISTS users (

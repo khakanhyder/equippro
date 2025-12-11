@@ -1,6 +1,82 @@
 import OpenAI from 'openai';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Initialize S3 client for fetching Wasabi images
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const isProduction = NODE_ENV === 'production';
+
+let s3Client: S3Client | null = null;
+const WASABI_BUCKET = process.env.WASABI_BUCKET_NAME;
+const WASABI_ENDPOINT = process.env.WASABI_ENDPOINT;
+const WASABI_REGION = process.env.WASABI_REGION;
+
+if (isProduction && process.env.WASABI_ACCESS_KEY_ID && process.env.WASABI_SECRET_ACCESS_KEY) {
+  let endpoint = WASABI_ENDPOINT || `s3.${WASABI_REGION || 'us-east-1'}.wasabisys.com`;
+  if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+    endpoint = `https://${endpoint}`;
+  }
+  
+  s3Client = new S3Client({
+    endpoint,
+    region: WASABI_REGION || 'us-east-1',
+    credentials: {
+      accessKeyId: process.env.WASABI_ACCESS_KEY_ID,
+      secretAccessKey: process.env.WASABI_SECRET_ACCESS_KEY,
+    },
+    forcePathStyle: true,
+  });
+}
+
+// Convert image URL to base64 data URL for OpenAI
+async function imageUrlToBase64(url: string): Promise<string> {
+  // Check if it's a Wasabi URL that we need to fetch via S3
+  if (isProduction && s3Client && WASABI_BUCKET && url.includes('wasabisys.com')) {
+    try {
+      // Extract the key from the URL (e.g., uploads/equipment_123.png)
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/');
+      // Remove bucket name from path if present
+      const keyIndex = pathParts.findIndex(p => p === 'uploads');
+      const key = keyIndex >= 0 ? pathParts.slice(keyIndex).join('/') : pathParts.slice(2).join('/');
+      
+      console.log(`[AI] Fetching image from Wasabi: ${key}`);
+      
+      const command = new GetObjectCommand({
+        Bucket: WASABI_BUCKET,
+        Key: key,
+      });
+      
+      const response = await s3Client.send(command);
+      const bodyContents = await response.Body?.transformToByteArray();
+      
+      if (bodyContents) {
+        const base64 = Buffer.from(bodyContents).toString('base64');
+        const contentType = response.ContentType || 'image/jpeg';
+        return `data:${contentType};base64,${base64}`;
+      }
+    } catch (error) {
+      console.error('[AI] Failed to fetch image from Wasabi:', error);
+    }
+  }
+  
+  // For development or non-Wasabi URLs, try direct fetch
+  try {
+    const response = await fetch(url);
+    if (response.ok) {
+      const buffer = await response.arrayBuffer();
+      const base64 = Buffer.from(buffer).toString('base64');
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      return `data:${contentType};base64,${base64}`;
+    }
+  } catch (error) {
+    console.error('[AI] Failed to fetch image directly:', error);
+  }
+  
+  // Fallback: return original URL (may fail for private URLs)
+  return url;
+}
 
 export interface MatchScore {
   similarity_score: number;
@@ -11,6 +87,11 @@ export interface MatchScore {
 }
 
 export async function analyzeEquipmentFromImages(imageUrls: string[]) {
+  // Convert all image URLs to base64 for OpenAI (handles private Wasabi URLs)
+  console.log(`[AI] Converting ${imageUrls.length} images to base64...`);
+  const base64Images = await Promise.all(imageUrls.map(url => imageUrlToBase64(url)));
+  console.log(`[AI] Converted images, sending to OpenAI...`);
+  
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
@@ -28,7 +109,7 @@ export async function analyzeEquipmentFromImages(imageUrls: string[]) {
 
 Return JSON: { "brand": "...", "model": "...", "category": "...", "description": "...", "specifications": [{"name": "...", "value": "...", "unit": "..."}] }`
           },
-          ...imageUrls.map(url => ({ type: "image_url" as const, image_url: { url } }))
+          ...base64Images.map(url => ({ type: "image_url" as const, image_url: { url } }))
         ]
       }
     ],
