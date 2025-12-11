@@ -169,8 +169,10 @@ export async function uploadFile(
   let url: string;
   
   if (isProduction) {
-    // Production: Upload to Wasabi S3
-    url = await uploadToWasabi(filename, file.buffer, file.mimetype);
+    // Production: Upload to Wasabi S3, return proxy URL for browser access
+    await uploadToWasabi(filename, file.buffer, file.mimetype);
+    // Use relative URL - browser will resolve it against current host
+    url = `/api/files/${filename}`;
   } else {
     // Development: Upload to Replit Object Storage
     await uploadToReplit(filename, file.buffer);
