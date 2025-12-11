@@ -1,0 +1,100 @@
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'price_breakdown') THEN
+	    ALTER TABLE wishlist_items ADD COLUMN price_breakdown TEXT;
+	  END IF;
+	  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'saved_marketplace_listings') THEN
+	    ALTER TABLE wishlist_items ADD COLUMN saved_marketplace_listings JSONB;
+	  END IF;
+	  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'saved_internal_matches') THEN
+	    ALTER TABLE wishlist_items ADD COLUMN saved_internal_matches JSONB;
+	  END IF;
+	  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'saved_search_results') THEN
+	    ALTER TABLE wishlist_items ADD COLUMN saved_search_results JSONB;
+	  END IF;
+	END $$;
+	
+	-- Matches table
+	CREATE TABLE IF NOT EXISTS matches (
+	  id SERIAL PRIMARY KEY,
+	  wishlist_item_id INTEGER NOT NULL REFERENCES wishlist_items(id) ON DELETE CASCADE,
+	  equipment_id INTEGER REFERENCES equipment(id) ON DELETE CASCADE,
+	  match_type TEXT NOT NULL,
+	  confidence_score INTEGER NOT NULL DEFAULT 0,
+	  match_details JSONB,
+	  external_source TEXT,
+	  external_url TEXT,
+	  external_title TEXT,
+	  external_price DECIMAL(10,2),
+	  external_condition TEXT,
+	  external_listing_data JSONB,
+	  status TEXT NOT NULL DEFAULT 'active',
+	  created_at TIMESTAMP DEFAULT NOW() NOT NULL
+	);
+	CREATE INDEX IF NOT EXISTS matches_wishlist_item_id_idx ON matches (wishlist_item_id);
+	CREATE INDEX IF NOT EXISTS matches_status_idx ON matches (status);
+	
+	-- Bids table (updated schema)
+	CREATE TABLE IF NOT EXISTS bids (
+	  id SERIAL PRIMARY KEY,
+	  equipment_id INTEGER NOT NULL REFERENCES equipment(id) ON DELETE CASCADE,
+	  bidder_user_id TEXT NOT NULL,
+	  bid_amount DECIMAL(10,2) NOT NULL,
+	  message TEXT,
+	  status TEXT NOT NULL DEFAULT 'pending',
+	  expires_at TIMESTAMP,
+	  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+	  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+	);
+	CREATE INDEX IF NOT EXISTS bids_equipment_id_idx ON bids (equipment_id);
+	CREATE INDEX IF NOT EXISTS bids_bidder_user_id_idx ON bids (bidder_user_id);
+	CREATE INDEX IF NOT EXISTS bids_status_idx ON bids (status);
+	
+	-- Add/rename missing columns in bids if table exists with old schema
+	DO $$ 
+	BEGIN
+	  -- Add bidder_user_id if it doesn't exist (migrate from bidder_id if needed)
+	  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'bidder_user_id') THEN
+	    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'bidder_id') THEN
+	      ALTER TABLE bids RENAME COLUMN bidder_id TO bidder_user_id;
+	    ELSE
+	      ALTER TABLE bids ADD COLUMN bidder_user_id TEXT NOT NULL DEFAULT '';
+	    END IF;
+	  END IF;
+	  -- Add bid_amount if it doesn't exist (migrate from amount if needed)
+	  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'bid_amount') THEN
+	    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'amount') THEN
+	      ALTER TABLE bids RENAME COLUMN amount TO bid_amount;
+	    ELSE
+	      ALTER TABLE bids ADD COLUMN bid_amount DECIMAL(10,2) NOT NULL DEFAULT 0;
+	    END IF;
+	  END IF;
+	  -- Add expires_at if it doesn't exist
+	  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'expires_at') THEN
+	    ALTER TABLE bids ADD COLUMN expires_at TIMESTAMP;
+	  END IF;
+	  -- Add updated_at if it doesn't exist
+	  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bids' AND column_name = 'updated_at') THEN
+	    ALTER TABLE bids ADD COLUMN updated_at TIMESTAMP DEFAULT NOW() NOT NULL;
+	  END IF;
+	END $$;
+	
+	-- Price context cache (drop and recreate if schema is wrong)
+	DROP TABLE IF EXISTS price_context_cache CASCADE;
+	CREATE TABLE IF NOT EXISTS price_context_cache (
+	  id SERIAL PRIMARY KEY,
+	  brand TEXT NOT NULL,
+	  model TEXT NOT NULL,
+	  category TEXT,
+	  price_ranges JSONB NOT NULL,
+	  price_source TEXT NOT NULL,
+	  price_breakdown JSONB,
+	  has_marketplace_data TEXT NOT NULL DEFAULT 'false',
+	  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+	  expires_at TIMESTAMP NOT NULL,
+	  UNIQUE(brand, model, category)
+	);
+	CREATE INDEX IF NOT EXISTS price_context_cache_expires_at_idx ON price_context_cache (expires_at);
+	
+2025-12-11 22:38:18.877 UTC [29870] ERROR:  column "bidder_user_id" of relation "bids" does not exist at character 43
+2025-12-11 22:38:18.877 UTC [29870] STATEMENT:  insert into "bids" ("id", "equipment_id", "bidder_user_id", "bid_amount", "message", "status", "expires_at", "created_at", "updated_at") values (default, $1, $2, $3, $4, $5, $6, default, default) returning "id", "equipment_id", "bidder_user_id", "bid_amount", "message", "status", "expires_at", "created_at", "updated_at"
+2025-12-11 22:39:03.863 UTC [25] LOG:  checkpoint starting: time
+2025-12-11 22:39:04.892 UTC [25] LOG:  checkpoint complete: wrote 11 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.016 s, sync=0.004 s, total=1.030 s; sync files=7, longest=0.001 s, average=0.001 s; distance=33 kB, estimate=246 kB; lsn=0/1EA7F38, redo lsn=0/1EA7EE0
