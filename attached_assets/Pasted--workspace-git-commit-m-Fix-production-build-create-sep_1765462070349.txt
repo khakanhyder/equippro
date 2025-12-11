@@ -1,0 +1,50 @@
+~/workspace$ git commit -m "Fix production build: create separate entry point without vite dependency"
+git push origin main
+On branch main
+Your branch is ahead of 'origin/main' by 2 commits.
+  (use "git push" to publish your local commits)
+
+nothing to commit, working tree clean
+Enumerating objects: 17, done.
+Counting objects: 100% (17/17), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (12/12), done.
+Writing objects: 100% (12/12), 5.34 KiB | 5.34 MiB/s, done.
+Total 12 (delta 7), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (7/7), completed with 5 local objects.
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: 
+remote: - GITHUB PUSH PROTECTION
+remote:   —————————————————————————————————————————
+remote:     Resolve the following violations before pushing again
+remote: 
+remote:     - Push cannot contain secrets
+remote: 
+remote:     
+remote:      (?) Learn how to resolve a blocked push
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push
+remote:     
+remote:     
+remote:       —— OpenAI API Key ————————————————————————————————————
+remote:        locations:
+remote:          - commit: 97aa2eddb55b0f75240e49b372dac418db35c466
+remote:            path: attached_assets/Pasted-7-COPY-drizzle-config-ts-2025-Dec-11-13-10-18-040090-13_1765461317594.txt:56
+remote:     
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/khakanhyder/equippro/security/secret-scanning/unblock-secret/36hc2OliNihxw17OqO7uV4IktwX
+remote:     
+remote:     
+remote:       —— Apify API Token ———————————————————————————————————
+remote:        locations:
+remote:          - commit: 97aa2eddb55b0f75240e49b372dac418db35c466
+remote:            path: attached_assets/Pasted-7-COPY-drizzle-config-ts-2025-Dec-11-13-10-18-040090-13_1765461317594.txt:58
+remote:     
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/khakanhyder/equippro/security/secret-scanning/unblock-secret/36hc2PyPq626zqlvvpc9s0Pqwhp
+remote:     
+remote: 
+remote: 
+To https://github.com/khakanhyder/equippro.git
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/khakanhyder/equippro.git'
+~/workspace$ 
