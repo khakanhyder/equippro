@@ -495,7 +495,12 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
   
   try {
     // Use Cheerio scraper for faster HTML parsing (no JavaScript rendering)
+    // Add client-side timeout to prevent hanging forever
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 150000); // 150 second timeout
+    
     const response = await fetch(`https://api.apify.com/v2/acts/apify~cheerio-scraper/run-sync-get-dataset-items?token=${APIFY_TOKEN}&timeout=120`, {
+      signal: controller.signal,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -722,6 +727,8 @@ export async function scrapePricesFromURLs(urls: string[] | ApifySearchResult[])
       }),
     });
 
+    clearTimeout(timeoutId);
+    
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[Apify] Cheerio scraping API Error:', response.status, errorText);

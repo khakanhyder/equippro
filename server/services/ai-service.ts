@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { Client as ReplitClient } from '@replit/object-storage';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -29,11 +30,16 @@ if (isProduction && process.env.WASABI_ACCESS_KEY_ID && process.env.WASABI_SECRE
   });
 }
 
-// Extract filename from proxy URL or Wasabi URL
+// Extract filename from various URL formats
 function extractFilename(url: string): string | null {
   // Handle proxy URLs like /api/files/equipment_123.png
   if (url.startsWith('/api/files/')) {
     return url.replace('/api/files/', '');
+  }
+  // Handle full URLs with /api/files/ path (development URLs like replit.dev)
+  if (url.includes('/api/files/')) {
+    const match = url.match(/\/api\/files\/([^?]+)/);
+    if (match) return match[1];
   }
   // Handle Wasabi URLs
   if (url.includes('wasabisys.com')) {
@@ -47,36 +53,74 @@ function extractFilename(url: string): string | null {
   return null;
 }
 
+// Lazy-initialize Replit object storage for development
+let replitStorageClient: ReplitClient | null = null;
+let replitStorageInitialized = false;
+
+function getReplitStorageClient(): ReplitClient | null {
+  if (replitStorageInitialized) return replitStorageClient;
+  replitStorageInitialized = true;
+  
+  if (!isProduction) {
+    try {
+      replitStorageClient = new ReplitClient();
+    } catch (e) {
+      console.log('[AI] Replit Object Storage not available');
+    }
+  }
+  return replitStorageClient;
+}
+
 // Convert image URL to base64 data URL for OpenAI
 async function imageUrlToBase64(url: string): Promise<string> {
-  // In production, fetch from Wasabi via S3 for proxy URLs or direct Wasabi URLs
-  if (isProduction && s3Client && WASABI_BUCKET) {
-    const filename = extractFilename(url);
-    if (filename) {
-      try {
-        const key = `uploads/${filename}`;
-        console.log(`[AI] Fetching image from Wasabi: ${key}`);
-        
-        const command = new GetObjectCommand({
-          Bucket: WASABI_BUCKET,
-          Key: key,
-        });
-        
-        const response = await s3Client.send(command);
-        const bodyContents = await response.Body?.transformToByteArray();
-        
-        if (bodyContents) {
-          const base64 = Buffer.from(bodyContents).toString('base64');
-          const contentType = response.ContentType || 'image/jpeg';
-          return `data:${contentType};base64,${base64}`;
-        }
-      } catch (error) {
-        console.error('[AI] Failed to fetch image from Wasabi:', error);
+  const filename = extractFilename(url);
+  
+  // In production, fetch from Wasabi via S3
+  if (isProduction && s3Client && WASABI_BUCKET && filename) {
+    try {
+      const key = `uploads/${filename}`;
+      console.log(`[AI] Fetching image from Wasabi: ${key}`);
+      
+      const command = new GetObjectCommand({
+        Bucket: WASABI_BUCKET,
+        Key: key,
+      });
+      
+      const response = await s3Client.send(command);
+      const bodyContents = await response.Body?.transformToByteArray();
+      
+      if (bodyContents) {
+        const base64 = Buffer.from(bodyContents).toString('base64');
+        const contentType = response.ContentType || 'image/jpeg';
+        return `data:${contentType};base64,${base64}`;
       }
+    } catch (error) {
+      console.error('[AI] Failed to fetch image from Wasabi:', error);
     }
   }
   
-  // For development or non-Wasabi URLs, try direct fetch
+  // In development, fetch from Replit Object Storage directly
+  const storageClient = getReplitStorageClient();
+  if (!isProduction && storageClient && filename) {
+    try {
+      console.log(`[AI] Fetching image from Replit storage: ${filename}`);
+      const { ok, value, error } = await storageClient.downloadAsBytes(filename);
+      if (ok && value) {
+        const base64 = Buffer.from(value[0]).toString('base64');
+        const ext = filename.split('.').pop()?.toLowerCase() || 'png';
+        const contentType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 
+                           ext === 'webp' ? 'image/webp' : 'image/png';
+        return `data:${contentType};base64,${base64}`;
+      }
+      if (error) {
+        console.error('[AI] Replit storage error:', error);
+      }
+    } catch (error) {
+      console.error('[AI] Failed to fetch from Replit storage:', error);
+    }
+  }
+  
+  // For external URLs, try direct fetch
   try {
     const response = await fetch(url);
     if (response.ok) {
