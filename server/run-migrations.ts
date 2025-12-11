@@ -112,6 +112,32 @@ CREATE INDEX IF NOT EXISTS wishlist_items_project_id_idx ON wishlist_items (proj
 CREATE INDEX IF NOT EXISTS wishlist_items_status_idx ON wishlist_items (status);
 CREATE INDEX IF NOT EXISTS wishlist_items_created_by_idx ON wishlist_items (created_by);
 
+-- Add missing columns to wishlist_items if they don't exist
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'preferred_condition') THEN
+    ALTER TABLE wishlist_items ADD COLUMN preferred_condition TEXT NOT NULL DEFAULT 'any';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'market_price_range') THEN
+    ALTER TABLE wishlist_items ADD COLUMN market_price_range JSONB;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'price_source') THEN
+    ALTER TABLE wishlist_items ADD COLUMN price_source TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'price_breakdown') THEN
+    ALTER TABLE wishlist_items ADD COLUMN price_breakdown TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'saved_marketplace_listings') THEN
+    ALTER TABLE wishlist_items ADD COLUMN saved_marketplace_listings JSONB;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'saved_internal_matches') THEN
+    ALTER TABLE wishlist_items ADD COLUMN saved_internal_matches JSONB;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wishlist_items' AND column_name = 'saved_search_results') THEN
+    ALTER TABLE wishlist_items ADD COLUMN saved_search_results JSONB;
+  END IF;
+END $$;
+
 -- Matches table
 CREATE TABLE IF NOT EXISTS matches (
   id SERIAL PRIMARY KEY,
