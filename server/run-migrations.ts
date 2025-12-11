@@ -145,20 +145,22 @@ CREATE TABLE IF NOT EXISTS bids (
 CREATE INDEX IF NOT EXISTS bids_equipment_id_idx ON bids (equipment_id);
 CREATE INDEX IF NOT EXISTS bids_bidder_id_idx ON bids (bidder_id);
 
--- Price context cache
+-- Price context cache (drop and recreate if schema is wrong)
+DROP TABLE IF EXISTS price_context_cache CASCADE;
 CREATE TABLE IF NOT EXISTS price_context_cache (
   id SERIAL PRIMARY KEY,
-  cache_key TEXT NOT NULL UNIQUE,
   brand TEXT NOT NULL,
   model TEXT NOT NULL,
-  category TEXT NOT NULL,
-  price_data JSONB NOT NULL,
-  source TEXT NOT NULL,
+  category TEXT,
+  price_ranges JSONB NOT NULL,
+  price_source TEXT NOT NULL,
+  price_breakdown JSONB,
+  has_marketplace_data TEXT NOT NULL DEFAULT 'false',
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-  expires_at TIMESTAMP NOT NULL
+  expires_at TIMESTAMP NOT NULL,
+  UNIQUE(brand, model, category)
 );
-CREATE INDEX IF NOT EXISTS price_context_cache_key_idx ON price_context_cache (cache_key);
-CREATE INDEX IF NOT EXISTS price_context_cache_expires_idx ON price_context_cache (expires_at);
+CREATE INDEX IF NOT EXISTS price_context_cache_expires_at_idx ON price_context_cache (expires_at);
 `;
 
 export async function runMigrations(): Promise<void> {
