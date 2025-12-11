@@ -1,0 +1,99 @@
+> rest-express@1.0.0 db:push
+> drizzle-kit push
+
+sh: drizzle-kit: not found
+[DB] Database migration failed: Error: Command failed: npm run db:push
+    at genericNodeError (node:internal/errors:984:15)
+    at wrappedFn (node:internal/errors:538:14)
+    at checkExecSyncError (node:child_process:891:11)
+    at execSync (node:child_process:963:15)
+    at file:///app/dist/production.js:3343:5
+    at file:///app/dist/production.js:3384:3
+    at ModuleJob.run (node:internal/modules/esm/module_job:325:25)
+    at async ModuleLoader.import (node:internal/modules/esm/loader:606:24)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {
+[DB] Attempting to continue anyway...
+[Express] Trust proxy enabled for production
+[Session] Using PostgreSQL session store (production)
+[Session] WARNING: Secure cookies disabled - enable HTTPS for production security
+4:22:30 PM [express] Production server running on port 5000
+4:27:09 PM [express] GET /api/auth/user 401 in 3ms :: {"message":"Unauthorized"}
+4:46:54 PM [express] GET /api/auth/user 404 in 5ms :: {"message":"User not found"}
+4:46:54 PM [express] GET /api/auth/user 404 in 5ms :: {"message":"User not found"}
+4:46:54 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:55 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:55 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:55 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:55 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:56 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:56 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:56 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:56 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:46:56 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:46:57 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:46:57 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:57 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:46:57 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:46:57 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:58 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:46:58 PM [express] GET /api/auth/user 404 in 6ms :: {"message":"User not found"}
+4:46:58 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:58 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:58 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:59 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:46:59 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:59 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:46:59 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:46:59 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:46:59 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:47:00 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:00 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:47:00 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:47:00 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:47:01 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:01 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:01 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:01 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:01 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:01 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:02 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:02 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:02 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:02 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:02 PM [express] GET /api/auth/user 404 in 5ms :: {"message":"User not found"}
+4:47:03 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+  status: 127,
+  signal: null,
+  output: [ null, null, null ],
+  pid: 17,
+  stdout: null,
+  stderr: null
+}
+4:47:03 PM [express] GET /api/auth/user 404 in 6ms :: {"message":"User not found"}
+4:47:03 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:03 PM [express] GET /api/auth/user 404 in 8ms :: {"message":"User not found"}
+4:47:03 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:04 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:04 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:47:04 PM [express] GET /api/auth/user 404 in 5ms :: {"message":"User not found"}
+4:47:05 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:05 PM [express] GET /api/auth/user 404 in 5ms :: {"message":"User not found"}
+4:47:05 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:05 PM [express] GET /api/auth/user 404 in 6ms :: {"message":"User not found"}
+4:47:05 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:06 PM [express] GET /api/auth/user 404 in 5ms :: {"message":"User not found"}
+4:47:06 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:06 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:06 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:06 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:47:06 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:07 PM [express] GET /api/auth/user 404 in 6ms :: {"message":"User not found"}
+4:47:07 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:07 PM [express] GET /api/auth/user 404 in 5ms :: {"message":"User not found"}
+4:47:07 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:47:08 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}
+4:47:08 PM [express] GET /api/auth/user 404 in 6ms :: {"message":"User not found"}
+4:47:08 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:47:08 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:47:08 PM [express] GET /api/auth/user 404 in 3ms :: {"message":"User not found"}
+4:47:08 PM [express] GET /api/auth/user 404 in 4ms :: {"message":"User not found"}

@@ -1,8 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
 import { registerRoutes } from "./routes";
+import { runMigrations } from "./run-migrations";
 
 const app = express();
 
@@ -81,9 +81,7 @@ app.use((req, res, next) => {
 (async () => {
   // Run database migrations on startup
   try {
-    console.log('[DB] Running database migrations...');
-    execSync('npm run db:push', { stdio: 'inherit' });
-    console.log('[DB] Database migrations completed successfully');
+    await runMigrations();
   } catch (error) {
     console.error('[DB] Database migration failed:', error);
     console.log('[DB] Attempting to continue anyway...');
