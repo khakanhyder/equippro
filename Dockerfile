@@ -18,6 +18,9 @@ COPY . .
 ENV NODE_ENV=production
 RUN npm run build
 
+# Build production server separately (doesn't import vite)
+RUN npx esbuild server/production.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+
 # Production stage
 FROM node:20-alpine AS production
 
