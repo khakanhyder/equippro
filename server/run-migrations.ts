@@ -1,6 +1,10 @@
 import pg from 'pg';
 
 const migrationSQL = `
+-- Drop tables with wrong schema to recreate them correctly
+DROP TABLE IF EXISTS matches CASCADE;
+DROP TABLE IF EXISTS wishlist_items CASCADE;
+
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -81,47 +85,51 @@ CREATE TABLE IF NOT EXISTS wishlist_projects (
 CREATE TABLE IF NOT EXISTS wishlist_items (
   id SERIAL PRIMARY KEY,
   project_id INTEGER NOT NULL REFERENCES wishlist_projects(id) ON DELETE CASCADE,
+  created_by TEXT NOT NULL,
   brand TEXT NOT NULL,
   model TEXT NOT NULL,
   category TEXT NOT NULL,
-  acceptable_conditions TEXT[] DEFAULT ARRAY[]::text[],
-  max_budget DECIMAL(10,2),
-  quantity INTEGER DEFAULT 1,
-  priority TEXT DEFAULT 'medium',
+  preferred_condition TEXT NOT NULL DEFAULT 'any',
+  location TEXT NOT NULL DEFAULT '',
+  max_budget DECIMAL(10,2) NOT NULL DEFAULT 0,
+  priority TEXT NOT NULL DEFAULT 'medium',
+  required_specs JSONB,
   notes TEXT,
-  match_status TEXT DEFAULT 'searching',
+  image_urls TEXT[],
+  document_urls TEXT[],
+  status TEXT NOT NULL DEFAULT 'active',
   market_price_range JSONB,
   price_source TEXT,
-  saved_documents JSONB,
+  price_breakdown TEXT,
   saved_marketplace_listings JSONB,
   saved_internal_matches JSONB,
   saved_search_results JSONB,
-  created_by TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 CREATE INDEX IF NOT EXISTS wishlist_items_project_id_idx ON wishlist_items (project_id);
+CREATE INDEX IF NOT EXISTS wishlist_items_status_idx ON wishlist_items (status);
 CREATE INDEX IF NOT EXISTS wishlist_items_created_by_idx ON wishlist_items (created_by);
 
 -- Matches table
 CREATE TABLE IF NOT EXISTS matches (
   id SERIAL PRIMARY KEY,
   wishlist_item_id INTEGER NOT NULL REFERENCES wishlist_items(id) ON DELETE CASCADE,
-  equipment_id INTEGER REFERENCES equipment(id) ON DELETE SET NULL,
+  equipment_id INTEGER REFERENCES equipment(id) ON DELETE CASCADE,
+  match_type TEXT NOT NULL,
+  confidence_score INTEGER NOT NULL DEFAULT 0,
+  match_details JSONB,
   external_source TEXT,
   external_url TEXT,
   external_title TEXT,
   external_price DECIMAL(10,2),
   external_condition TEXT,
-  match_type TEXT NOT NULL,
-  match_score DECIMAL(3,2),
-  status TEXT DEFAULT 'new',
-  result_type TEXT DEFAULT 'offer',
-  created_by TEXT NOT NULL,
+  external_listing_data JSONB,
+  status TEXT NOT NULL DEFAULT 'active',
   created_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 CREATE INDEX IF NOT EXISTS matches_wishlist_item_id_idx ON matches (wishlist_item_id);
-CREATE INDEX IF NOT EXISTS matches_equipment_id_idx ON matches (equipment_id);
+CREATE INDEX IF NOT EXISTS matches_status_idx ON matches (status);
 
 -- Bids table
 CREATE TABLE IF NOT EXISTS bids (

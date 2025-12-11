@@ -1,0 +1,92 @@
+6:07:33 PM [express] GET /api/auth/user 401 in 1ms :: {"message":"Unauthorized"}
+6:07:41 PM [express] POST /api/auth/signup 200 in 165ms :: {"username":"irtisamali2","email":null,"i…
+6:07:41 PM [express] GET /api/auth/user 200 in 9ms :: {"username":"irtisamali2","email":null,"id":"d…
+6:07:41 PM [express] GET /api/marketplace 200 in 31ms :: []
+6:07:45 PM [express] GET /api/auth/user 304 in 3ms :: {"username":"irtisamali2","email":null,"id":"d…
+6:07:45 PM [express] GET /api/wishlist-projects 200 in 15ms :: []
+6:07:45 PM [express] GET /api/wishlist-items 500 in 41ms :: {"message":"column \"preferred_condition…
+6:07:58 PM [express] POST /api/wishlist-projects 200 in 35ms :: {"id":1,"name":"Test Case 2","totalB…
+6:07:58 PM [express] GET /api/wishlist-projects 200 in 6ms :: [{"id":1,"name":"Test Case 2","totalBu…
+6:07:59 PM [express] GET /api/wishlist-items 500 in 11ms :: {"message":"column \"preferred_condition…
+6:08:13 PM [express] POST /api/upload 500 in 771ms :: {"message":"Region not accepted: region=\"Fran…
+6:08:13 PM [express] POST /api/upload 500 in 41ms :: {"message":"Region not accepted: region=\"Frank…
+6:08:14 PM [express] POST /api/upload 500 in 91ms :: {"message":"Region not accepted: region=\"Frank…
+Get wishlist items error: error: column "preferred_condition" does not exist
+    at /app/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///app/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async file:///app/dist/production.js:3020:23 {
+  length: 119,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '72',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn'
+}
+Get wishlist items error: error: column "preferred_condition" does not exist
+    at /app/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async file:///app/node_modules/drizzle-orm/node-postgres/session.js:83:22
+    at async file:///app/dist/production.js:3020:23 {
+  length: 119,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '72',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn'
+}
+Upload error: Error: Region not accepted: region="Frankfurt eu-central-2" is not a valid hostname component.
+    at checkRegion (/app/node_modules/@smithy/config-resolver/dist-cjs/index.js:84:19)
+    at region (/app/node_modules/@smithy/config-resolver/dist-cjs/index.js:109:13)
+    at _defaultS3HttpAuthSchemeParametersProvider (/app/node_modules/@aws-sdk/client-s3/dist-cjs/auth/httpAuthSchemeProvider.js:25:79)
+    at Object.httpAuthSchemeParametersProvider (/app/node_modules/@aws-sdk/client-s3/dist-cjs/auth/httpAuthSchemeProvider.js:13:37)
+    at /app/node_modules/@smithy/core/dist-cjs/index.js:40:67
+    at /app/node_modules/@aws-sdk/middleware-ssec/dist-cjs/index.js:40:16
+    at /app/node_modules/@aws-sdk/middleware-sdk-s3/dist-cjs/index.js:90:26
+    at /app/node_modules/@aws-sdk/middleware-sdk-s3/dist-cjs/index.js:527:16
+    at /app/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:5:32
+    at S3Client.send (/app/node_modules/@smithy/smithy-client/dist-cjs/index.js:45:20)
+Upload error: Error: Region not accepted: region="Frankfurt eu-central-2" is not a valid hostname component.
+    at checkRegion (/app/node_modules/@smithy/config-resolver/dist-cjs/index.js:84:19)
+    at region (/app/node_modules/@smithy/config-resolver/dist-cjs/index.js:109:13)
+    at _defaultS3HttpAuthSchemeParametersProvider (/app/node_modules/@aws-sdk/client-s3/dist-cjs/auth/httpAuthSchemeProvider.js:25:79)
+    at Object.httpAuthSchemeParametersProvider (/app/node_modules/@aws-sdk/client-s3/dist-cjs/auth/httpAuthSchemeProvider.js:13:37)
+    at /app/node_modules/@smithy/core/dist-cjs/index.js:40:67
+    at /app/node_modules/@aws-sdk/middleware-ssec/dist-cjs/index.js:40:16
+    at /app/node_modules/@aws-sdk/middleware-sdk-s3/dist-cjs/index.js:90:26
+    at /app/node_modules/@aws-sdk/middleware-sdk-s3/dist-cjs/index.js:527:16
+    at /app/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:5:32
+    at S3Client.send (/app/node_modules/@smithy/smithy-client/dist-cjs/index.js:45:20)
+Upload error: Error: Region not accepted: region="Frankfurt eu-central-2" is not a valid hostname component.
+    at checkRegion (/app/node_modules/@smithy/config-resolver/dist-cjs/index.js:84:19)
+    at region (/app/node_modules/@smithy/config-resolver/dist-cjs/index.js:109:13)
+    at _defaultS3HttpAuthSchemeParametersProvider (/app/node_modules/@aws-sdk/client-s3/dist-cjs/auth/httpAuthSchemeProvider.js:25:79)
+    at Object.httpAuthSchemeParametersProvider (/app/node_modules/@aws-sdk/client-s3/dist-cjs/auth/httpAuthSchemeProvider.js:13:37)
+    at /app/node_modules/@smithy/core/dist-cjs/index.js:40:67
+    at /app/node_modules/@aws-sdk/middleware-ssec/dist-cjs/index.js:40:16
+    at /app/node_modules/@aws-sdk/middleware-sdk-s3/dist-cjs/index.js:90:26
+    at /app/node_modules/@aws-sdk/middleware-sdk-s3/dist-cjs/index.js:527:16
+    at /app/node_modules/@aws-sdk/middleware-logger/dist-cjs/index.js:5:32
+    at S3Client.send (/app/node_modules/@smithy/smithy-client/dist-cjs/index.js:45:20)
