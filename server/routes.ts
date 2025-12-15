@@ -861,21 +861,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const analysis = await analyzeEquipmentFromImages(image_urls);
-      const specs = analysis.specifications || [];
+      
+      // Convert specifications from object to array format for consistency
+      const specsObject = analysis.specifications || {};
+      const specsArray = Object.entries(specsObject).map(([name, value]) => ({
+        name,
+        value: String(value),
+        unit: ''
+      }));
 
       res.json({
         success: true,
         steps: {
           image_analysis: { completed: true, confidence: 0.85 },
           manual_search: { completed: true, pdfs_found: 0 },
-          specification_extraction: { completed: true, specs_found: specs.length },
+          specification_extraction: { completed: true, specs_found: specsArray.length },
         },
         final_result: {
           brand: analysis.brand,
           model: analysis.model,
           category: analysis.category,
           description: analysis.description,
-          specifications: specs,
+          specifications: specsArray,
+          confidence: 85,
         },
       });
     } catch (error: any) {

@@ -495,6 +495,23 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
             form.setValue('priceSource', result.source || 'Market data');
             form.setValue('priceBreakdown', result.breakdown || null);
 
+            // Save marketplace listings from polling as price references
+            if (result.marketplace_listings && Array.isArray(result.marketplace_listings) && result.marketplace_listings.length > 0) {
+              const newListings = result.marketplace_listings.map((listing: any) => ({
+                url: listing.url || '',
+                title: listing.title || listing.source || 'Marketplace listing',
+                price: typeof listing.price === 'number' ? `€${listing.price.toLocaleString()}` : listing.price || '',
+                condition: listing.condition || '',
+                source: listing.source || '',
+                savedAt: new Date().toISOString()
+              }));
+              setSavedMarketplaceListings(prev => {
+                const existingUrls = new Set(prev.map(l => l.url));
+                const uniqueNewListings = newListings.filter((l: any) => l.url && !existingUrls.has(l.url));
+                return uniqueNewListings.length > 0 ? [...prev, ...uniqueNewListings] : prev;
+              });
+            }
+
             toast({
               title: "Real marketplace data ready!",
               description: result.totalListingsFound 
@@ -576,6 +593,24 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
       form.setValue('marketPriceRange', priceRange as any);
       form.setValue('priceSource', result.source || 'Market data');
       form.setValue('priceBreakdown', result.breakdown || null);
+
+      // Save marketplace listings from price scraping as price references
+      if (result.marketplace_listings && Array.isArray(result.marketplace_listings) && result.marketplace_listings.length > 0) {
+        const newListings = result.marketplace_listings.map((listing: any) => ({
+          url: listing.url || '',
+          title: listing.title || listing.source || 'Marketplace listing',
+          price: typeof listing.price === 'number' ? `€${listing.price.toLocaleString()}` : listing.price || '',
+          condition: listing.condition || '',
+          source: listing.source || '',
+          savedAt: new Date().toISOString()
+        }));
+        // Merge with existing (dedupe by URL)
+        const existingUrls = new Set(savedMarketplaceListings.map(l => l.url));
+        const uniqueNewListings = newListings.filter((l: any) => l.url && !existingUrls.has(l.url));
+        if (uniqueNewListings.length > 0) {
+          setSavedMarketplaceListings(prev => [...prev, ...uniqueNewListings]);
+        }
+      }
 
       // Reset fetch state - POST is complete
       setIsFetchingPrices(false);
@@ -1025,8 +1060,8 @@ export function WishlistItemForm({ projectId, existingItem, onSuccess, onCancel 
           </div>
         )}
 
-        {/* Saved Price References Section - Shown when editing with saved marketplace listings */}
-        {isEditMode && savedMarketplaceListings.length > 0 && (
+        {/* Saved Price References Section - Shown when there are saved marketplace listings */}
+        {savedMarketplaceListings.length > 0 && (
           <div className="p-4 border rounded-lg bg-green-50/50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
             <h4 className="text-sm font-semibold text-green-700 dark:text-green-400 mb-3 flex items-center">
               <DollarSign className="w-4 h-4 mr-2 shrink-0" />

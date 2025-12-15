@@ -471,6 +471,23 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
             form.setValue('priceSource', result.source || 'Market data');
             form.setValue('priceBreakdown', result.breakdown || null);
 
+            // Save marketplace listings from polling as price references
+            if (result.marketplace_listings && Array.isArray(result.marketplace_listings) && result.marketplace_listings.length > 0) {
+              const newListings = result.marketplace_listings.map((listing: any) => ({
+                url: listing.url || '',
+                title: listing.title || listing.source || 'Marketplace listing',
+                price: typeof listing.price === 'number' ? `€${listing.price.toLocaleString()}` : listing.price || '',
+                condition: listing.condition || '',
+                source: listing.source || '',
+                savedAt: new Date().toISOString()
+              }));
+              setSavedMarketplaceListings(prev => {
+                const existingUrls = new Set(prev.map(l => l.url));
+                const uniqueNewListings = newListings.filter((l: any) => l.url && !existingUrls.has(l.url));
+                return uniqueNewListings.length > 0 ? [...prev, ...uniqueNewListings] : prev;
+              });
+            }
+
             toast({
               title: "Real marketplace data ready!",
               description: result.totalListingsFound 
@@ -553,6 +570,24 @@ export function SurplusForm({ onSubmit, isSubmitting, initialData }: SurplusForm
       form.setValue('marketPriceRange', priceRange as any);
       form.setValue('priceSource', result.source || 'Market data');
       form.setValue('priceBreakdown', result.breakdown || null);
+
+      // Save marketplace listings from price scraping as price references
+      if (result.marketplace_listings && Array.isArray(result.marketplace_listings) && result.marketplace_listings.length > 0) {
+        const newListings = result.marketplace_listings.map((listing: any) => ({
+          url: listing.url || '',
+          title: listing.title || listing.source || 'Marketplace listing',
+          price: typeof listing.price === 'number' ? `€${listing.price.toLocaleString()}` : listing.price || '',
+          condition: listing.condition || '',
+          source: listing.source || '',
+          savedAt: new Date().toISOString()
+        }));
+        // Merge with existing (dedupe by URL)
+        const existingUrls = new Set(savedMarketplaceListings.map(l => l.url));
+        const uniqueNewListings = newListings.filter((l: any) => l.url && !existingUrls.has(l.url));
+        if (uniqueNewListings.length > 0) {
+          setSavedMarketplaceListings(prev => [...prev, ...uniqueNewListings]);
+        }
+      }
 
       // Reset fetch state - POST is complete
       setIsFetchingPrices(false);

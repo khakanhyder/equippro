@@ -3,7 +3,18 @@
 ## Overview
 Equipment Pro is a professional B2B marketplace platform for buying and selling research and industrial equipment. It features AI-powered equipment matching, real-time price discovery, and intelligent automation for trading workflows. The platform aims to connect scientific and industrial organizations for surplus equipment transactions, offering a comprehensive solution for managing equipment lifecycles from listing to sale.
 
-## Recent Updates (December 8, 2025)
+## Recent Updates (December 15, 2025)
+- **Marketplace Listings Persistence**: Price scraping now saves source URLs/listings to `savedMarketplaceListings`:
+  - Both initial fetch and background polling save marketplace_listings data
+  - Listings display as "Saved Price References" in both surplus and wishlist forms
+  - Data persists through save/edit cycle for full price context visibility
+- **Wishlist AI Analyze Fix**: `/api/analyze/complete-flow` now returns specifications in array format with proper field names (name, value, unit) matching frontend expectations
+- **Consistent Edit Experience**: Both surplus and wishlist forms now:
+  - Display saved marketplace listings when editing (not just in edit mode)
+  - Restore complete market price context including source URLs
+  - Save marketplace_listings from price scraping to database
+
+## Previous Updates (December 8, 2025)
 - **Search Result Classification System**: Nine-rule decision tree for offer vs documentation differentiation:
   - Shared utility in `server/utils/result-classifier.ts` used by both API and tests
   - Marketplace domains (eBay, LabX, DotMed, etc.) → always classified as "offer"
