@@ -7,9 +7,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install ALL dependencies including devDependencies (required for vite build)
+# Explicitly unset NODE_ENV to ensure devDependencies are installed
 ENV NODE_ENV=development
-# Add ONLY this memory optimization - less aggressive
-ENV NODE_OPTIONS="--max-old-space-size=1536"
 RUN npm ci
 
 # Copy source code
